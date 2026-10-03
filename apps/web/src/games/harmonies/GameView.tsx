@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from 'react';
 import { playerName, type GameViewProps } from '../types';
 import { AnimalCardView } from './components/AnimalCardView';
+import { CompletedCards } from './components/CompletedCards';
 import { HexBoard } from './components/HexBoard';
 import { PlayerPanel } from './components/PlayerPanel';
 import { ScoringGuide } from './components/ScoringGuide';
@@ -74,6 +75,8 @@ export function HarmoniesGameView({
           : legal.canEndTurn
             ? 'You may take a card or place an animal, then end your turn.'
             : null;
+
+  const inProgress = myBoard?.cards.filter((entry) => !entry.complete) ?? [];
 
   // Everyone but the viewer, in play order. A spectator sees every board this way.
   const others = view.turnOrder.filter((playerId) => playerId !== me || !myBoard);
@@ -183,13 +186,14 @@ export function HarmoniesGameView({
                       </button>
                     </div>
                   )}
-                  {myBoard.cards.length === 0 ? (
+                  {myBoard.cards.length === 0 && (
                     <p className="muted hint">
                       You have no animal cards yet. Take one from the row below.
                     </p>
-                  ) : (
+                  )}
+                  {inProgress.length > 0 && (
                     <div className="harmonies-cards">
-                      {myBoard.cards.map(({ card, cubesPlaced, complete }) => {
+                      {inProgress.map(({ card, cubesPlaced }) => {
                         const selected = selection?.kind === 'card' && selection.cardId === card.id;
                         const canPlace = isMyTurn && (legal.cubeCells[card.id]?.length ?? 0) > 0;
                         return (
@@ -199,28 +203,23 @@ export function HarmoniesGameView({
                             cubesPlaced={cubesPlaced}
                             selected={selected}
                             action={
-                              complete ? (
-                                <span className="muted">Complete</span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={!canPlace}
-                                  aria-pressed={selected}
-                                  onClick={() =>
-                                    setSelection(
-                                      selected ? null : { kind: 'card', cardId: card.id },
-                                    )
-                                  }
-                                >
-                                  {selected ? 'Cancel' : 'Place animal'}
-                                </button>
-                              )
+                              <button
+                                type="button"
+                                disabled={!canPlace}
+                                aria-pressed={selected}
+                                onClick={() =>
+                                  setSelection(selected ? null : { kind: 'card', cardId: card.id })
+                                }
+                              >
+                                {selected ? 'Cancel' : 'Place animal'}
+                              </button>
                             }
                           />
                         );
                       })}
                     </div>
                   )}
+                  <CompletedCards cards={myBoard.cards.filter((entry) => entry.complete)} />
                 </div>
               </div>
             </section>

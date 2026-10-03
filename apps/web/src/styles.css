@@ -624,6 +624,16 @@ td {
   border-color: var(--accent);
 }
 
+.harmonies-completed summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.harmonies-completed .harmonies-cards {
+  margin-top: 0.5rem;
+}
+
 .animal-card.compact {
   width: 5.2rem;
   padding: 0.35rem;
