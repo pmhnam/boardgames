@@ -368,6 +368,17 @@ td {
   stroke-width: 1;
 }
 
+/* The lower token of a building: any of grey, brown or red. */
+.hex-any-base {
+  fill: var(--muted);
+  stroke-dasharray: 3 2;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
 .hex-height {
   font-size: 11px;
   font-weight: 700;

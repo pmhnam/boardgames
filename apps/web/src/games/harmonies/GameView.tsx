@@ -138,6 +138,10 @@ export function HarmoniesGameView({
         <h2>
           Animal cards <span className="muted">({view.cardDeckCount} in the deck)</span>
         </h2>
+        <p className="muted hint">
+          Each card shows the exact stacks its animal needs; the number is the stack&apos;s height.
+          A building is a red token on top of a grey, brown or red one.
+        </p>
         <div className="row wrap">
           {view.cardRiver.map((card) => (
             <AnimalCardView
