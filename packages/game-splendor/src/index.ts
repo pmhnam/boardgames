@@ -1,5 +1,6 @@
 import type { GameDefinition, GameModule } from '@bgp/game-core';
 import { MAX_PLAYERS, MIN_PLAYERS, SPLENDOR_GAME_TYPE } from './domain/config.js';
+import { SplendorBot } from './bot/bot.js';
 import { SplendorEngine } from './engine/engine.js';
 
 export const SplendorDefinition: GameDefinition = {
@@ -7,16 +8,17 @@ export const SplendorDefinition: GameDefinition = {
   displayName: 'Splendor',
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  supportsBots: false,
+  supportsBots: true,
   supportsSpectators: true,
 };
 
 export const SplendorGame: GameModule<SplendorEngine> = {
   definition: SplendorDefinition,
   engine: new SplendorEngine(),
+  bot: SplendorBot,
 };
 
-export { SplendorEngine };
+export { SplendorBot, SplendorEngine };
 export { MARKET_SIZE, MAX_RESERVED, SPLENDOR_GAME_TYPE, TOKEN_LIMIT } from './domain/config.js';
 export { SplendorRuleCodes } from './domain/errors.js';
 export { DEFAULT_SPLENDOR_CONFIG } from './domain/game-config.js';
