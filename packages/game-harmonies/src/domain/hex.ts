@@ -35,15 +35,12 @@ function rotate60(hex: Hex): Hex {
   return { q: -hex.r, r: hex.q + hex.r };
 }
 
-function reflect(hex: Hex): Hex {
-  return { q: hex.r, r: hex.q };
-}
-
-/** The 12 symmetries of the hex grid (6 rotations, each optionally mirrored). */
-export const HEX_SYMMETRIES: ReadonlyArray<(hex: Hex) => Hex> = [false, true].flatMap((mirror) =>
-  [0, 1, 2, 3, 4, 5].map((turns) => (hex: Hex): Hex => {
-    let result = mirror ? reflect(hex) : hex;
-    for (let i = 0; i < turns; i++) result = rotate60(result);
-    return result;
-  }),
+/** The six rotations of the hex grid. Mirror images are deliberately not included. */
+export const HEX_ROTATIONS: ReadonlyArray<(hex: Hex) => Hex> = [0, 1, 2, 3, 4, 5].map(
+  (turns) =>
+    (hex: Hex): Hex => {
+      let result = hex;
+      for (let i = 0; i < turns; i++) result = rotate60(result);
+      return result;
+    },
 );

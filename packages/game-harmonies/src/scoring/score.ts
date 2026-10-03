@@ -1,5 +1,6 @@
 import { classifyStack, stackAt, type PlayerBoard } from '../domain/board.js';
-import { getCard, type AnimalCard } from '../domain/cards.js';
+import { getCard, getCardPoints, type AnimalCard } from '../domain/cards.js';
+import type { HarmoniesConfig } from '../domain/game-config.js';
 import { hexKey, hexNeighbours, parseHexKey, type Hex } from '../domain/hex.js';
 import type { HarmoniesState } from '../domain/state.js';
 
@@ -20,6 +21,7 @@ const BUILDING_MIN_NEIGHBOUR_COLORS = 3;
 /** Index = river length. Longer rivers add RIVER_EXTRA_POINTS per cell. */
 const RIVER_POINTS = [0, 0, 2, 5, 8, 11, 15];
 const RIVER_EXTRA_POINTS = 4;
+const ISLAND_POINTS = 5;
 
 /** Scoring reads only what has been built, so it needs no knowledge of the board's shape. */
 function cellsOfKind(board: PlayerBoard, kind: string): Hex[] {
@@ -45,7 +47,7 @@ export function scoreMountains(board: PlayerBoard): number {
     .reduce((sum, cell) => sum + (HEIGHT_POINTS[stackAt(board, cell).length] ?? 0), 0);
 }
 
-function connectedGroups(cells: Hex[]): Hex[][] {
+function connectedGroups(cells: readonly Hex[]): Hex[][] {
   const remaining = new Map(cells.map((cell) => [hexKey(cell), cell]));
   const groups: Hex[][] = [];
   for (const start of cells) {
@@ -114,29 +116,52 @@ export function riverPoints(length: number): number {
 }
 
 /** Only the longest river scores. */
-export function scoreWater(board: PlayerBoard): number {
+export function scoreRiver(board: PlayerBoard): number {
   const longest = Math.max(0, ...connectedGroups(cellsOfKind(board, 'water')).map(riverLength));
   return riverPoints(longest);
 }
 
+/**
+ * An island is an area of board cells, built on or empty, that water and the board's edge
+ * separate from the rest. A board with no water at all is therefore a single island.
+ */
+export function countIslands(boardCells: readonly Hex[], board: PlayerBoard): number {
+  const land = boardCells.filter((cell) => stackAt(board, cell).at(-1) !== 'water');
+  return connectedGroups(land).length;
+}
+
+/** Every island scores 5. */
+export function scoreIslands(boardCells: readonly Hex[], board: PlayerBoard): number {
+  return countIslands(boardCells, board) * ISLAND_POINTS;
+}
+
+export function scoreWater(
+  config: Pick<HarmoniesConfig, 'boardCells' | 'waterScoring'>,
+  board: PlayerBoard,
+): number {
+  switch (config.waterScoring) {
+    case 'islands':
+      return scoreIslands(config.boardCells, board);
+    case 'river':
+      return scoreRiver(board);
+  }
+}
+
 export function scoreAnimals(cards: readonly AnimalCard[], board: PlayerBoard): number {
   return board.cards.reduce(
-    (sum, owned) => sum + (getCard(cards, owned.cardId).points[owned.cubesPlaced - 1] ?? 0),
+    (sum, owned) => sum + getCardPoints(getCard(cards, owned.cardId), owned.cubesPlaced),
     0,
   );
 }
 
-export function calculateBoardScore(
-  cards: readonly AnimalCard[],
-  board: PlayerBoard,
-): ScoreBreakdown {
+export function calculateBoardScore(config: HarmoniesConfig, board: PlayerBoard): ScoreBreakdown {
   const parts = {
     trees: scoreTrees(board),
     mountains: scoreMountains(board),
     fields: scoreFields(board),
     buildings: scoreBuildings(board),
-    water: scoreWater(board),
-    animals: scoreAnimals(cards, board),
+    water: scoreWater(config, board),
+    animals: scoreAnimals(config.cards, board),
   };
   return { ...parts, total: Object.values(parts).reduce((sum, value) => sum + value, 0) };
 }
@@ -148,7 +173,7 @@ export function calculateScores(
     state.turnOrder.map((playerId) => {
       const board = state.boards[playerId];
       if (!board) throw new Error(`No board for player ${playerId}`);
-      return [playerId, calculateBoardScore(state.config.cards, board)];
+      return [playerId, calculateBoardScore(state.config, board)];
     }),
   );
 }

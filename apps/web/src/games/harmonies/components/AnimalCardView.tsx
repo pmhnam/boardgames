@@ -1,27 +1,26 @@
-import type { AnimalCard, TerrainRequirement } from '@bgp/game-harmonies';
+import type { AnimalCard, HabitatCell } from '@bgp/game-harmonies';
 import type { ReactNode } from 'react';
-import { TERRAIN_FILL, TERRAIN_LABEL, boundsOf, hexCentre, hexPoints } from '../layout';
+import { CARD_TERRAIN_FILL, CARD_TERRAIN_LABEL, boundsOf, hexCentre, hexPoints } from '../layout';
 
 const SIZE = 13;
 
-function describe(requirement: TerrainRequirement): string {
-  const height = requirement.height === undefined ? '' : ` (height ${requirement.height})`;
-  return `${TERRAIN_LABEL[requirement.kind]}${height}`;
+function describe(cell: HabitatCell): string {
+  const height = cell.terrain === 'TREE' || cell.terrain === 'MOUNTAIN' ? ` ${cell.height}` : '';
+  return `${CARD_TERRAIN_LABEL[cell.terrain]}${height}`;
+}
+
+export function cardTitle(card: AnimalCard): string {
+  return card.name ?? (card.sourceId === undefined ? card.id : `#${card.sourceId}`);
 }
 
 /** The habitat as a small diagram: the marked cell is where the animal cube goes. */
 function HabitatDiagram({ card }: { card: AnimalCard }) {
-  const cells = [
-    { offset: { q: 0, r: 0 }, requires: card.cubeOn, isCube: true },
-    ...card.habitat.map((cell) => ({ ...cell, isCube: false })),
-  ];
-  const bounds = boundsOf(
-    cells.map((cell) => cell.offset),
-    SIZE,
-    2,
-  );
-  const summary = `Animal on ${describe(card.cubeOn)}, next to ${card.habitat
-    .map((cell) => describe(cell.requires))
+  const { cells } = card.habitat;
+  const bounds = boundsOf(cells, SIZE, 2);
+  const slot = cells.find((cell) => cell.animalSlot);
+  const summary = `Animal on ${slot ? describe(slot) : '?'}, with ${cells
+    .filter((cell) => !cell.animalSlot)
+    .map(describe)
     .join(' and ')}`;
 
   return (
@@ -34,20 +33,21 @@ function HabitatDiagram({ card }: { card: AnimalCard }) {
     >
       <title>{summary}</title>
       {cells.map((cell, index) => {
-        const { x, y } = hexCentre(cell.offset, SIZE);
+        const { x, y } = hexCentre(cell, SIZE);
+        const showHeight = cell.terrain === 'TREE' || cell.terrain === 'MOUNTAIN';
         return (
           <g key={index}>
             <polygon
               className="hex-token"
               points={hexPoints(x, y, SIZE - 1)}
-              fill={TERRAIN_FILL[cell.requires.kind]}
+              fill={CARD_TERRAIN_FILL[cell.terrain]}
             />
-            {cell.isCube && (
+            {cell.animalSlot && (
               <rect className="hex-cube" x={x - 4} y={y - 4} width={8} height={8} rx={1} />
             )}
-            {cell.requires.height !== undefined && (
+            {showHeight && (
               <text className="hex-height small" x={x + 4} y={y + 9}>
-                {cell.requires.height}
+                {cell.height}
               </text>
             )}
           </g>
@@ -68,10 +68,10 @@ interface AnimalCardViewProps {
 export function AnimalCardView({ card, cubesPlaced, selected, action }: AnimalCardViewProps) {
   return (
     <div className={selected ? 'animal-card selected' : 'animal-card'}>
-      <strong>{card.name}</strong>
+      <strong>{cardTitle(card)}</strong>
       <HabitatDiagram card={card} />
       <ol className="card-points" aria-label="Points by number of animals placed">
-        {card.points.map((points, index) => (
+        {card.pointsByAnimalsPlaced.slice(1).map((points, index) => (
           <li
             key={index}
             className={cubesPlaced !== undefined && index < cubesPlaced ? 'done' : undefined}

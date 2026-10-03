@@ -69,8 +69,15 @@ docs/
 central board, stack them into trees, mountains, fields, buildings and water on your own hex
 board, and place animals on matching habitats. Two caveats:
 
-- The default 24 animal cards are an original placeholder set, not the published cards. They
-  are part of the game's config, so they can be replaced without touching code (see below).
+- The default deck is the 32 animal cards of the base set (habitats and scores). Their
+  Vietnamese names were chosen for this project; the source data has none. Cards are part of
+  the game's config, so they can be changed without touching code (see below).
+- A habitat only counts when every cell is in its exact place around the animal, at its exact
+  height, in one of six rotations. Mirror images do not count.
+- Water scores 5 points per island (side B of the printed board) by default. Set
+  `waterScoring` to `river` in the game's config to score the longest river instead (side A).
+- A player may hold at most three unfinished animal cards; a card stops counting once all its
+  animals are placed.
 - Harmonies is a commercial game. Its name, artwork and card set belong to its publisher; get a
   licence before shipping this beyond private use.
 
@@ -80,7 +87,7 @@ implementation of the engine contract.
 ## Game configuration
 
 Each game's tunable data lives in the database, not in code. For Harmonies that is the board
-shape, the animal cards and the number of tokens of each colour. The first boot seeds version 1
+shape, the animal cards, the number of tokens of each colour and how water scores. The first boot seeds version 1
 from the engine's defaults; after that the database is the source of truth.
 
 ```bash

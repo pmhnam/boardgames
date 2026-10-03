@@ -2,7 +2,7 @@ import { createSeededRandom } from '@bgp/game-core';
 import { deepFreeze, runMatch, seats, type ScriptedAction } from '@bgp/game-core/testing';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BOARD_CELLS, classifyStack } from '../src/domain/board.js';
-import { getCard } from '../src/domain/cards.js';
+import { getCard, getCubeCount } from '../src/domain/cards.js';
 import type { HarmoniesState } from '../src/domain/state.js';
 import { HarmoniesRuleCodes, type HarmoniesAction } from '../src/index.js';
 import { canStack } from '../src/rules/token-placement.rules.js';
@@ -224,7 +224,7 @@ describe('animal cards', () => {
     );
   });
 
-  it('limits a player to four unfinished cards', () => {
+  it('limits a player to three unfinished cards', () => {
     const state = newGame();
     const river = state.cardRiver[0] as string;
     const others = cards.map((card) => card.id).filter((id) => !state.cardRiver.includes(id));
@@ -236,21 +236,21 @@ describe('animal cards', () => {
           {
             cards: others.slice(0, count).map((cardId, index) => ({
               cardId,
-              cubesPlaced: index < done ? getCard(cards, cardId).points.length : 0,
+              cubesPlaced: index < done ? getCubeCount(getCard(cards, cardId)) : 0,
             })),
           },
         ),
       );
 
     expectRejected(
-      holding(4),
+      holding(3),
       { type: 'TAKE_CARD', cardId: river },
       HarmoniesRuleCodes.TooManyCards,
     );
     // A completed card frees its slot.
     expect(
       engine.validateAction(
-        holding(4, 1),
+        holding(3, 1),
         { type: 'TAKE_CARD', cardId: river },
         context(active(state)),
       ),
@@ -263,19 +263,19 @@ describe('animal cards', () => {
     const state = withActiveBoard(
       newGame(),
       boardWith(
-        { '2,1': ['water'], '3,1': ['field'] },
-        { cards: [{ cardId: 'heron', cubesPlaced: 0 }] },
+        { '2,1': ['water'], '3,1': ['leaf'] },
+        { cards: [{ cardId: 'animal-05', cubesPlaced: 0 }] },
       ),
     );
     const me = active(state);
-    const cube = { type: 'PLACE_CUBE', cardId: 'heron', cell: { q: 2, r: 1 } } as const;
+    const cube = { type: 'PLACE_CUBE', cardId: 'animal-05', cell: { q: 2, r: 1 } } as const;
 
     expectRejected(state, { ...cube, cell: { q: 3, r: 1 } }, HarmoniesRuleCodes.HabitatNotMatched);
-    expectRejected(state, { ...cube, cardId: 'frog' }, HarmoniesRuleCodes.CardNotOwned);
+    expectRejected(state, { ...cube, cardId: 'animal-04' }, HarmoniesRuleCodes.CardNotOwned);
 
     const placed = apply(state, cube);
     expect(placed.boards[me]?.cubes).toEqual(['2,1']);
-    expect(placed.boards[me]?.cards).toEqual([{ cardId: 'heron', cubesPlaced: 1 }]);
+    expect(placed.boards[me]?.cards).toEqual([{ cardId: 'animal-05', cubesPlaced: 1 }]);
     expect(engine.getPublicView(placed, { type: 'spectator' }).scores[me]?.animals).toBe(2);
 
     // The same cell cannot take a second animal, and cannot be built on.
@@ -286,13 +286,13 @@ describe('animal cards', () => {
     const state = withActiveBoard(
       newGame(),
       boardWith(
-        { '2,1': ['water'], '3,1': ['field'] },
-        { cards: [{ cardId: 'heron', cubesPlaced: 4 }] },
+        { '2,1': ['water'], '3,1': ['leaf'] },
+        { cards: [{ cardId: 'animal-05', cubesPlaced: 5 }] },
       ),
     );
     expectRejected(
       state,
-      { type: 'PLACE_CUBE', cardId: 'heron', cell: { q: 2, r: 1 } },
+      { type: 'PLACE_CUBE', cardId: 'animal-05', cell: { q: 2, r: 1 } },
       HarmoniesRuleCodes.CardCompleted,
     );
   });
@@ -353,15 +353,18 @@ describe('end of game', () => {
       finalRound: true,
       turn: { ...base.turn, activePlayerId: second, tokensTaken: true },
       boards: {
-        // 2 points each: a river of two against one animal cube.
-        [first]: boardWith({ '0,0': ['water'], '0,1': ['water'] }),
-        [second]: boardWith({}, { cards: [{ cardId: 'heron', cubesPlaced: 1 }], cubes: ['0,0'] }),
+        // 7 points each (5 of them for the one island): two small trees against one animal.
+        [first]: boardWith({ '0,0': ['leaf'], '4,0': ['leaf'] }),
+        [second]: boardWith(
+          {},
+          { cards: [{ cardId: 'animal-05', cubesPlaced: 1 }], cubes: ['0,0'] },
+        ),
       },
     });
     const finished = apply(state, { type: 'END_TURN' }, second);
     expect(engine.getResult(finished)).toEqual({
       winnerPlayerIds: [second],
-      scores: { [first]: 2, [second]: 2 },
+      scores: { [first]: 7, [second]: 7 },
     });
   });
 });
@@ -442,7 +445,7 @@ describe('full matches', () => {
         for (const key of board.cubes)
           expect(classifyStack(board.stacks[key] ?? [])).not.toBeNull();
         for (const card of board.cards) {
-          expect(card.cubesPlaced).toBeLessThanOrEqual(getCard(cards, card.cardId).points.length);
+          expect(card.cubesPlaced).toBeLessThanOrEqual(getCubeCount(getCard(cards, card.cardId)));
         }
         expect(board.cubes).toHaveLength(
           board.cards.reduce((sum, card) => sum + card.cubesPlaced, 0),

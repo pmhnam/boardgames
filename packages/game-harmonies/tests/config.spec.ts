@@ -7,13 +7,18 @@ import { config as defaults, context, engine } from './fixtures/states.js';
 const custom: HarmoniesConfig = {
   boardCells: [0, 1, 2].flatMap((q) => [0, 1, 2].map((r) => ({ q, r }))),
   tokenCounts: { water: 10, mountain: 0, trunk: 0, leaf: 10, field: 10, building: 0 },
+  waterScoring: 'river',
   cards: [
     {
       id: 'newt',
-      name: 'Newt',
-      cubeOn: { kind: 'water' },
-      habitat: [{ offset: { q: 1, r: 0 }, requires: { kind: 'tree', height: 1 } }],
-      points: [6],
+      name: 'Sa giông',
+      pointsByAnimalsPlaced: [0, 6],
+      habitat: {
+        cells: [
+          { q: 0, r: 0, terrain: 'WATER', height: 1, animalSlot: true },
+          { q: 1, r: 0, terrain: 'TREE', height: 1, animalSlot: false },
+        ],
+      },
     },
   ],
 };
@@ -22,6 +27,16 @@ function withConfig(patch: (config: Record<string, unknown>) => void): unknown {
   const copy = JSON.parse(JSON.stringify(defaults)) as Record<string, unknown>;
   patch(copy);
   return copy;
+}
+
+type RawCard = Record<string, unknown> & { habitat: unknown };
+type RawCell = Record<string, unknown>;
+
+const cells = (card: RawCard): RawCell[] => (card.habitat as { cells: RawCell[] }).cells;
+
+/** The default config with its first card altered. */
+function withCard(patch: (card: RawCard) => void): unknown {
+  return withConfig((config) => patch((config.cards as RawCard[])[0]!));
 }
 
 describe('parseConfig', () => {
@@ -34,6 +49,14 @@ describe('parseConfig', () => {
       ok: true,
       config: custom,
     });
+  });
+
+  it('defaults water scoring to islands when a stored config predates the setting', () => {
+    const result = engine.parseConfig(withConfig((config) => delete config.waterScoring));
+    expect(result).toMatchObject({ ok: true, config: { waterScoring: 'islands' } });
+    expect(
+      engine.parseConfig(withConfig((config) => (config.waterScoring = 'river'))),
+    ).toMatchObject({ ok: true, config: { waterScoring: 'river' } });
   });
 
   it('keeps only the fields it knows', () => {
@@ -74,40 +97,32 @@ describe('parseConfig', () => {
       'a duplicate card id',
       withConfig((c) => (c.cards as unknown[]).push((c.cards as unknown[])[0])),
     ],
-    [
-      'an unknown terrain',
-      withConfig(
-        (c) => ((c.cards as Array<Record<string, unknown>>)[0]!.cubeOn = { kind: 'lava' }),
-      ),
-    ],
+    ['an unknown terrain', withCard((card) => (cells(card)[0]!.terrain = 'LAVA'))],
     [
       'a height the stacking rules cannot reach',
-      withConfig(
-        (c) =>
-          ((c.cards as Array<Record<string, unknown>>)[0]!.cubeOn = { kind: 'water', height: 2 }),
+      withCard((card) => Object.assign(cells(card)[0]!, { terrain: 'WATER', height: 2 })),
+    ],
+    [
+      'a habitat with no animal slot',
+      withCard((card) => cells(card).forEach((c) => (c.animalSlot = false))),
+    ],
+    [
+      'a habitat with two animal slots',
+      withCard((card) => cells(card).forEach((c) => (c.animalSlot = true))),
+    ],
+    [
+      'two habitat cells in the same place',
+      withCard((card) =>
+        Object.assign(cells(card)[1]!, { q: cells(card)[0]!.q, r: cells(card)[0]!.r }),
       ),
     ],
     [
-      'a habitat on the animal’s own cell',
-      withConfig(
-        (c) =>
-          ((c.cards as Array<Record<string, unknown>>)[0]!.habitat = [
-            { offset: { q: 0, r: 0 }, requires: { kind: 'field' } },
-          ]),
-      ),
+      'a habitat of a single cell',
+      withCard((card) => (card.habitat = { cells: [cells(card)[0]] })),
     ],
-    [
-      'an empty habitat',
-      withConfig((c) => ((c.cards as Array<Record<string, unknown>>)[0]!.habitat = [])),
-    ],
-    [
-      'a card with no points',
-      withConfig((c) => ((c.cards as Array<Record<string, unknown>>)[0]!.points = [])),
-    ],
-    [
-      'points that go down',
-      withConfig((c) => ((c.cards as Array<Record<string, unknown>>)[0]!.points = [5, 3])),
-    ],
+    ['a card with no animals', withCard((card) => (card.pointsByAnimalsPlaced = [0]))],
+    ['points that go down', withCard((card) => (card.pointsByAnimalsPlaced = [0, 5, 3]))],
+    ['an unknown water scoring', withConfig((c) => (c.waterScoring = 'lakes'))],
   ];
 
   it.each(invalid)('rejects %s', (_label, raw) => {

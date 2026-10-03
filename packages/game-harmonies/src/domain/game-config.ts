@@ -1,11 +1,13 @@
 import type { ParseConfigResult } from '@bgp/game-core';
-import { DEFAULT_BOARD_CELLS, TERRAIN_KINDS, type TerrainKind } from './board.js';
+import { DEFAULT_BOARD_CELLS, type TerrainKind } from './board.js';
 import {
-  DEFAULT_ANIMAL_CARDS,
+  CARD_TERRAINS,
+  TERRAIN_KIND_OF,
   type AnimalCard,
+  type CardTerrain,
   type HabitatCell,
-  type TerrainRequirement,
 } from './cards.js';
+import { DEFAULT_ANIMAL_CARDS } from './default-cards.js';
 import { CENTRAL_SPACE_COUNT, END_TRIGGER_EMPTY_CELLS, TOKENS_PER_SPACE } from './config.js';
 import { hexKey, type Hex } from './hex.js';
 import { DEFAULT_TOKEN_COUNTS, TOKEN_COLORS, type TokenColor } from './tokens.js';
@@ -18,20 +20,29 @@ export interface HarmoniesConfig {
   tokenCounts: Record<TokenColor, number>;
   /** The animal card deck. */
   cards: AnimalCard[];
+  /**
+   * How water scores, matching the two sides of the printed board:
+   * - `islands`: 5 points for each island, i.e. each separate area of non-water cells;
+   * - `river`: only the longest river scores (0, 2, 5, 8, 11, 15, then +4 per extra cell).
+   */
+  waterScoring: WaterScoring;
 }
+
+export const WATER_SCORING_MODES = ['islands', 'river'] as const;
+
+export type WaterScoring = (typeof WATER_SCORING_MODES)[number];
+
+const DEFAULT_WATER_SCORING: WaterScoring = 'islands';
 
 export const DEFAULT_HARMONIES_CONFIG: HarmoniesConfig = {
   boardCells: DEFAULT_BOARD_CELLS.map((cell) => ({ ...cell })),
   tokenCounts: { ...DEFAULT_TOKEN_COUNTS },
   cards: DEFAULT_ANIMAL_CARDS.map((card) => ({
     ...card,
-    cubeOn: { ...card.cubeOn },
-    habitat: card.habitat.map((cell) => ({
-      offset: { ...cell.offset },
-      requires: { ...cell.requires },
-    })),
-    points: [...card.points],
+    pointsByAnimalsPlaced: [...card.pointsByAnimalsPlaced],
+    habitat: { cells: card.habitat.cells.map((cell) => ({ ...cell })) },
   })),
+  waterScoring: DEFAULT_WATER_SCORING,
 };
 
 const MIN_BOARD_CELLS = END_TRIGGER_EMPTY_CELLS + 5;
@@ -40,8 +51,9 @@ const MAX_COORDINATE = 20;
 const MAX_TOKENS_PER_COLOR = 200;
 const MIN_TOTAL_TOKENS = CENTRAL_SPACE_COUNT * TOKENS_PER_SPACE;
 const MAX_CARDS = 100;
-const MAX_HABITAT_CELLS = 4;
-const MAX_HABITAT_OFFSET = 2;
+const MIN_HABITAT_CELLS = 2;
+const MAX_HABITAT_CELLS = 6;
+const MAX_HABITAT_COORDINATE = 4;
 const MAX_CUBES_PER_CARD = 8;
 const MAX_NAME_LENGTH = 40;
 
@@ -117,36 +129,46 @@ function parseTokenCounts(raw: unknown): Record<TokenColor, number> {
   return counts;
 }
 
-function parseRequirement(raw: unknown, what: string): TerrainRequirement {
-  if (!isRecord(raw)) fail(`${what} must be an object.`);
-  const kind = raw.kind;
-  if (typeof kind !== 'string' || !(TERRAIN_KINDS as readonly string[]).includes(kind)) {
-    fail(`${what}.kind must be one of: ${TERRAIN_KINDS.join(', ')}.`);
-  }
-  const terrain = kind as TerrainKind;
-  if (raw.height === undefined || raw.height === null) return { kind: terrain };
-  if (!POSSIBLE_HEIGHTS[terrain].includes(raw.height as number)) {
-    fail(`${what}.height must be one of ${POSSIBLE_HEIGHTS[terrain].join(', ')} for ${terrain}.`);
-  }
-  return { kind: terrain, height: raw.height as number };
-}
+function parseHabitatCells(raw: unknown, what: string): HabitatCell[] {
+  if (!isRecord(raw)) fail(`${what} must be an object with a cells list.`);
+  const cells = parseArray(raw.cells, `${what}.cells`, MIN_HABITAT_CELLS, MAX_HABITAT_CELLS).map(
+    (cell, index): HabitatCell => {
+      const at = `${what}.cells[${index}]`;
+      if (!isRecord(cell)) fail(`${at} must be an object.`);
+      const { q, r } = parseHex(cell, at, MAX_HABITAT_COORDINATE);
 
-function parseHabitat(raw: unknown, what: string): HabitatCell[] {
-  const habitat = parseArray(raw, what, 1, MAX_HABITAT_CELLS).map((cell, index) => {
-    const at = `${what}[${index}]`;
-    if (!isRecord(cell)) fail(`${at} must be an object.`);
-    const offset = parseHex(cell.offset, `${at}.offset`, MAX_HABITAT_OFFSET);
-    if (offset.q === 0 && offset.r === 0) fail(`${at}.offset must not be the animal's own cell.`);
-    return { offset, requires: parseRequirement(cell.requires, `${at}.requires`) };
-  });
-  if (new Set(habitat.map((cell) => hexKey(cell.offset))).size !== habitat.length) {
-    fail(`${what} uses the same offset twice.`);
+      const terrain = cell.terrain;
+      if (typeof terrain !== 'string' || !(CARD_TERRAINS as readonly string[]).includes(terrain)) {
+        fail(`${at}.terrain must be one of: ${CARD_TERRAINS.join(', ')}.`);
+      }
+      const possible = POSSIBLE_HEIGHTS[TERRAIN_KIND_OF[terrain as CardTerrain]];
+      if (!possible.includes(cell.height as number)) {
+        fail(`${at}.height must be one of ${possible.join(', ')} for ${terrain}.`);
+      }
+      if (typeof cell.animalSlot !== 'boolean') fail(`${at}.animalSlot must be true or false.`);
+
+      return {
+        q,
+        r,
+        terrain: terrain as CardTerrain,
+        height: cell.height as number,
+        animalSlot: cell.animalSlot,
+      };
+    },
+  );
+
+  if (new Set(cells.map(hexKey)).size !== cells.length) {
+    fail(`${what}.cells uses the same position twice.`);
   }
-  return habitat;
+  if (cells.filter((cell) => cell.animalSlot).length !== 1) {
+    fail(`${what}.cells must mark exactly one cell as the animalSlot.`);
+  }
+  return cells;
 }
 
 function parsePoints(raw: unknown, what: string): number[] {
-  const points = parseArray(raw, what, 1, MAX_CUBES_PER_CARD).map((value, index) =>
+  // Entry 0 is the score with no animals placed, so a card needs at least two entries.
+  const points = parseArray(raw, what, 2, MAX_CUBES_PER_CARD + 1).map((value, index) =>
     parseInteger(value, `${what}[${index}]`, 0, 1000),
   );
   if (points.some((value, index) => index > 0 && value < (points[index - 1] ?? 0))) {
@@ -156,21 +178,34 @@ function parsePoints(raw: unknown, what: string): number[] {
 }
 
 function parseCards(raw: unknown): AnimalCard[] {
-  const cards = parseArray(raw, 'cards', 0, MAX_CARDS).map((card, index) => {
+  const cards = parseArray(raw, 'cards', 0, MAX_CARDS).map((card, index): AnimalCard => {
     const at = `cards[${index}]`;
     if (!isRecord(card)) fail(`${at} must be an object.`);
     return {
       id: parseText(card.id, `${at}.id`),
-      name: parseText(card.name, `${at}.name`),
-      cubeOn: parseRequirement(card.cubeOn, `${at}.cubeOn`),
-      habitat: parseHabitat(card.habitat, `${at}.habitat`),
-      points: parsePoints(card.points, `${at}.points`),
+      ...(card.sourceId === undefined || card.sourceId === null
+        ? {}
+        : { sourceId: parseInteger(card.sourceId, `${at}.sourceId`, 0, 100000) }),
+      ...(card.name === undefined || card.name === null
+        ? {}
+        : { name: parseText(card.name, `${at}.name`) }),
+      pointsByAnimalsPlaced: parsePoints(card.pointsByAnimalsPlaced, `${at}.pointsByAnimalsPlaced`),
+      habitat: { cells: parseHabitatCells(card.habitat, `${at}.habitat`) },
     };
   });
   if (new Set(cards.map((card) => card.id)).size !== cards.length) {
     fail('cards contains a duplicate id.');
   }
   return cards;
+}
+
+/** Optional, so configs stored before this setting existed stay valid. */
+function parseWaterScoring(raw: unknown): WaterScoring {
+  if (raw === undefined || raw === null) return DEFAULT_WATER_SCORING;
+  if (typeof raw !== 'string' || !(WATER_SCORING_MODES as readonly string[]).includes(raw)) {
+    fail(`waterScoring must be one of: ${WATER_SCORING_MODES.join(', ')}.`);
+  }
+  return raw as WaterScoring;
 }
 
 /**
@@ -186,6 +221,7 @@ export function parseConfig(raw: unknown): ParseConfigResult<HarmoniesConfig> {
         boardCells: parseBoardCells(raw.boardCells),
         tokenCounts: parseTokenCounts(raw.tokenCounts),
         cards: parseCards(raw.cards),
+        waterScoring: parseWaterScoring(raw.waterScoring),
       },
     };
   } catch (error) {

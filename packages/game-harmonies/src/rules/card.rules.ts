@@ -17,7 +17,10 @@ export function countCardsInProgress(
   ).length;
 }
 
-/** One card per turn, from the face-up row, while holding fewer than four unfinished cards. */
+/**
+ * One card per turn, from the face-up row, while holding fewer unfinished cards than the limit.
+ * A card stops counting once all its animals are placed.
+ */
 export function validateTakeCard(
   state: Pick<HarmoniesState, 'turn' | 'cardRiver' | 'config'>,
   board: PlayerBoard,
@@ -66,7 +69,7 @@ export function validatePlaceCube(
     return {
       valid: false,
       code: HarmoniesRuleCodes.CardCompleted,
-      message: 'That card has no cubes left.',
+      message: 'That card has no animals left to place.',
     };
   }
   if (!isOnBoard(config.boardCells, cell)) {
@@ -87,7 +90,7 @@ export function validatePlaceCube(
     return {
       valid: false,
       code: HarmoniesRuleCodes.HabitatNotMatched,
-      message: `The ${card.name}'s habitat is not there.`,
+      message: 'That animal’s habitat is not there.',
     };
   }
   return { valid: true };

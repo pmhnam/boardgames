@@ -31,15 +31,38 @@ export class GameConfigService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     for (const { definition, engine } of this.registry.list()) {
-      if (await this.configs.findLatest(definition.gameType)) continue;
-      // Losing this race to another instance is fine: version 1 then already exists.
-      const seeded = await this.configs.insert({
-        gameType: definition.gameType,
-        version: FIRST_VERSION,
-        config: engine.defaultConfig,
-        note: 'Seeded from the engine default.',
-      });
-      if (seeded) this.logger.log(`Seeded config v${FIRST_VERSION} for ${definition.gameType}`);
+      const { gameType } = definition;
+      const latest = await this.configs.findLatest(gameType);
+
+      if (!latest) {
+        // Losing this race to another instance is fine: version 1 then already exists.
+        const seeded = await this.configs.insert({
+          gameType,
+          version: FIRST_VERSION,
+          config: engine.defaultConfig,
+          note: 'Seeded from the engine default.',
+        });
+        if (seeded) this.logger.log(`Seeded config v${FIRST_VERSION} for ${gameType}`);
+        continue;
+      }
+
+      // An engine upgrade can change what a config looks like. A stored config the new engine
+      // cannot read would block every new match, so it is superseded (never overwritten) by the
+      // engine's default. The old version stays in the table for reference.
+      const parsed = engine.parseConfig(latest.config);
+      if (!parsed.ok) {
+        const reset = await this.configs.insert({
+          gameType,
+          version: latest.version + 1,
+          config: engine.defaultConfig,
+          note: `Reset to the engine default: v${latest.version} is not valid for engine v${engine.engineVersion} (${parsed.message})`,
+        });
+        if (reset) {
+          this.logger.warn(
+            `Config v${latest.version} for ${gameType} is not valid for the current engine; published the engine default as v${reset.version}`,
+          );
+        }
+      }
     }
   }
 

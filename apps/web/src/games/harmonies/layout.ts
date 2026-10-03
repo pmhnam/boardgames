@@ -1,4 +1,4 @@
-import type { Hex, TerrainKind, TokenColor } from '@bgp/game-harmonies';
+import type { CardTerrain, Hex, TokenColor } from '@bgp/game-harmonies';
 
 export const TOKEN_FILL: Record<TokenColor, string> = {
   water: '#4a90d9',
@@ -18,20 +18,20 @@ export const TOKEN_LABEL: Record<TokenColor, string> = {
   building: 'Building',
 };
 
-export const TERRAIN_FILL: Record<TerrainKind, string> = {
-  water: TOKEN_FILL.water,
-  field: TOKEN_FILL.field,
-  mountain: TOKEN_FILL.mountain,
-  tree: TOKEN_FILL.leaf,
-  building: TOKEN_FILL.building,
+export const CARD_TERRAIN_FILL: Record<CardTerrain, string> = {
+  WATER: TOKEN_FILL.water,
+  FIELD: TOKEN_FILL.field,
+  MOUNTAIN: TOKEN_FILL.mountain,
+  TREE: TOKEN_FILL.leaf,
+  BUILDING: TOKEN_FILL.building,
 };
 
-export const TERRAIN_LABEL: Record<TerrainKind, string> = {
-  water: 'water',
-  field: 'field',
-  mountain: 'mountain',
-  tree: 'tree',
-  building: 'building',
+export const CARD_TERRAIN_LABEL: Record<CardTerrain, string> = {
+  WATER: 'water',
+  FIELD: 'field',
+  MOUNTAIN: 'mountain height',
+  TREE: 'tree height',
+  BUILDING: 'building',
 };
 
 const SQRT3 = Math.sqrt(3);

@@ -1,6 +1,7 @@
 import type { GameViewer } from '@bgp/game-core';
 import type { Stack } from '../domain/board.js';
 import { getCard, isCardComplete, type AnimalCard } from '../domain/cards.js';
+import type { WaterScoring } from '../domain/game-config.js';
 import type { Hex } from '../domain/hex.js';
 import type { HarmoniesPhase, HarmoniesState, HarmoniesTurn } from '../domain/state.js';
 import type { TokenColor } from '../domain/tokens.js';
@@ -41,6 +42,8 @@ export interface HarmoniesView {
   turn: HarmoniesTurn;
   /** The shape of every player's board in this match. */
   boardCells: Hex[];
+  /** How the water column of the score is worked out in this match. */
+  waterScoring: WaterScoring;
   centralSpaces: TokenColor[][];
   /** The pouch and the deck are hidden draw piles: viewers only learn their size. */
   pouchCount: number;
@@ -98,6 +101,7 @@ export function getPublicView(state: HarmoniesState, viewer: GameViewer): Harmon
     phase: state.phase,
     turnOrder: [...state.turnOrder],
     boardCells: state.config.boardCells.map((cell) => ({ ...cell })),
+    waterScoring: state.config.waterScoring,
     turn: { ...state.turn, hand: [...state.turn.hand] },
     centralSpaces: state.centralSpaces.map((space) => [...space]),
     pouchCount: state.pouch.length,
