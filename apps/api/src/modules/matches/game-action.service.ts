@@ -1,0 +1,155 @@
+import { randomUUID } from 'node:crypto';
+import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CommonRuleCodes } from '@bgp/game-core';
+import { ErrorCodes, type GameActionAccepted } from '@bgp/shared-types';
+import { AppError } from '../../common/errors/app-error.js';
+import {
+  PlatformEvents,
+  type MatchFinishedEvent,
+  type MatchStateChangedEvent,
+} from '../../common/events/platform-events.js';
+import type { OpaqueGameState } from '../../infrastructure/database/schema.js';
+import { GameRegistry } from '../games/game-registry.js';
+import { MatchRepository } from './match.repository.js';
+
+export interface ExecuteGameActionCommand {
+  matchId: string;
+  /** From the authenticated connection, never from the payload. */
+  userId: string;
+  requestId: string;
+  expectedVersion: number;
+  /** Untrusted. Parsed by the game's engine. */
+  action: unknown;
+  now: Date;
+}
+
+/**
+ * The single pipeline every game mutation goes through, for humans and (later) bots alike.
+ * Knows nothing about any specific game: rules live behind the engine.
+ */
+@Injectable()
+export class GameActionService {
+  private readonly logger = new Logger(GameActionService.name);
+
+  constructor(
+    private readonly matches: MatchRepository,
+    private readonly registry: GameRegistry,
+    private readonly events: EventEmitter2,
+  ) {}
+
+  async execute(command: ExecuteGameActionCommand): Promise<GameActionAccepted> {
+    const startedAt = performance.now();
+
+    const match = await this.matches.findById(command.matchId);
+    if (!match) throw new AppError(ErrorCodes.MatchNotFound, 'Match not found.', 404);
+
+    const players = await this.matches.listPlayers(match.id);
+    const player = players.find((candidate) => candidate.userId === command.userId);
+    if (!player) {
+      throw new AppError(ErrorCodes.Forbidden, 'You are not a player in this match.', 403);
+    }
+
+    // Idempotency: a retried request reports success without applying anything twice.
+    if (await this.matches.hasAction(match.id, command.requestId)) {
+      return this.accepted(command, match.stateVersion, true);
+    }
+
+    if (match.status !== 'playing') {
+      throw new AppError(ErrorCodes.MatchNotPlaying, 'This match is not in progress.', 409);
+    }
+
+    if (match.stateVersion !== command.expectedVersion) {
+      throw this.versionConflict(match.stateVersion);
+    }
+
+    const { engine } = this.registry.getForMatch(match);
+
+    const parsed = engine.parseAction(command.action);
+    if (!parsed.ok) throw new AppError(ErrorCodes.InvalidAction, parsed.message, 400);
+
+    const context = {
+      actorPlayerId: player.playerId,
+      requestId: command.requestId,
+      now: command.now.toISOString(),
+    };
+
+    const validation = engine.validateAction(match.state, parsed.action, context);
+    if (!validation.valid) {
+      throw validation.code === CommonRuleCodes.NotYourTurn
+        ? new AppError(ErrorCodes.NotYourTurn, validation.message, 409)
+        : new AppError(ErrorCodes.InvalidAction, validation.message, 400, {
+            rule: validation.code,
+          });
+    }
+
+    const newState: OpaqueGameState = engine.applyAction(match.state, parsed.action, context);
+    const finished = engine.getGameStatus(newState) === 'finished';
+    const nextVersion = match.stateVersion + 1;
+    const actionType = (parsed.action as { type: string }).type;
+
+    const outcome = await this.matches.saveActionAndState({
+      matchId: match.id,
+      expectedVersion: match.stateVersion,
+      action: {
+        id: randomUUID(),
+        playerId: player.playerId,
+        actionType,
+        payload: parsed.action,
+        requestId: command.requestId,
+        createdAt: command.now,
+      },
+      state: newState,
+      status: finished ? 'finished' : 'playing',
+      result: finished ? engine.getResult(newState) : null,
+      finishedAt: finished ? command.now : null,
+    });
+
+    if (outcome === 'duplicate_request') {
+      const latest = await this.matches.findById(match.id);
+      return this.accepted(command, latest?.stateVersion ?? nextVersion, true);
+    }
+    if (outcome === 'version_conflict') {
+      const latest = await this.matches.findById(match.id);
+      throw this.versionConflict(latest?.stateVersion ?? nextVersion);
+    }
+
+    this.logger.log({
+      event: 'game_action_processed',
+      requestId: command.requestId,
+      gameId: match.id,
+      gameType: match.gameType,
+      userId: command.userId,
+      playerId: player.playerId,
+      actionType,
+      stateVersion: nextVersion,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
+
+    const changed: MatchStateChangedEvent = { matchId: match.id };
+    await this.events.emitAsync(PlatformEvents.MatchStateChanged, changed);
+    if (finished) {
+      const finishedEvent: MatchFinishedEvent = { matchId: match.id, roomId: match.roomId };
+      await this.events.emitAsync(PlatformEvents.MatchFinished, finishedEvent);
+    }
+
+    return this.accepted(command, nextVersion, false);
+  }
+
+  private accepted(
+    command: ExecuteGameActionCommand,
+    version: number,
+    duplicate: boolean,
+  ): GameActionAccepted {
+    return { gameId: command.matchId, requestId: command.requestId, version, duplicate };
+  }
+
+  private versionConflict(latestVersion: number): AppError {
+    return new AppError(
+      ErrorCodes.GameVersionConflict,
+      'The game has moved on. Refresh and try again.',
+      409,
+      { latestVersion },
+    );
+  }
+}

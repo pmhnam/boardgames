@@ -1,0 +1,27 @@
+{
+  "name": "board-game-platform",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.5.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "db:generate": "pnpm --filter @bgp/api db:generate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.6",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}
