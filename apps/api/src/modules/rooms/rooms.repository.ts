@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import type { BotLevel } from '@bgp/shared-types';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { DatabaseConnection } from '../../infrastructure/database/database.connection.js';
 import { matches, roomMembers, rooms, users } from '../../infrastructure/database/schema.js';
 
@@ -11,6 +12,7 @@ export interface RoomMemberRecord {
   displayName: string;
   seat: number;
   status: RoomMemberStatus;
+  botLevel: BotLevel | null;
 }
 
 @Injectable()
@@ -51,6 +53,7 @@ export class RoomsRepository {
         displayName: users.displayName,
         seat: roomMembers.seat,
         status: roomMembers.status,
+        botLevel: roomMembers.botLevel,
       })
       .from(roomMembers)
       .innerJoin(users, eq(users.id, roomMembers.userId))
@@ -58,8 +61,16 @@ export class RoomsRepository {
       .orderBy(asc(roomMembers.seat));
   }
 
-  async addMember(roomId: string, userId: string, seat: number): Promise<void> {
-    await this.connection.db.insert(roomMembers).values({ roomId, userId, seat, status: 'joined' });
+  /** A computer player takes its seat already ready. */
+  async addMember(
+    roomId: string,
+    userId: string,
+    seat: number,
+    botLevel: BotLevel | null = null,
+  ): Promise<void> {
+    await this.connection.db
+      .insert(roomMembers)
+      .values({ roomId, userId, seat, status: botLevel ? 'ready' : 'joined', botLevel });
   }
 
   async removeMember(roomId: string, userId: string): Promise<void> {
@@ -79,7 +90,8 @@ export class RoomsRepository {
     await this.connection.db
       .update(roomMembers)
       .set({ status: 'joined' })
-      .where(eq(roomMembers.roomId, roomId));
+      // Computer players stay ready.
+      .where(and(eq(roomMembers.roomId, roomId), isNull(roomMembers.botLevel)));
   }
 
   async update(

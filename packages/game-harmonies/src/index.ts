@@ -1,5 +1,6 @@
 import type { GameDefinition, GameModule } from '@bgp/game-core';
 import { HARMONIES_GAME_TYPE, MAX_PLAYERS, MIN_PLAYERS } from './domain/config.js';
+import { HarmoniesBot } from './bot/bot.js';
 import { HarmoniesEngine } from './engine/engine.js';
 
 export const HarmoniesDefinition: GameDefinition = {
@@ -7,16 +8,17 @@ export const HarmoniesDefinition: GameDefinition = {
   displayName: 'Harmonies',
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  supportsBots: false,
+  supportsBots: true,
   supportsSpectators: true,
 };
 
 export const HarmoniesGame: GameModule<HarmoniesEngine> = {
   definition: HarmoniesDefinition,
   engine: new HarmoniesEngine(),
+  bot: HarmoniesBot,
 };
 
-export { HarmoniesEngine };
+export { HarmoniesBot, HarmoniesEngine };
 export { HARMONIES_GAME_TYPE } from './domain/config.js';
 export { HarmoniesRuleCodes } from './domain/errors.js';
 export { classifyStack } from './domain/board.js';

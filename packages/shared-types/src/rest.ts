@@ -35,6 +35,9 @@ export interface UpdateGameConfigRequest<TConfig = unknown> {
   note?: string;
 }
 
+/** How strong a computer player is. */
+export type BotLevel = 'easy' | 'normal' | 'hard';
+
 export type RoomStatus = 'open' | 'in_match' | 'closed';
 export type RoomVisibility = 'private' | 'public';
 export type RoomMemberStatus = 'joined' | 'ready';
@@ -44,6 +47,8 @@ export interface RoomMemberDto {
   displayName: string;
   seat: number;
   status: RoomMemberStatus;
+  /** Set when this seat is a computer player. */
+  botLevel: BotLevel | null;
 }
 
 export interface RoomDto {
@@ -69,6 +74,8 @@ export interface MatchPlayerDto {
   userId: string;
   displayName: string;
   seat: number;
+  /** Set when this player is a computer player. */
+  botLevel: BotLevel | null;
 }
 
 export interface MatchResultDto {
@@ -127,6 +134,10 @@ export interface CreateRoomRequest {
 
 export interface GuestLoginRequest {
   displayName: string;
+}
+
+export interface AddBotRequest {
+  level: BotLevel;
 }
 
 export interface SetReadyRequest {

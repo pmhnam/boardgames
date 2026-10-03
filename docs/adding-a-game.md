@@ -73,7 +73,15 @@ A game is done when it can be played start to finish from unit tests alone. Cove
 - `parseConfig` accepts the default, rejects each kind of bad config, and a match set up from
   a non-default config plays by it.
 
-## 4. Register the engine
+## 4. Optionally, a computer player
+
+Export a `bot: BotStrategy<View, Action>` from the game module to let hosts add bots. It gets
+the seat's own view and must return one legal action for each of the three levels; `easy` can
+be "any legal move". Having the view list the legal moves (as `legal` does in Harmonies) makes
+this, and the UI, much simpler. `playBotMatch` from `@bgp/game-core/testing` plays bots against
+each other and fails on any illegal action; use it to test legality and to compare levels.
+
+## 5. Register the engine
 
 `apps/api/src/modules/games/registered-games.ts`:
 
@@ -83,7 +91,7 @@ export const registeredGames: GameModule[] = [HarmoniesGame, GridClaimGame, NewG
 
 Add the package to `apps/api/package.json` dependencies.
 
-## 5. Build the UI
+## 6. Build the UI
 
 Create `apps/web/src/games/<name>/GameView.tsx`. It receives `GameViewProps`: the server's view,
 the players, `sendAction`, and `disabled`. It renders the view and sends intent; it does not
@@ -92,7 +100,7 @@ Harmonies view) rather than re-implementing rules in React.
 
 Keep game-specific components inside the game's folder.
 
-## 6. Register the UI
+## 7. Register the UI
 
 `apps/web/src/games/registry.ts`:
 

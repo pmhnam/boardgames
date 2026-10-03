@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -26,6 +27,8 @@ const createRoomSchema = z.object({
 });
 
 const setReadySchema = z.object({ ready: z.boolean() });
+
+const addBotSchema = z.object({ level: z.enum(['easy', 'normal', 'hard']) });
 
 @Controller('rooms')
 @UseGuards(AuthGuard)
@@ -76,6 +79,25 @@ export class RoomsController {
     @Body(new ZodValidationPipe(setReadySchema)) body: z.infer<typeof setReadySchema>,
   ): Promise<RoomDto> {
     return this.rooms.setReady(roomId, user.userId, body.ready);
+  }
+
+  @Post(':roomId/bots')
+  @HttpCode(200)
+  addBot(
+    @Param('roomId', ParseUUIDPipe) roomId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(addBotSchema)) body: z.infer<typeof addBotSchema>,
+  ): Promise<RoomDto> {
+    return this.rooms.addBot(roomId, user.userId, body.level);
+  }
+
+  @Delete(':roomId/bots/:botUserId')
+  removeBot(
+    @Param('roomId', ParseUUIDPipe) roomId: string,
+    @Param('botUserId', ParseUUIDPipe) botUserId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<RoomDto> {
+    return this.rooms.removeBot(roomId, user.userId, botUserId);
   }
 
   @Post(':roomId/start')

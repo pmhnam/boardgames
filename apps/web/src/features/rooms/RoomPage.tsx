@@ -1,4 +1,7 @@
 import {
+  type AddBotRequest,
+  type BotLevel,
+  type GameDefinitionDto,
   ClientEvents,
   ServerEvents,
   type GameStartedMessage,
@@ -7,7 +10,7 @@ import {
   type StartRoomResponse,
 } from '@bgp/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
@@ -15,6 +18,9 @@ import { api, errorMessage } from '../../shared/api/http';
 import { PlayerList } from '../../shared/components/PlayerList';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
+
+const BOT_LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
+const BOT_LEVEL_LABELS: Record<BotLevel, string> = { easy: 'Dễ', normal: 'Thường', hard: 'Khó' };
 
 export function RoomPage() {
   const { roomId = '' } = useParams();
@@ -71,6 +77,19 @@ export function RoomPage() {
     mutationFn: () => api<RoomDto>('POST', `/rooms/${roomId}/join`),
     onSuccess: update,
   });
+  const addBot = useMutation({
+    mutationFn: (body: AddBotRequest) => api<RoomDto>('POST', `/rooms/${roomId}/bots`, body),
+    onSuccess: update,
+  });
+  const removeBot = useMutation({
+    mutationFn: (botUserId: string) => api<RoomDto>('DELETE', `/rooms/${roomId}/bots/${botUserId}`),
+    onSuccess: update,
+  });
+  const [botLevel, setBotLevel] = useState<BotLevel>('normal');
+  const games = useQuery({
+    queryKey: ['games'],
+    queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
+  });
 
   const gameUi = room.data ? getGameUi(room.data.gameType) : undefined;
   const gameConfig = useGameConfig(
@@ -90,7 +109,14 @@ export function RoomPage() {
       ? gameUi.describeSettings(data.settings, gameConfig.data.config)
       : null;
   const inviteLink = `${window.location.origin}/join/${data.code}`;
-  const error = setReady.error ?? start.error ?? leave.error ?? join.error;
+  const error =
+    setReady.error ?? start.error ?? leave.error ?? join.error ?? addBot.error ?? removeBot.error;
+  const game = games.data?.find((definition) => definition.gameType === data.gameType);
+  const canAddBot =
+    isHost &&
+    data.status === 'open' &&
+    game?.supportsBots === true &&
+    data.members.length < game.maxPlayers;
 
   return (
     <div className="card">
@@ -112,9 +138,23 @@ export function RoomPage() {
           id: member.userId,
           name: member.displayName,
           isYou: member.userId === userId,
-          detail: `${member.userId === data.hostUserId ? 'Host · ' : ''}${
-            member.status === 'ready' ? 'Ready' : 'Not ready'
-          }`,
+          detail: (
+            <span className="row">
+              {member.userId === data.hostUserId && 'Host · '}
+              {member.botLevel && `Computer (${BOT_LEVEL_LABELS[member.botLevel]}) · `}
+              {member.status === 'ready' ? 'Ready' : 'Not ready'}
+              {member.botLevel && isHost && data.status === 'open' && (
+                <button
+                  type="button"
+                  className="link"
+                  disabled={removeBot.isPending}
+                  onClick={() => removeBot.mutate(member.userId)}
+                >
+                  Remove
+                </button>
+              )}
+            </span>
+          ),
         }))}
       />
 
@@ -122,6 +162,32 @@ export function RoomPage() {
         <p>
           A match is in progress. <Link to={`/matches/${data.currentMatchId}`}>Open it</Link>
         </p>
+      )}
+
+      {canAddBot && (
+        <div className="row wrap">
+          <label className="row">
+            <span>Computer player</span>
+            <select
+              value={botLevel}
+              onChange={(event) => setBotLevel(event.target.value as BotLevel)}
+            >
+              {BOT_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {BOT_LEVEL_LABELS[level]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="secondary"
+            disabled={addBot.isPending}
+            onClick={() => addBot.mutate({ level: botLevel })}
+          >
+            Add bot
+          </button>
+        </div>
       )}
 
       {data.status === 'open' && (

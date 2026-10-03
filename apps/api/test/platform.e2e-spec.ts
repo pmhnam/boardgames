@@ -49,6 +49,8 @@ describe('platform MVP flow', () => {
     process.env.PGLITE_DATA_DIR = 'memory://';
     process.env.JWT_SECRET = 'test-secret';
     process.env.ADMIN_TOKEN = ADMIN_TOKEN;
+    // Computer players answer at once, so tests do not wait on their thinking time.
+    process.env.BOT_ACTION_DELAY_MS = '0';
 
     const { AppModule } = await import('../src/app.module.js');
     const { configureApp } = await import('../src/configure-app.js');
@@ -475,6 +477,151 @@ describe('platform MVP flow', () => {
       settings: { mapId: 'B' },
     });
     expect(grid.settings).toEqual({});
+  });
+
+  it('lets a person play against computer players', async () => {
+    const host = await createClient('Host');
+    const guest = await createClient('Guest');
+    type ErrorBody = { error: { code: string } };
+
+    /** Polls with a longer deadline than waitFor: a bot's turn is several actions. */
+    const until = async <T>(read: () => Promise<T | undefined>, what: string): Promise<T> => {
+      for (let attempt = 0; attempt < 400; attempt++) {
+        const value = await read();
+        if (value !== undefined) return value;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${what}`);
+    };
+
+    // Only the host seats bots, only at a level that exists, and only while there is room.
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', { gameType: 'grid-claim' });
+    await guest.api('POST', `/rooms/${room.id}/join`);
+    const notHost = await guest.api<ErrorBody>('POST', `/rooms/${room.id}/bots`, { level: 'easy' });
+    expect(notHost.body.error.code).toBe(ErrorCodes.NotRoomHost);
+    const full = await host.api<ErrorBody>('POST', `/rooms/${room.id}/bots`, { level: 'easy' });
+    expect(full.body.error.code).toBe(ErrorCodes.RoomFull);
+    await guest.api('POST', `/rooms/${room.id}/leave`);
+    const badLevel = await host.api<ErrorBody>('POST', `/rooms/${room.id}/bots`, { level: 'god' });
+    expect(badLevel.status).toBe(400);
+
+    const { body: withBot } = await host.api<RoomDto>('POST', `/rooms/${room.id}/bots`, {
+      level: 'easy',
+    });
+    const easyBot = withBot.members.find((member) => member.botLevel !== null)!;
+    expect(easyBot).toMatchObject({ botLevel: 'easy', status: 'ready' });
+
+    // Swap it for a stronger one.
+    const removed = await host.api<RoomDto>('DELETE', `/rooms/${room.id}/bots/${easyBot.userId}`);
+    expect(removed.body.members).toHaveLength(1);
+    const { body: ready } = await host.api<RoomDto>('POST', `/rooms/${room.id}/bots`, {
+      level: 'hard',
+    });
+    const bot = ready.members.find((member) => member.botLevel !== null)!;
+    expect(bot.displayName).toContain('Bot');
+
+    // The bot needs nobody to press "ready" for it.
+    await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    const gameId = started.matchId;
+
+    // One person plays a whole game: the bot answers every move on its own.
+    const sync = async (): Promise<State> => {
+      const ack = await host.emit<State>(ClientEvents.GameSync, { gameId });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+    let state = await sync();
+    const me = state.viewerPlayerId;
+    let myMoves = 0;
+    while (state.status === 'playing') {
+      state = await until(async () => {
+        const latest = await sync();
+        return latest.status !== 'playing' || latest.state.turn.activePlayerId === me
+          ? latest
+          : undefined;
+      }, 'my turn');
+      if (state.status !== 'playing') break;
+      const result = await host.emit(ClientEvents.GameAction, placeAction(state));
+      expect(result.ok).toBe(true);
+      myMoves += 1;
+    }
+    expect(myMoves).toBeGreaterThan(0);
+    expect(state.state.winnerPlayerIds.length).toBeGreaterThan(0);
+
+    const { body: match } = await host.api<MatchDto>('GET', `/matches/${gameId}`);
+    expect(match.status).toBe('finished');
+    expect(match.players.map((player) => player.botLevel).sort()).toEqual(['hard', null].sort());
+    // The bot's moves are in the log like anyone's, so the match replays.
+    const { body: replay } = await host.api<MatchReplayDto>('GET', `/matches/${gameId}/replay`);
+    expect(replay.frames.length).toBe(match.version + 1);
+    const botPlayerId = match.players.find((player) => player.botLevel !== null)!.playerId;
+    expect(replay.frames.some((frame) => frame.action?.playerId === botPlayerId)).toBe(true);
+
+    // After the match the room reopens with the bot still ready for a rematch.
+    const reopened = await until(async () => {
+      const { body } = await host.api<RoomDto>('GET', `/rooms/${room.id}`);
+      return body.status === 'open' ? body : undefined;
+    }, 'room to reopen');
+    expect(reopened.members.find((member) => member.botLevel !== null)?.status).toBe('ready');
+
+    // Harmonies: the bot takes a whole multi-action turn by itself.
+    const { body: harmonies } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'harmonies',
+    });
+    await host.api('POST', `/rooms/${harmonies.id}/bots`, { level: 'normal' });
+    await host.api('POST', `/rooms/${harmonies.id}/bots`, { level: 'hard' });
+    await host.api('POST', `/rooms/${harmonies.id}/ready`, { ready: true });
+    const { body: harmoniesMatch } = await host.api<StartRoomResponse>(
+      'POST',
+      `/rooms/${harmonies.id}/start`,
+    );
+    type HarmoniesState = GameStateMessage<HarmoniesView>;
+    const syncHarmonies = async (): Promise<HarmoniesState> => {
+      const ack = await host.emit<HarmoniesState>(ClientEvents.GameSync, {
+        gameId: harmoniesMatch.matchId,
+      });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+    const send = async (expectedVersion: number, action: unknown) => {
+      const ack = await host.emit<GameActionAccepted>(ClientEvents.GameAction, {
+        gameId: harmoniesMatch.matchId,
+        requestId: randomUUID(),
+        expectedVersion,
+        action,
+      });
+      if (!ack.ok) throw new Error(`${ack.error.code}: ${ack.error.message}`);
+    };
+    const myTurn = () =>
+      until(async () => {
+        const latest = await syncHarmonies();
+        return latest.state.turn.activePlayerId === latest.viewerPlayerId ? latest : undefined;
+      }, 'my Harmonies turn');
+
+    // Play one full turn, then wait for both bots to play theirs.
+    let view = await myTurn();
+    const turnBefore = view.state.turn.number;
+    await send(view.version, { type: 'TAKE_TOKENS', spaceIndex: 0 });
+    for (;;) {
+      view = await syncHarmonies();
+      const next = Object.entries(view.state.legal.tokenCells).find(
+        ([, cells]) => cells.length > 0,
+      );
+      if (!next) break;
+      await send(view.version, { type: 'PLACE_TOKEN', color: next[0], cell: next[1]![0] });
+    }
+    await send(view.version, { type: 'END_TURN' });
+
+    view = await myTurn();
+    expect(view.state.turn.number).toBeGreaterThanOrEqual(turnBefore + 3);
+    const botBoards = view.state.turnOrder
+      .filter((playerId) => playerId !== view.viewerPlayerId)
+      .map((playerId) => view.state.boards[playerId]!);
+    expect(botBoards).toHaveLength(2);
+    for (const board of botBoards) {
+      expect(Object.keys(board.stacks).length).toBeGreaterThan(0);
+    }
   });
 
   // Runs last on purpose: it changes configs the tests above rely on.

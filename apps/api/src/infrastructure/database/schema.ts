@@ -1,5 +1,7 @@
+import type { BotLevel } from '@bgp/shared-types';
 import {
   bigint,
+  boolean,
   integer,
   jsonb,
   pgTable,
@@ -19,6 +21,8 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
   displayName: text('display_name').notNull(),
   avatarUrl: text('avatar_url'),
+  /** Computer players are users too, so rooms, matches and history treat them like anyone. */
+  isBot: boolean('is_bot').notNull().default(false),
   createdAt: createdAt(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -64,6 +68,8 @@ export const roomMembers = pgTable(
       .references(() => users.id),
     seat: integer('seat').notNull(),
     status: text('status').$type<'joined' | 'ready'>().notNull(),
+    /** Set when the seat is a computer player. */
+    botLevel: text('bot_level').$type<BotLevel>(),
     joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -105,6 +111,7 @@ export const matchPlayers = pgTable(
       .references(() => users.id),
     playerId: text('player_id').notNull(),
     seat: integer('seat').notNull(),
+    botLevel: text('bot_level').$type<BotLevel>(),
   },
   (table) => [
     primaryKey({ columns: [table.matchId, table.playerId] }),

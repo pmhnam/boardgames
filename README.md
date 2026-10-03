@@ -85,6 +85,19 @@ board, and place animals on matching habitats. Two caveats:
 **Grid Claim** (2 players) is an original, deliberately small game kept as a second
 implementation of the engine contract.
 
+## Computer players
+
+A room's host can fill empty seats with computer players, at three levels. In Harmonies:
+
+- **Dễ** plays any legal move.
+- **Thường** places each token where it looks best right now.
+- **Khó** plans the whole hand before placing, stacks rather than spreads when the board is
+  about to fill up, and puts each animal where it blocks the least.
+
+Bots are algorithmic, not an LLM: they run inside the API, cost nothing and answer at once
+(`BOT_ACTION_DELAY_MS`, 700 by default, paces them so people can follow). A bot sees only what
+a person in its seat would see, and its moves go through the same checks as anyone's.
+
 ## Game configuration
 
 Each game's tunable data lives in the database, not in code. For Harmonies that is the list of
@@ -113,5 +126,5 @@ not play, with the reason. Publishing adds a new version; it never edits an old 
 
 ## What is not built yet
 
-An admin UI for game configs, chat, bots, matchmaking, rankings, timers, refresh tokens, abandoning a match in progress, and
+An admin UI for game configs, chat, an LLM opponent, matchmaking, rankings, timers, refresh tokens, abandoning a match in progress, and
 Redis (only needed once there is more than one API instance). See `docs/architecture.md`.

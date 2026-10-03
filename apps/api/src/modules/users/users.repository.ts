@@ -9,7 +9,7 @@ export type UserRecord = typeof users.$inferSelect;
 export class UsersRepository {
   constructor(private readonly connection: DatabaseConnection) {}
 
-  async create(input: { id: string; displayName: string }): Promise<UserRecord> {
+  async create(input: { id: string; displayName: string; isBot?: boolean }): Promise<UserRecord> {
     const [user] = await this.connection.db.insert(users).values(input).returning();
     if (!user) throw new Error('Failed to insert user');
     return user;

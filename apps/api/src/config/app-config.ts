@@ -9,6 +9,7 @@ const envSchema = z.object({
   PGLITE_DATA_DIR: z.string().default('.data/pglite'),
   CORS_ORIGIN: z.string().optional(),
   ADMIN_TOKEN: z.string().optional(),
+  BOT_ACTION_DELAY_MS: z.coerce.number().int().min(0).max(10_000).default(700),
 });
 
 const DEV_JWT_SECRET = 'dev-only-secret';
@@ -24,6 +25,8 @@ export class AppConfig {
   readonly corsOrigin: string | true;
   /** Null means admin endpoints are switched off. */
   readonly adminToken: string | null;
+  /** Pause before each action a computer player takes, so people can follow it. */
+  readonly botActionDelayMs: number;
 
   constructor() {
     const env = envSchema.parse(process.env);
@@ -37,5 +40,6 @@ export class AppConfig {
     this.pgliteDataDir = env.PGLITE_DATA_DIR;
     this.corsOrigin = env.CORS_ORIGIN ?? true;
     this.adminToken = env.ADMIN_TOKEN ? env.ADMIN_TOKEN : null;
+    this.botActionDelayMs = env.BOT_ACTION_DELAY_MS;
   }
 }

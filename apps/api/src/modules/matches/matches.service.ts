@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import type { AnyGameEngine, GameViewer, PlayerSeat } from '@bgp/game-core';
 import {
   ErrorCodes,
+  type BotLevel,
   type GameStateMessage,
   type MatchDto,
   type MatchHistoryDto,
@@ -37,7 +38,7 @@ export class MatchesService {
     gameType: string;
     /** As stored on the room. Checked again here: the config may have changed since. */
     settings: Record<string, unknown>;
-    members: Array<{ userId: string; seat: number }>;
+    members: Array<{ userId: string; seat: number; botLevel: BotLevel | null }>;
   }): Promise<string> {
     const { engine } = this.registry.get(input.gameType);
     const current = await this.configs.getCurrentForPlay(input.gameType);
@@ -48,7 +49,12 @@ export class MatchesService {
 
     const players = [...input.members]
       .sort((a, b) => a.seat - b.seat)
-      .map((member, index) => ({ userId: member.userId, seat: index, playerId: `p${index + 1}` }));
+      .map((member, index) => ({
+        userId: member.userId,
+        seat: index,
+        playerId: `p${index + 1}`,
+        botLevel: member.botLevel,
+      }));
     const seats: PlayerSeat[] = players.map(({ playerId, seat }) => ({ playerId, seat }));
 
     const state: OpaqueGameState = engine.createInitialState({

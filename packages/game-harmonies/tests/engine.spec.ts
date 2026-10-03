@@ -4,7 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { SIDE_A_CELLS, classifyStack } from '../src/domain/board.js';
 import { getCard, getCubeCount } from '../src/domain/cards.js';
 import type { HarmoniesState } from '../src/domain/state.js';
-import { HarmoniesRuleCodes, type HarmoniesAction, type HarmoniesSettings } from '../src/index.js';
+import {
+  HarmoniesBot,
+  HarmoniesRuleCodes,
+  type HarmoniesAction,
+  type HarmoniesSettings,
+} from '../src/index.js';
 import { canStack } from '../src/rules/token-placement.rules.js';
 import {
   active,
@@ -48,37 +53,18 @@ function countTokens(state: HarmoniesState): number {
   );
 }
 
-/** Picks a random legal action for the active player, the way a bot would: from its own view. */
+/** A random legal action for the active player, chosen from its own view: the easy bot. */
 function chooseAction(
   state: HarmoniesState,
   random: ReturnType<typeof createSeededRandom>,
 ): HarmoniesAction {
   const playerId = active(state);
-  const { legal, centralSpaces, cardRiver } = engine.getPublicView(state, {
-    type: 'player',
+  return HarmoniesBot.chooseAction({
+    view: engine.getPublicView(state, { type: 'player', playerId }),
     playerId,
+    level: 'easy',
+    random,
   });
-
-  for (const [cardId, cells] of Object.entries(legal.cubeCells)) {
-    if (cells.length > 0) return { type: 'PLACE_CUBE', cardId, cell: random.pick(cells) };
-  }
-  if (legal.canTakeTokens) {
-    const options = centralSpaces.flatMap((space, index) => (space.length > 0 ? [index] : []));
-    return { type: 'TAKE_TOKENS', spaceIndex: random.pick(options) };
-  }
-  for (const [color, cells] of Object.entries(legal.tokenCells)) {
-    if (cells.length > 0) {
-      return {
-        type: 'PLACE_TOKEN',
-        color: color as keyof typeof legal.tokenCells,
-        cell: random.pick(cells),
-      };
-    }
-  }
-  if (legal.canTakeCard && random.next() < 0.7) {
-    return { type: 'TAKE_CARD', cardId: random.pick(cardRiver).id };
-  }
-  return { type: 'END_TURN' };
 }
 
 function scriptFullGame(

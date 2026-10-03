@@ -10,6 +10,6 @@ import { MatchesService } from './matches.service.js';
   imports: [AuthModule, GamesModule],
   controllers: [MatchesController],
   providers: [MatchRepository, MatchesService, GameActionService],
-  exports: [MatchesService, GameActionService],
+  exports: [MatchesService, GameActionService, MatchRepository],
 })
 export class MatchesModule {}

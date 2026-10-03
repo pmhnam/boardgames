@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import type { BotLevel } from '@bgp/shared-types';
+import { and, asc, desc, eq, isNotNull } from 'drizzle-orm';
 import { DatabaseConnection } from '../../infrastructure/database/database.connection.js';
 import { uniqueViolationConstraint } from '../../infrastructure/database/pg-errors.js';
 import {
@@ -18,6 +19,7 @@ export interface MatchPlayerRecord {
   userId: string;
   seat: number;
   displayName: string;
+  botLevel: BotLevel | null;
 }
 
 export interface SaveActionAndStateInput {
@@ -73,6 +75,7 @@ export class MatchRepository {
         userId: matchPlayers.userId,
         seat: matchPlayers.seat,
         displayName: users.displayName,
+        botLevel: matchPlayers.botLevel,
       })
       .from(matchPlayers)
       .innerJoin(users, eq(users.id, matchPlayers.userId))
@@ -95,6 +98,16 @@ export class MatchRepository {
       .from(matchActions)
       .where(eq(matchActions.matchId, matchId))
       .orderBy(asc(matchActions.sequence));
+  }
+
+  /** Matches in progress that have a computer player: the ones that may be waiting on one. */
+  listPlayingWithBots(): Promise<string[]> {
+    return this.connection.db
+      .selectDistinct({ id: matches.id })
+      .from(matches)
+      .innerJoin(matchPlayers, eq(matchPlayers.matchId, matches.id))
+      .where(and(eq(matches.status, 'playing'), isNotNull(matchPlayers.botLevel)))
+      .then((rows) => rows.map((row) => row.id));
   }
 
   listForUser(userId: string, limit = 50): Promise<MatchRecord[]> {

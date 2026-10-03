@@ -108,6 +108,28 @@ Config and rules are versioned separately. `config_version` changes when an oper
 data; `engine_version` changes when the code changes what a state means. A match saved by a
 different engine version is refused outright (`MATCH_OUTDATED`).
 
+## Computer players
+
+A game opts in by exporting a `bot` next to its engine: a `BotStrategy` with one pure function,
+`chooseAction({ view, playerId, level, random })`. Like engines, strategies live in the game
+package and import nothing from the platform.
+
+- **A bot is a player.** Adding one creates a user row (`is_bot`) and a room member with a
+  `bot_level`; from there rooms, matches, history and replay treat it like anyone.
+- **It sees a view, not the state.** `BotRunnerService` hands the strategy exactly what
+  `getPublicView` returns for that seat, so a bot knows nothing a person there would not.
+- **It acts through the same pipeline.** The chosen action goes to `GameActionService.execute`
+  under the bot's user id: same turn, version and rule checks, same action log.
+- **It is event-driven.** The runner wakes on `match.started` and `match.state-changed`, plays
+  one action if a bot is to move, and is woken again by the event its own action causes. One
+  loop runs per match; the events' senders never wait for it.
+- **It is reproducible.** The random source is seeded from the match seed and state version.
+- **It cannot stall a match.** A strategy that throws or picks an illegal move falls back to a
+  legal one; on boot the runner resumes every match that was waiting on a bot.
+
+The hard level's search runs on the event loop (tens of milliseconds per action). Move it to a
+worker thread before running many bot matches at once.
+
 ## Realtime
 
 One Socket.IO connection per signed-in user, authenticated in the handshake.

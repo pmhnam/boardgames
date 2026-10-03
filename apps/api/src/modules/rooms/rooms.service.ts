@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   ErrorCodes,
+  type BotLevel,
   type RoomDto,
   type RoomVisibility,
   type StartRoomResponse,
@@ -18,11 +19,14 @@ import { uniqueViolationConstraint } from '../../infrastructure/database/pg-erro
 import { GameConfigService } from '../games/game-config.service.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { MatchesService } from '../matches/matches.service.js';
+import { UsersRepository } from '../users/users.repository.js';
 import { RoomsRepository, type RoomMemberRecord, type RoomRecord } from './rooms.repository.js';
 
 // No 0/O/1/I: codes get read aloud and typed by hand.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
+
+const BOT_LEVEL_NAMES: Record<BotLevel, string> = { easy: 'Dễ', normal: 'Thường', hard: 'Khó' };
 
 function generateRoomCode(): string {
   return Array.from(
@@ -35,6 +39,7 @@ function generateRoomCode(): string {
 export class RoomsService {
   constructor(
     private readonly rooms: RoomsRepository,
+    private readonly users: UsersRepository,
     private readonly registry: GameRegistry,
     private readonly configs: GameConfigService,
     private readonly matches: MatchesService,
@@ -86,11 +91,7 @@ export class RoomsService {
 
     this.requireOpen(room);
     const { maxPlayers } = this.registry.get(room.gameType).definition;
-    const takenSeats = new Set(members.map((member) => member.seat));
-    const seat = Array.from({ length: maxPlayers }, (_, index) => index).find(
-      (candidate) => !takenSeats.has(candidate),
-    );
-    if (seat === undefined) throw new AppError(ErrorCodes.RoomFull, 'The room is full.', 409);
+    const seat = this.findFreeSeat(members, maxPlayers);
 
     try {
       await this.rooms.addMember(roomId, userId, seat);
@@ -111,12 +112,62 @@ export class RoomsService {
 
     await this.rooms.removeMember(roomId, userId);
     const remaining = members.filter((member) => member.userId !== userId);
-    const nextHost = remaining[0];
+    // Only a person can host. A room with nobody but computer players left is closed.
+    const nextHost = remaining.find((member) => member.botLevel === null);
     if (!nextHost) {
+      for (const bot of remaining) await this.rooms.removeMember(roomId, bot.userId);
       await this.rooms.update(roomId, { status: 'closed' });
     } else if (room.hostUserId === userId) {
       await this.rooms.update(roomId, { hostUserId: nextHost.userId });
     }
+    return this.changed(roomId);
+  }
+
+  /** Seats a computer player. It is a member like any other, and is always ready. */
+  async addBot(roomId: string, userId: string, level: BotLevel): Promise<RoomDto> {
+    const room = await this.requireRoom(roomId);
+    const members = await this.requireMember(roomId, userId);
+    this.requireOpen(room);
+    this.requireHost(room, userId, 'Only the host can add computer players.');
+
+    const game = this.registry.get(room.gameType);
+    if (!game.bot) {
+      throw new AppError(
+        ErrorCodes.BotsNotSupported,
+        'This game cannot be played against the computer.',
+        409,
+      );
+    }
+    const seat = this.findFreeSeat(members, game.definition.maxPlayers);
+
+    const botNumber = members.filter((member) => member.botLevel !== null).length + 1;
+    const bot = await this.users.create({
+      id: randomUUID(),
+      displayName: `Bot ${BOT_LEVEL_NAMES[level]} ${botNumber}`,
+      isBot: true,
+    });
+    try {
+      await this.rooms.addMember(roomId, bot.id, seat, level);
+    } catch (error) {
+      if (uniqueViolationConstraint(error) !== null) {
+        throw new AppError(ErrorCodes.RoomFull, 'That seat was just taken. Try again.', 409);
+      }
+      throw error;
+    }
+    return this.changed(roomId);
+  }
+
+  async removeBot(roomId: string, userId: string, botUserId: string): Promise<RoomDto> {
+    const room = await this.requireRoom(roomId);
+    const members = await this.requireMember(roomId, userId);
+    this.requireOpen(room);
+    this.requireHost(room, userId, 'Only the host can remove computer players.');
+
+    const bot = members.find((member) => member.userId === botUserId);
+    if (!bot || bot.botLevel === null) {
+      throw new AppError(ErrorCodes.NotRoomMember, 'There is no such computer player here.', 404);
+    }
+    await this.rooms.removeMember(roomId, botUserId);
     return this.changed(roomId);
   }
 
@@ -133,9 +184,7 @@ export class RoomsService {
     const members = await this.requireMember(roomId, userId);
     this.requireOpen(room);
 
-    if (room.hostUserId !== userId) {
-      throw new AppError(ErrorCodes.NotRoomHost, 'Only the host can start the match.', 403);
-    }
+    this.requireHost(room, userId, 'Only the host can start the match.');
     const { minPlayers } = this.registry.get(room.gameType).definition;
     if (members.length < minPlayers) {
       throw new AppError(
@@ -152,7 +201,11 @@ export class RoomsService {
       roomId,
       gameType: room.gameType,
       settings: room.settings,
-      members: members.map(({ userId: memberId, seat }) => ({ userId: memberId, seat })),
+      members: members.map(({ userId: memberId, seat, botLevel }) => ({
+        userId: memberId,
+        seat,
+        botLevel,
+      })),
     });
     await this.rooms.update(roomId, { status: 'in_match' });
 
@@ -189,6 +242,19 @@ export class RoomsService {
       throw new AppError(ErrorCodes.NotRoomMember, 'You are not a member of this room.', 403);
     }
     return members;
+  }
+
+  private requireHost(room: RoomRecord, userId: string, message: string): void {
+    if (room.hostUserId !== userId) throw new AppError(ErrorCodes.NotRoomHost, message, 403);
+  }
+
+  private findFreeSeat(members: RoomMemberRecord[], maxPlayers: number): number {
+    const taken = new Set(members.map((member) => member.seat));
+    const seat = Array.from({ length: maxPlayers }, (_, index) => index).find(
+      (candidate) => !taken.has(candidate),
+    );
+    if (seat === undefined) throw new AppError(ErrorCodes.RoomFull, 'The room is full.', 409);
+    return seat;
   }
 
   private requireOpen(room: RoomRecord): void {

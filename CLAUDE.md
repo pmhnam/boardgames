@@ -25,4 +25,6 @@ running) before its changes show up in API typechecks and tests.
 7. Do not add a shared game abstraction until two games need it.
 8. A game's tunable data (boards, decks, counts) lives in the `game_configs` table, versioned
    and append-only. Engine defaults only seed version 1. Never edit or delete a config row.
-9. Errors carry stable codes from `@bgp/shared-types` `ErrorCodes`; clients never parse messages.
+9. Bots decide from `engine.getPublicView` for their own seat only, and act through
+   `GameActionService` like any player. Never hand a bot the raw state.
+10. Errors carry stable codes from `@bgp/shared-types` `ErrorCodes`; clients never parse messages.

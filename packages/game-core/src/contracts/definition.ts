@@ -1,3 +1,4 @@
+import type { BotStrategy } from './bot.js';
 import type { GameEngine, PlayerSeat } from './engine.js';
 
 export interface GameDefinition {
@@ -19,7 +20,12 @@ export interface GameDefinition {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyGameEngine = GameEngine<any, any, any, any, PlayerSeat>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyBotStrategy = BotStrategy<any, any>;
+
 export interface GameModule<TEngine extends AnyGameEngine = AnyGameEngine> {
   definition: GameDefinition;
   engine: TEngine;
+  /** Present when the game can be played against the computer. */
+  bot?: AnyBotStrategy;
 }

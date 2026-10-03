@@ -154,7 +154,10 @@ export function scoreAnimals(cards: readonly AnimalCard[], board: PlayerBoard): 
   );
 }
 
-export function calculateBoardScore(config: HarmoniesSetup, board: PlayerBoard): ScoreBreakdown {
+export function calculateBoardScore(
+  config: Pick<HarmoniesSetup, 'boardCells' | 'waterScoring' | 'cards'>,
+  board: PlayerBoard,
+): ScoreBreakdown {
   const parts = {
     trees: scoreTrees(board),
     mountains: scoreMountains(board),

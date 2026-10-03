@@ -1,5 +1,6 @@
 import type { GameDefinition, GameModule } from '@bgp/game-core';
 import { GRID_CLAIM_GAME_TYPE, PLAYER_COUNT } from './domain/config.js';
+import { GridClaimBot } from './bot/bot.js';
 import { GridClaimEngine } from './engine/engine.js';
 
 export const GridClaimDefinition: GameDefinition = {
@@ -7,16 +8,17 @@ export const GridClaimDefinition: GameDefinition = {
   displayName: 'Grid Claim',
   minPlayers: PLAYER_COUNT,
   maxPlayers: PLAYER_COUNT,
-  supportsBots: false,
+  supportsBots: true,
   supportsSpectators: true,
 };
 
 export const GridClaimGame: GameModule<GridClaimEngine> = {
   definition: GridClaimDefinition,
   engine: new GridClaimEngine(),
+  bot: GridClaimBot,
 };
 
-export { GridClaimEngine };
+export { GridClaimBot, GridClaimEngine };
 export { DEFAULT_GRID_CLAIM_CONFIG, GRID_CLAIM_GAME_TYPE } from './domain/config.js';
 export type { GridClaimConfig } from './domain/config.js';
 export { GridClaimRuleCodes } from './domain/errors.js';
