@@ -104,13 +104,24 @@ interface AnimalCardViewProps {
   /** Omitted for cards still in the face-up row. */
   cubesPlaced?: number;
   selected?: boolean;
+  /** A smaller card, for other players' boards. */
+  compact?: boolean;
   action?: ReactNode;
 }
 
-export function AnimalCardView({ card, cubesPlaced, selected, action }: AnimalCardViewProps) {
+export function AnimalCardView({
+  card,
+  cubesPlaced,
+  selected,
+  compact,
+  action,
+}: AnimalCardViewProps) {
+  const classes = ['animal-card', selected && 'selected', compact && 'compact']
+    .filter(Boolean)
+    .join(' ');
   return (
-    <div className={selected ? 'animal-card selected' : 'animal-card'}>
-      <strong>{cardTitle(card)}</strong>
+    <div className={classes}>
+      <strong title={cardTitle(card)}>{cardTitle(card)}</strong>
       <HabitatDiagram card={card} />
       <ol className="card-points" aria-label="Points by number of animals placed">
         {card.pointsByAnimalsPlaced.slice(1).map((points, index) => (
@@ -122,7 +133,7 @@ export function AnimalCardView({ card, cubesPlaced, selected, action }: AnimalCa
           </li>
         ))}
       </ol>
-      {action}
+      {action && <div className="animal-card-action">{action}</div>}
     </div>
   );
 }

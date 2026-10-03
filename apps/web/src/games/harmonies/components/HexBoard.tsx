@@ -13,11 +13,10 @@ interface HexBoardProps {
   /** hexKeys the viewer may click right now. */
   targets?: ReadonlySet<string>;
   onSelect?(cell: Hex): void;
-  width: number;
   label: string;
 }
 
-export function HexBoard({ cells, board, targets, onSelect, width, label }: HexBoardProps) {
+export function HexBoard({ cells, board, targets, onSelect, label }: HexBoardProps) {
   const { bounds, drawOrder } = useMemo(
     () => ({
       bounds: boundsOf(cells, SIZE, 3 * LIFT + 2),
@@ -32,7 +31,6 @@ export function HexBoard({ cells, board, targets, onSelect, width, label }: HexB
       className="hex-board"
       role="group"
       aria-label={label}
-      width={width}
       viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
     >
       {drawOrder.map((cell) => {
