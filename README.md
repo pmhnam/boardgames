@@ -55,9 +55,11 @@ packages/
   game-harmonies/      Harmonies: hex boards, token stacking, animal cards
   game-demo/           Grid Claim: a tiny 5x5 game used to exercise the platform
   shared-types/        REST and WebSocket contracts shared by API and web
+deploy/                Dockerfile, production compose, nginx config, server script
 docs/
   architecture.md      How the pieces fit
   adding-a-game.md     The checklist for a new game
+  deployment.md        How main gets to the server
   adr/                 Decisions and their reasons
 ```
 

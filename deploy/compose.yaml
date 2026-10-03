@@ -1,0 +1,75 @@
+# Production stack. Run through deploy/server-deploy.sh, which supplies --env-file.
+#
+# Nothing is published on the host: the `web` container joins the server's existing `proxy`
+# network, where the Cloudflare Tunnel reaches it as http://boardgames-web:80.
+
+name: boardgames
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bgp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: bgp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bgp -d bgp']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://bgp:${POSTGRES_PASSWORD}@postgres:5432/bgp
+      JWT_SECRET: ${JWT_SECRET:?set in .env}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+    container_name: boardgames-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal, proxy]
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1/api/health']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
+
+networks:
+  internal:
+  proxy:
+    external: true
