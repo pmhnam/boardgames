@@ -21,6 +21,8 @@ import { RoomsService } from './rooms.service.js';
 const createRoomSchema = z.object({
   gameType: z.string().min(1),
   visibility: z.enum(['private', 'public']).default('private'),
+  // The envelope only; the game's engine decides what is valid inside.
+  settings: z.record(z.string(), z.unknown()).optional(),
 });
 
 const setReadySchema = z.object({ ready: z.boolean() });

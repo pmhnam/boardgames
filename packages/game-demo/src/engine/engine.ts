@@ -8,6 +8,7 @@ import type {
   GameViewer,
   ParseActionResult,
   ParseConfigResult,
+  ParseSettingsResult,
 } from '@bgp/game-core';
 import type { GridClaimAction } from '../domain/actions.js';
 import {
@@ -16,6 +17,7 @@ import {
   GRID_CLAIM_GAME_TYPE,
   parseConfig,
   type GridClaimConfig,
+  type GridClaimSettings,
 } from '../domain/config.js';
 import type { GridClaimState } from '../domain/state.js';
 import { calculateScores } from '../scoring/score.js';
@@ -28,7 +30,8 @@ import { validateAction } from './validate-action.js';
 export class GridClaimEngine implements GameEngine<
   GridClaimState,
   GridClaimAction,
-  GridClaimConfig
+  GridClaimConfig,
+  GridClaimSettings
 > {
   readonly gameType = GRID_CLAIM_GAME_TYPE;
   readonly engineVersion = GRID_CLAIM_ENGINE_VERSION;
@@ -39,7 +42,13 @@ export class GridClaimEngine implements GameEngine<
     return parseConfig(raw);
   }
 
-  createInitialState(input: CreateInitialStateInput<GridClaimConfig>): GridClaimState {
+  parseSettings(): ParseSettingsResult<GridClaimSettings> {
+    return { ok: true, settings: {} };
+  }
+
+  createInitialState(
+    input: CreateInitialStateInput<GridClaimConfig, GridClaimSettings>,
+  ): GridClaimState {
     return createInitialState(input);
   }
 

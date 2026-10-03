@@ -1,6 +1,6 @@
 import { classifyStack, stackAt, type PlayerBoard } from '../domain/board.js';
 import { getCard, getCardPoints, type AnimalCard } from '../domain/cards.js';
-import type { HarmoniesConfig } from '../domain/game-config.js';
+import type { HarmoniesSetup } from '../domain/game-config.js';
 import { hexKey, hexNeighbours, parseHexKey, type Hex } from '../domain/hex.js';
 import type { HarmoniesState } from '../domain/state.js';
 
@@ -136,7 +136,7 @@ export function scoreIslands(boardCells: readonly Hex[], board: PlayerBoard): nu
 }
 
 export function scoreWater(
-  config: Pick<HarmoniesConfig, 'boardCells' | 'waterScoring'>,
+  config: Pick<HarmoniesSetup, 'boardCells' | 'waterScoring'>,
   board: PlayerBoard,
 ): number {
   switch (config.waterScoring) {
@@ -154,7 +154,7 @@ export function scoreAnimals(cards: readonly AnimalCard[], board: PlayerBoard): 
   );
 }
 
-export function calculateBoardScore(config: HarmoniesConfig, board: PlayerBoard): ScoreBreakdown {
+export function calculateBoardScore(config: HarmoniesSetup, board: PlayerBoard): ScoreBreakdown {
   const parts = {
     trees: scoreTrees(board),
     mountains: scoreMountains(board),

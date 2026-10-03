@@ -15,6 +15,7 @@ import {
   type RoomUpdatedEvent,
 } from '../../common/events/platform-events.js';
 import { uniqueViolationConstraint } from '../../infrastructure/database/pg-errors.js';
+import { GameConfigService } from '../games/game-config.service.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { MatchesService } from '../matches/matches.service.js';
 import { RoomsRepository, type RoomMemberRecord, type RoomRecord } from './rooms.repository.js';
@@ -35,15 +36,20 @@ export class RoomsService {
   constructor(
     private readonly rooms: RoomsRepository,
     private readonly registry: GameRegistry,
+    private readonly configs: GameConfigService,
     private readonly matches: MatchesService,
     private readonly events: EventEmitter2,
   ) {}
 
   async create(
     userId: string,
-    input: { gameType: string; visibility: RoomVisibility },
+    input: { gameType: string; visibility: RoomVisibility; settings?: Record<string, unknown> },
   ): Promise<RoomDto> {
-    this.registry.get(input.gameType);
+    const { engine } = this.registry.get(input.gameType);
+    const current = await this.configs.getCurrentForPlay(input.gameType);
+    const parsed = engine.parseSettings(input.settings, current.config);
+    if (!parsed.ok) throw new AppError(ErrorCodes.InvalidRoomSettings, parsed.message, 400);
+
     const id = randomUUID();
     await this.rooms.create({
       id,
@@ -52,6 +58,7 @@ export class RoomsService {
       hostUserId: userId,
       status: 'open',
       visibility: input.visibility,
+      settings: parsed.settings,
     });
     return this.getDto(id);
   }
@@ -144,6 +151,7 @@ export class RoomsService {
     const matchId = await this.matches.createForRoom({
       roomId,
       gameType: room.gameType,
+      settings: room.settings,
       members: members.map(({ userId: memberId, seat }) => ({ userId: memberId, seat })),
     });
     await this.rooms.update(roomId, { status: 'in_match' });
@@ -197,6 +205,7 @@ export class RoomsService {
       hostUserId: room.hostUserId,
       status: room.status,
       visibility: room.visibility,
+      settings: room.settings,
       members,
       currentMatchId:
         room.status === 'in_match' ? await this.rooms.findCurrentMatchId(room.id) : null,

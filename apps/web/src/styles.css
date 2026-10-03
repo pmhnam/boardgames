@@ -97,6 +97,23 @@ main {
   align-items: center;
 }
 
+.stack-small {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+select {
+  max-width: 100%;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
 .row.wrap {
   flex-wrap: wrap;
 }
@@ -409,6 +426,8 @@ td {
 
 .card-points {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 0.25rem;
   margin: 0;
   padding: 0;

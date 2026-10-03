@@ -21,7 +21,13 @@ export { HARMONIES_GAME_TYPE } from './domain/config.js';
 export { HarmoniesRuleCodes } from './domain/errors.js';
 export { classifyStack } from './domain/board.js';
 export { DEFAULT_HARMONIES_CONFIG } from './domain/game-config.js';
-export type { HarmoniesConfig, WaterScoring } from './domain/game-config.js';
+export type {
+  HarmoniesConfig,
+  HarmoniesMap,
+  HarmoniesSettings,
+  HarmoniesSetup,
+  WaterScoring,
+} from './domain/game-config.js';
 export { hexKey, parseHexKey } from './domain/hex.js';
 export { TOKEN_COLORS } from './domain/tokens.js';
 export type { Hex } from './domain/hex.js';

@@ -13,6 +13,7 @@ export const ErrorCodes = {
 
   RoomNotFound: 'ROOM_NOT_FOUND',
   RoomFull: 'ROOM_FULL',
+  InvalidRoomSettings: 'INVALID_ROOM_SETTINGS',
   RoomNotOpen: 'ROOM_NOT_OPEN',
   NotRoomMember: 'NOT_ROOM_MEMBER',
   NotRoomHost: 'NOT_ROOM_HOST',

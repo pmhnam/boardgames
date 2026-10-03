@@ -13,7 +13,7 @@ import {
   scoreRiver,
   scoreWater,
 } from '../src/scoring/score.js';
-import { boardWith, cards, config } from './fixtures/states.js';
+import { boardWith, cards, config, setupB } from './fixtures/states.js';
 
 describe('trees', () => {
   it('scores 1, 3 and 7 by height and ignores bare trunks', () => {
@@ -156,15 +156,33 @@ describe('water: islands', () => {
   });
 });
 
-describe('water: chosen by config', () => {
-  const board = boardWith({ '0,0': ['water'], '0,1': ['water'], '0,2': ['water'] });
+describe('water: scored the way the map says', () => {
+  // A straight river of four down the first column, which both sides share.
+  const river = boardWith({
+    '0,0': ['water'],
+    '0,1': ['water'],
+    '0,2': ['water'],
+    '0,3': ['water'],
+  });
 
-  it('scores islands or the river depending on the setting', () => {
-    expect(scoreWater({ ...config, waterScoring: 'islands' }, board)).toBe(5);
-    expect(scoreWater({ ...config, waterScoring: 'river' }, board)).toBe(5);
-    const longer = boardWith({ ...board.stacks, '0,3': ['water'] });
-    expect(scoreWater({ ...config, waterScoring: 'islands' }, longer)).toBe(5);
-    expect(scoreWater({ ...config, waterScoring: 'river' }, longer)).toBe(8);
+  it('side A scores the longest river', () => {
+    expect(config.waterScoring).toBe('river');
+    expect(scoreWater(config, river)).toBe(8);
+    expect(scoreWater(config, boardWith({}))).toBe(0);
+  });
+
+  it('side B scores islands', () => {
+    expect(setupB.waterScoring).toBe('islands');
+    // The first column of side B is exactly those four cells, so the river only removes it:
+    // the rest of the board is still one island.
+    expect(scoreWater(setupB, river)).toBe(5);
+    expect(scoreWater(setupB, boardWith({}))).toBe(5);
+
+    // A wall of water down the second column cuts side B in two.
+    const wall = boardWith({ '1,0': ['water'], '1,1': ['water'], '1,2': ['water'] });
+    expect(scoreWater(setupB, wall)).toBe(10);
+    // The same three tokens are just a river of three on side A, which has a fourth cell there.
+    expect(scoreWater(config, wall)).toBe(5);
   });
 });
 
@@ -195,9 +213,9 @@ describe('calculateBoardScore', () => {
       mountains: 0,
       fields: 5,
       buildings: 0,
-      water: 5,
+      water: 2,
       animals: 2,
-      total: 13,
+      total: 10,
     });
   });
 });

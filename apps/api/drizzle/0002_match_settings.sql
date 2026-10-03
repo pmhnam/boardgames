@@ -1,0 +1,1 @@
+ALTER TABLE "matches" ADD COLUMN "settings" jsonb DEFAULT '{}'::jsonb NOT NULL;

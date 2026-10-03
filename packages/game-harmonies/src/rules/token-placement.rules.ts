@@ -1,7 +1,7 @@
 import type { GameValidationResult } from '@bgp/game-core';
 import { hasCube, isOnBoard, stackAt, type PlayerBoard } from '../domain/board.js';
 import { HarmoniesRuleCodes } from '../domain/errors.js';
-import type { HarmoniesConfig } from '../domain/game-config.js';
+import type { HarmoniesSetup } from '../domain/game-config.js';
 import type { Hex } from '../domain/hex.js';
 import type { TokenColor } from '../domain/tokens.js';
 
@@ -35,7 +35,7 @@ export function canStack(stack: readonly TokenColor[], color: TokenColor): boole
   }
 }
 
-type BoardShape = Pick<HarmoniesConfig, 'boardCells'>;
+type BoardShape = Pick<HarmoniesSetup, 'boardCells'>;
 
 export function validateTokenPlacement(
   config: BoardShape,

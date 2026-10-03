@@ -8,12 +8,16 @@ import {
   MIN_PLAYERS,
   TOKENS_PER_SPACE,
 } from '../domain/config.js';
-import type { HarmoniesConfig } from '../domain/game-config.js';
+import {
+  resolveSetup,
+  type HarmoniesConfig,
+  type HarmoniesSettings,
+} from '../domain/game-config.js';
 import type { HarmoniesState } from '../domain/state.js';
 import { randomizeSetup } from '../random/setup-randomizer.js';
 
 export function createInitialState(
-  input: CreateInitialStateInput<HarmoniesConfig>,
+  input: CreateInitialStateInput<HarmoniesConfig, HarmoniesSettings>,
 ): HarmoniesState {
   if (input.players.length < MIN_PLAYERS || input.players.length > MAX_PLAYERS) {
     throw new GameRuleError(
@@ -22,13 +26,14 @@ export function createInitialState(
     );
   }
 
+  const matchSetup = resolveSetup(input.config, input.settings);
   const seated = [...input.players]
     .sort((a, b) => a.seat - b.seat)
     .map((player) => player.playerId);
   const setup = randomizeSetup({
     seed: input.seed,
     playerCount: seated.length,
-    config: input.config,
+    config: matchSetup,
   });
   const turnOrder = [
     ...seated.slice(setup.startingPlayerIndex),
@@ -48,7 +53,7 @@ export function createInitialState(
     id: input.gameId,
     engineVersion: HARMONIES_ENGINE_VERSION,
     phase: 'PLAYING',
-    config: input.config,
+    config: matchSetup,
     turnOrder,
     turn: {
       number: 1,

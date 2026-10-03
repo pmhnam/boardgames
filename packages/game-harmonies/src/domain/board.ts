@@ -18,19 +18,23 @@ export interface PlayerBoard {
   cards: PlayerCard[];
 }
 
-const COLUMN_COUNT = 5;
-const TALL_COLUMN_HEIGHT = 5;
-
 /**
- * The default personal board: five columns of 5, 4, 5, 4, 5 cells (23 in total), the short
- * columns sitting half a cell lower. The board a match is played on comes from its config.
+ * A board made of columns that alternate tall, short, tall..., the short ones one cell shorter
+ * and sitting half a cell lower.
  */
-export const DEFAULT_BOARD_CELLS: readonly Hex[] = Array.from({ length: COLUMN_COUNT }, (_, q) => {
-  const isTall = q % 2 === 0;
-  const height = isTall ? TALL_COLUMN_HEIGHT : TALL_COLUMN_HEIGHT - 1;
-  const firstR = -Math.floor(q / 2);
-  return Array.from({ length: height }, (_, row) => ({ q, r: firstR + row }));
-}).flat();
+export function columnBoard(columnCount: number, tallColumnHeight: number): Hex[] {
+  return Array.from({ length: columnCount }, (_, q) => {
+    const height = q % 2 === 0 ? tallColumnHeight : tallColumnHeight - 1;
+    const firstR = -Math.floor(q / 2);
+    return Array.from({ length: height }, (_, row) => ({ q, r: firstR + row }));
+  }).flat();
+}
+
+/** Side A of the printed board: columns of 5, 4, 5, 4, 5 cells (23). */
+export const SIDE_A_CELLS: readonly Hex[] = columnBoard(5, 5);
+
+/** Side B of the printed board: columns of 4, 3, 4, 3, 4, 3, 4 cells (25). */
+export const SIDE_B_CELLS: readonly Hex[] = columnBoard(7, 4);
 
 export function isOnBoard(cells: readonly Hex[], hex: Hex): boolean {
   return cells.some((cell) => cell.q === hex.q && cell.r === hex.r);

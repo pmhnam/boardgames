@@ -1,16 +1,18 @@
 import { createSeededRandom } from '@bgp/game-core';
 import { deepFreeze, runMatch, seats, type ScriptedAction } from '@bgp/game-core/testing';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BOARD_CELLS, classifyStack } from '../src/domain/board.js';
+import { SIDE_A_CELLS, classifyStack } from '../src/domain/board.js';
 import { getCard, getCubeCount } from '../src/domain/cards.js';
 import type { HarmoniesState } from '../src/domain/state.js';
-import { HarmoniesRuleCodes, type HarmoniesAction } from '../src/index.js';
+import { HarmoniesRuleCodes, type HarmoniesAction, type HarmoniesSettings } from '../src/index.js';
 import { canStack } from '../src/rules/token-placement.rules.js';
 import {
   active,
   boardWith,
+  MAP_A,
+  MAP_B,
   cards,
-  config,
+  gameConfig,
   context,
   engine,
   newGame,
@@ -79,10 +81,20 @@ function chooseAction(
   return { type: 'END_TURN' };
 }
 
-function scriptFullGame(seed: string, playerCount: number): ScriptedAction<HarmoniesAction>[] {
+function scriptFullGame(
+  seed: string,
+  playerCount: number,
+  settings: HarmoniesSettings,
+): ScriptedAction<HarmoniesAction>[] {
   const random = createSeededRandom(`bot-${seed}`);
   const script: ScriptedAction<HarmoniesAction>[] = [];
-  let state = engine.createInitialState({ gameId: 'g', players: seats(playerCount), seed, config });
+  let state = engine.createInitialState({
+    gameId: 'g',
+    players: seats(playerCount),
+    seed,
+    config: gameConfig,
+    settings,
+  });
   while (engine.getGameStatus(state) === 'playing') {
     const playerId = active(state);
     const action = chooseAction(state, random);
@@ -95,7 +107,13 @@ function scriptFullGame(seed: string, playerCount: number): ScriptedAction<Harmo
 
 describe('setup', () => {
   it('is deterministic for a seed and varies between seeds', () => {
-    const input = { gameId: 'g', players: seats(3), seed: 'match-1', config };
+    const input = {
+      gameId: 'g',
+      players: seats(3),
+      seed: 'match-1',
+      config: gameConfig,
+      settings: MAP_A,
+    };
     expect(engine.createInitialState(input)).toEqual(engine.createInitialState(input));
     expect(engine.createInitialState({ ...input, seed: 'match-2' }).pouch).not.toEqual(
       engine.createInitialState(input).pouch,
@@ -115,7 +133,13 @@ describe('setup', () => {
 
   it.each([1, 5])('rejects %i players', (count) => {
     expect(() =>
-      engine.createInitialState({ gameId: 'g', players: seats(count), seed: 's', config }),
+      engine.createInitialState({
+        gameId: 'g',
+        players: seats(count),
+        seed: 's',
+        config: gameConfig,
+        settings: MAP_A,
+      }),
     ).toThrow();
   });
 });
@@ -191,7 +215,7 @@ describe('turn flow', () => {
   it('discards tokens that fit nowhere', () => {
     // Every cell is water, so nothing can be stacked anywhere.
     const full = Object.fromEntries(
-      DEFAULT_BOARD_CELLS.map((cell) => [`${cell.q},${cell.r}`, ['water' as const]]),
+      SIDE_A_CELLS.map((cell) => [`${cell.q},${cell.r}`, ['water' as const]]),
     );
     let state = withActiveBoard(
       newGame({ centralSpaces: [['water', 'field', 'leaf'], [], [], [], []] }),
@@ -301,7 +325,7 @@ describe('animal cards', () => {
 describe('end of game', () => {
   const nearlyFull = () =>
     Object.fromEntries(
-      DEFAULT_BOARD_CELLS.slice(0, 21).map((cell) => [`${cell.q},${cell.r}`, ['water' as const]]),
+      SIDE_A_CELLS.slice(0, 21).map((cell) => [`${cell.q},${cell.r}`, ['water' as const]]),
     );
 
   it('lets everyone finish the round once a board is nearly full', () => {
@@ -353,7 +377,7 @@ describe('end of game', () => {
       finalRound: true,
       turn: { ...base.turn, activePlayerId: second, tokensTaken: true },
       boards: {
-        // 7 points each (5 of them for the one island): two small trees against one animal.
+        // 2 points each: two small trees against one animal.
         [first]: boardWith({ '0,0': ['leaf'], '4,0': ['leaf'] }),
         [second]: boardWith(
           {},
@@ -364,7 +388,7 @@ describe('end of game', () => {
     const finished = apply(state, { type: 'END_TURN' }, second);
     expect(engine.getResult(finished)).toEqual({
       winnerPlayerIds: [second],
-      scores: { [first]: 7, [second]: 7 },
+      scores: { [first]: 2, [second]: 2 },
     });
   });
 });
@@ -398,67 +422,83 @@ describe('public view', () => {
 });
 
 describe('full matches', () => {
-  const games: Array<[string, number]> = [
-    ['alpha', 2],
-    ['beta', 2],
-    ['gamma', 3],
-    ['delta', 4],
+  const games: Array<[string, number, HarmoniesSettings]> = [
+    ['alpha', 2, MAP_A],
+    ['beta', 2, MAP_B],
+    ['gamma', 3, MAP_A],
+    ['delta', 4, MAP_B],
+    ['epsilon', 4, MAP_A],
+    ['zeta', 3, MAP_B],
   ];
 
-  it.each(games)('replays identically from seed + actions (%s, %i players)', (seed, players) => {
-    const actions = scriptFullGame(seed, players);
-    const first = runMatch(engine, { seed, players: seats(players), actions });
-    const second = runMatch(engine, { seed, players: seats(players), actions });
+  it.each(games)(
+    'replays identically from seed + actions (%s, %i players, %j)',
+    (seed, players, settings) => {
+      const actions = scriptFullGame(seed, players, settings);
+      const first = runMatch(engine, { seed, players: seats(players), settings, actions });
+      const second = runMatch(engine, { seed, players: seats(players), settings, actions });
 
-    expect(first).toEqual(second);
-    expect(engine.getGameStatus(first)).toBe('finished');
-    expect(first.winnerPlayerIds.length).toBeGreaterThan(0);
-  });
+      expect(first).toEqual(second);
+      expect(engine.getGameStatus(first)).toBe('finished');
+      expect(first.winnerPlayerIds.length).toBeGreaterThan(0);
+    },
+  );
 
-  it.each(games)('keeps invariants on every step (%s, %i players)', (seed, players) => {
-    let state = engine.createInitialState({ gameId: 'g', players: seats(players), seed, config });
-    let tokens = countTokens(state);
-    const turnsTaken = new Map<string, number>();
+  it.each(games)(
+    'keeps invariants on every step (%s, %i players, %j)',
+    (seed, players, settings) => {
+      let state = engine.createInitialState({
+        gameId: 'g',
+        players: seats(players),
+        seed,
+        config: gameConfig,
+        settings,
+      });
+      let tokens = countTokens(state);
+      const turnsTaken = new Map<string, number>();
 
-    for (const step of scriptFullGame(seed, players)) {
-      expect(state.turnOrder).toContain(active(state));
-      const next = engine.applyAction(state, step.action, context(step.playerId));
-      if (step.action.type === 'END_TURN') {
-        turnsTaken.set(step.playerId, (turnsTaken.get(step.playerId) ?? 0) + 1);
-      }
+      for (const step of scriptFullGame(seed, players, settings)) {
+        expect(state.turnOrder).toContain(active(state));
+        const next = engine.applyAction(state, step.action, context(step.playerId));
+        if (step.action.type === 'END_TURN') {
+          turnsTaken.set(step.playerId, (turnsTaken.get(step.playerId) ?? 0) + 1);
+        }
 
-      // Tokens are never created; they only leave play when discarded at end of turn.
-      const nextTokens = countTokens(next);
-      if (step.action.type === 'END_TURN') expect(nextTokens).toBeLessThanOrEqual(tokens);
-      else expect(nextTokens).toBe(tokens);
-      tokens = nextTokens;
+        // Tokens are never created; they only leave play when discarded at end of turn.
+        const nextTokens = countTokens(next);
+        if (step.action.type === 'END_TURN') expect(nextTokens).toBeLessThanOrEqual(tokens);
+        else expect(nextTokens).toBe(tokens);
+        tokens = nextTokens;
 
-      for (const board of Object.values(next.boards)) {
-        // Every stack could have been built legally, one token at a time.
-        for (const stack of Object.values(board.stacks)) {
-          stack.forEach((color, height) =>
-            expect(canStack(stack.slice(0, height), color)).toBe(true),
+        for (const board of Object.values(next.boards)) {
+          // Every stack could have been built legally, one token at a time.
+          for (const stack of Object.values(board.stacks)) {
+            stack.forEach((color, height) =>
+              expect(canStack(stack.slice(0, height), color)).toBe(true),
+            );
+          }
+          // One animal per cell, each on a finished terrain, and never more than a card allows.
+          expect(new Set(board.cubes).size).toBe(board.cubes.length);
+          for (const key of board.cubes)
+            expect(classifyStack(board.stacks[key] ?? [])).not.toBeNull();
+          for (const card of board.cards) {
+            expect(card.cubesPlaced).toBeLessThanOrEqual(getCubeCount(getCard(cards, card.cardId)));
+          }
+          expect(board.cubes).toHaveLength(
+            board.cards.reduce((sum, card) => sum + card.cubesPlaced, 0),
           );
         }
-        // One animal per cell, each on a finished terrain, and never more than a card allows.
-        expect(new Set(board.cubes).size).toBe(board.cubes.length);
-        for (const key of board.cubes)
-          expect(classifyStack(board.stacks[key] ?? [])).not.toBeNull();
-        for (const card of board.cards) {
-          expect(card.cubesPlaced).toBeLessThanOrEqual(getCubeCount(getCard(cards, card.cardId)));
+        for (const score of Object.values(
+          engine.getPublicView(next, { type: 'spectator' }).scores,
+        )) {
+          expect(Number.isFinite(score.total)).toBe(true);
         }
-        expect(board.cubes).toHaveLength(
-          board.cards.reduce((sum, card) => sum + card.cubesPlaced, 0),
-        );
+        expect(next.turn.number).toBeGreaterThanOrEqual(state.turn.number);
+        state = next;
       }
-      for (const score of Object.values(engine.getPublicView(next, { type: 'spectator' }).scores)) {
-        expect(Number.isFinite(score.total)).toBe(true);
-      }
-      expect(next.turn.number).toBeGreaterThanOrEqual(state.turn.number);
-      state = next;
-    }
 
-    // Everyone had the same number of turns.
-    expect(new Set(state.turnOrder.map((playerId) => turnsTaken.get(playerId))).size).toBe(1);
-  });
+      // Everyone had the same number of turns.
+      expect(new Set(state.turnOrder.map((playerId) => turnsTaken.get(playerId))).size).toBe(1);
+    },
+  );
 });

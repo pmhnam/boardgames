@@ -1,10 +1,16 @@
 import type { GameUiDefinition } from './types';
 import { GridClaimGameView } from './grid-claim/GameView';
 import { HarmoniesGameView } from './harmonies/GameView';
+import { HarmoniesSettingsForm, describeHarmoniesSettings } from './harmonies/SettingsForm';
 
 /** The one place the web app learns which games it can render. Add new game UIs here. */
 const definitions: GameUiDefinition[] = [
-  { gameType: 'harmonies', component: HarmoniesGameView },
+  {
+    gameType: 'harmonies',
+    component: HarmoniesGameView,
+    SettingsForm: HarmoniesSettingsForm,
+    describeSettings: describeHarmoniesSettings,
+  },
   { gameType: 'grid-claim', component: GridClaimGameView },
 ];
 

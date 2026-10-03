@@ -8,13 +8,16 @@ import type {
   GameViewer,
   ParseActionResult,
   ParseConfigResult,
+  ParseSettingsResult,
 } from '@bgp/game-core';
 import type { HarmoniesAction } from '../domain/actions.js';
 import { HARMONIES_ENGINE_VERSION, HARMONIES_GAME_TYPE } from '../domain/config.js';
 import {
   DEFAULT_HARMONIES_CONFIG,
   parseConfig,
+  parseSettings,
   type HarmoniesConfig,
+  type HarmoniesSettings,
 } from '../domain/game-config.js';
 import type { HarmoniesState } from '../domain/state.js';
 import { calculateScores } from '../scoring/score.js';
@@ -27,7 +30,8 @@ import { validateAction } from './validate-action.js';
 export class HarmoniesEngine implements GameEngine<
   HarmoniesState,
   HarmoniesAction,
-  HarmoniesConfig
+  HarmoniesConfig,
+  HarmoniesSettings
 > {
   readonly gameType = HARMONIES_GAME_TYPE;
   readonly engineVersion = HARMONIES_ENGINE_VERSION;
@@ -38,7 +42,13 @@ export class HarmoniesEngine implements GameEngine<
     return parseConfig(raw);
   }
 
-  createInitialState(input: CreateInitialStateInput<HarmoniesConfig>): HarmoniesState {
+  parseSettings(raw: unknown, config: HarmoniesConfig): ParseSettingsResult<HarmoniesSettings> {
+    return parseSettings(raw, config);
+  }
+
+  createInitialState(
+    input: CreateInitialStateInput<HarmoniesConfig, HarmoniesSettings>,
+  ): HarmoniesState {
     return createInitialState(input);
   }
 

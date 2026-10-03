@@ -74,8 +74,9 @@ board, and place animals on matching habitats. Two caveats:
   the game's config, so they can be changed without touching code (see below).
 - A habitat only counts when every cell is in its exact place around the animal, at its exact
   height, in one of six rotations. Mirror images do not count.
-- Water scores 5 points per island (side B of the printed board) by default. Set
-  `waterScoring` to `river` in the game's config to score the longest river instead (side A).
+- There are two maps, like the two sides of the printed board, and the room's host picks one
+  when creating the room. Each map carries its own water scoring: side A (23 cells) scores the
+  longest river, side B (25 cells) scores 5 points per island.
 - A player may hold at most three unfinished animal cards; a card stops counting once all its
   animals are placed.
 - Harmonies is a commercial game. Its name, artwork and card set belong to its publisher; get a
@@ -86,8 +87,9 @@ implementation of the engine contract.
 
 ## Game configuration
 
-Each game's tunable data lives in the database, not in code. For Harmonies that is the board
-shape, the animal cards, the number of tokens of each colour and how water scores. The first boot seeds version 1
+Each game's tunable data lives in the database, not in code. For Harmonies that is the list of
+maps (each with its shape and water scoring), the animal cards and the number of tokens of each
+colour. The first boot seeds version 1
 from the engine's defaults; after that the database is the source of truth.
 
 ```bash
@@ -98,7 +100,7 @@ curl localhost:3000/api/games/harmonies/config
 curl -X PUT localhost:3000/api/games/harmonies/config \
   -H 'content-type: application/json' \
   -H 'x-admin-token: <ADMIN_TOKEN>' \
-  -d '{ "config": { "boardCells": [], "tokenCounts": {}, "cards": [] }, "note": "why" }'
+  -d '{ "config": { "maps": [], "tokenCounts": {}, "cards": [] }, "note": "why" }'
 ```
 
 Send a complete config: the game's engine validates it as a whole and rejects anything it could

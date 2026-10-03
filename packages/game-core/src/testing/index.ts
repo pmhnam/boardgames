@@ -17,26 +17,39 @@ export interface ScriptedAction<TAction> {
   action: TAction;
 }
 
+function defaultSettings<TConfig, TSettings>(
+  engine: Pick<GameEngine<unknown, unknown, TConfig, TSettings>, 'parseSettings' | 'gameType'>,
+  config: TConfig,
+): TSettings {
+  const parsed = engine.parseSettings(undefined, config);
+  if (!parsed.ok) throw new Error(`${engine.gameType} has no default settings: ${parsed.message}`);
+  return parsed.settings;
+}
+
 /**
  * Replays a scripted match. Every intermediate state is frozen, so an engine that mutates
  * its input fails loudly.
  */
-export function runMatch<TState, TAction, TConfig>(
-  engine: GameEngine<TState, TAction, TConfig>,
+export function runMatch<TState, TAction, TConfig, TSettings>(
+  engine: GameEngine<TState, TAction, TConfig, TSettings>,
   input: {
     seed: string;
     players: PlayerSeat[];
     actions: ScriptedAction<TAction>[];
     /** Defaults to the engine's own default. */
     config?: TConfig;
+    /** Defaults to what the engine gives a room created without settings. */
+    settings?: TSettings;
   },
 ): TState {
+  const config = input.config ?? engine.defaultConfig;
   let state = deepFreeze(
     engine.createInitialState({
       gameId: 'test-game',
       players: input.players,
       seed: input.seed,
-      config: input.config ?? engine.defaultConfig,
+      config,
+      settings: input.settings ?? defaultSettings(engine, config),
     }),
   );
   input.actions.forEach((step, index) => {

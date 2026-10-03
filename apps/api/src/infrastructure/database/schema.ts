@@ -79,6 +79,8 @@ export const matches = pgTable('matches', {
     .references(() => rooms.id),
   gameType: text('game_type').notNull(),
   engineVersion: integer('engine_version').notNull(),
+  /** The room settings this match was set up with, as validated at the time. */
+  settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
   /** Which game_configs version this match was set up with. */
   configVersion: integer('config_version').notNull().default(1),
   status: text('status').$type<'playing' | 'finished' | 'abandoned'>().notNull(),

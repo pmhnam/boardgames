@@ -9,6 +9,7 @@ export type {
   GameViewer,
   ParseActionResult,
   ParseConfigResult,
+  ParseSettingsResult,
   PlayerSeat,
 } from './contracts/engine.js';
 export type { AnyGameEngine, GameDefinition, GameModule } from './contracts/definition.js';

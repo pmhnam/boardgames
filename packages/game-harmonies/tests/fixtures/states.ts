@@ -1,10 +1,19 @@
 import { deepFreeze, seats } from '@bgp/game-core/testing';
 import type { PlayerBoard, Stack } from '../../src/domain/board.js';
 import type { HarmoniesState } from '../../src/domain/state.js';
-import { HarmoniesGame } from '../../src/index.js';
+import { resolveSetup } from '../../src/domain/game-config.js';
+import { HarmoniesGame, type HarmoniesSettings } from '../../src/index.js';
 
 export const engine = HarmoniesGame.engine;
-export const config = engine.defaultConfig;
+/** What is stored in the database: every map, the deck, the pouch. */
+export const gameConfig = engine.defaultConfig;
+
+export const MAP_A: HarmoniesSettings = { mapId: 'A' };
+export const MAP_B: HarmoniesSettings = { mapId: 'B' };
+
+/** What one match plays by. Unless a test says otherwise, that is side A. */
+export const config = resolveSetup(gameConfig, MAP_A);
+export const setupB = resolveSetup(gameConfig, MAP_B);
 export const cards = config.cards;
 
 export function boardWith(
@@ -20,7 +29,13 @@ export function context(actorPlayerId: string) {
 
 /** A fresh 2-player game, with optional overrides, frozen so mutation fails loudly. */
 export function newGame(overrides: Partial<HarmoniesState> = {}, seed = 'fixture'): HarmoniesState {
-  const state = engine.createInitialState({ gameId: 'g', players: seats(2), seed, config });
+  const state = engine.createInitialState({
+    gameId: 'g',
+    players: seats(2),
+    seed,
+    config: gameConfig,
+    settings: MAP_A,
+  });
   return deepFreeze({ ...state, ...overrides });
 }
 

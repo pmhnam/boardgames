@@ -1,16 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BOARD_CELLS } from '../src/domain/board.js';
+import { SIDE_A_CELLS, SIDE_B_CELLS } from '../src/domain/board.js';
 import type { TokenColor } from '../src/domain/tokens.js';
 import { HarmoniesRuleCodes } from '../src/index.js';
 import { canStack, validateTokenPlacement } from '../src/rules/token-placement.rules.js';
-import { boardWith, config } from './fixtures/states.js';
+import { boardWith, config, setupB } from './fixtures/states.js';
 
-describe('board', () => {
-  it('has 23 cells in columns of 5, 4, 5, 4, 5', () => {
-    expect(DEFAULT_BOARD_CELLS).toHaveLength(23);
-    expect(
-      [0, 1, 2, 3, 4].map((q) => DEFAULT_BOARD_CELLS.filter((cell) => cell.q === q).length),
-    ).toEqual([5, 4, 5, 4, 5]);
+describe('boards', () => {
+  const columnSizes = (cells: readonly { q: number }[], columns: number) =>
+    Array.from({ length: columns }, (_, q) => cells.filter((cell) => cell.q === q).length);
+
+  it('side A has 23 cells in columns of 5, 4, 5, 4, 5', () => {
+    expect(SIDE_A_CELLS).toHaveLength(23);
+    expect(columnSizes(SIDE_A_CELLS, 5)).toEqual([5, 4, 5, 4, 5]);
+  });
+
+  it('side B has 25 cells in columns of 4, 3, 4, 3, 4, 3, 4', () => {
+    expect(SIDE_B_CELLS).toHaveLength(25);
+    expect(columnSizes(SIDE_B_CELLS, 7)).toEqual([4, 3, 4, 3, 4, 3, 4]);
+  });
+
+  it('places tokens only on the cells of the map in play', () => {
+    // (6,-3) is the top of side B's last column; side A stops at column 4.
+    const cell = { q: 6, r: -3 };
+    expect(validateTokenPlacement(setupB, boardWith({}), 'water', cell)).toEqual({ valid: true });
+    expect(validateTokenPlacement(config, boardWith({}), 'water', cell)).toMatchObject({
+      code: HarmoniesRuleCodes.InvalidPosition,
+    });
   });
 });
 

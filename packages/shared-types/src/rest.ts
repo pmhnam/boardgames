@@ -54,6 +54,8 @@ export interface RoomDto {
   hostUserId: string;
   status: RoomStatus;
   visibility: RoomVisibility;
+  /** What the host chose for matches in this room. Shaped by the game. */
+  settings: Record<string, unknown>;
   members: RoomMemberDto[];
   /** The match currently being played in this room, if any. */
   currentMatchId: string | null;
@@ -118,6 +120,8 @@ export interface MatchReplayDto {
 
 export interface CreateRoomRequest {
   gameType: string;
+  /** Game-specific choices, e.g. which map. Omitted means the game's defaults. */
+  settings?: Record<string, unknown>;
   visibility?: RoomVisibility;
 }
 

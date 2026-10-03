@@ -1,5 +1,5 @@
 export const HARMONIES_GAME_TYPE = 'harmonies';
-export const HARMONIES_ENGINE_VERSION = 4;
+export const HARMONIES_ENGINE_VERSION = 5;
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 4;

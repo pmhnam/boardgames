@@ -3,7 +3,7 @@ import { hasCube, isOnBoard, type PlayerBoard } from '../domain/board.js';
 import { getCard, isCardComplete, type AnimalCard } from '../domain/cards.js';
 import { MAX_CARDS_IN_PROGRESS } from '../domain/config.js';
 import { HarmoniesRuleCodes } from '../domain/errors.js';
-import type { HarmoniesConfig } from '../domain/game-config.js';
+import type { HarmoniesSetup } from '../domain/game-config.js';
 import type { Hex } from '../domain/hex.js';
 import type { HarmoniesState } from '../domain/state.js';
 import { habitatMatchesAt } from './habitat.rules.js';
@@ -51,7 +51,7 @@ export function validateTakeCard(
 }
 
 export function validatePlaceCube(
-  config: HarmoniesConfig,
+  config: HarmoniesSetup,
   board: PlayerBoard,
   cardId: string,
   cell: Hex,

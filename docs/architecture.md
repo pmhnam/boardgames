@@ -22,20 +22,21 @@ compile without Node or DOM type definitions, so a stray dependency fails the bu
 `packages/game-core/src/contracts/engine.ts`. An engine is pure: the same seed and the same
 actions always give the same state.
 
-| Method               | Purpose                                                       |
-| -------------------- | ------------------------------------------------------------- |
-| `defaultConfig`      | The config a fresh installation is seeded with.               |
-| `parseConfig`        | Validate a config from the database or an admin request.      |
-| `createInitialState` | Setup from players, a seed and a config. All randomness here. |
-| `parseAction`        | Shape-check an untrusted payload; copy only known fields.     |
-| `validateAction`     | Is this move legal? Returns a stable rule code if not.        |
-| `applyAction`        | Returns a new state. Never mutates.                           |
-| `getGameStatus`      | `playing` or `finished`.                                      |
-| `getResult`          | Winners and scores, once finished.                            |
-| `getPublicView`      | What a given player or spectator may see.                     |
+| Method               | Purpose                                                   |
+| -------------------- | --------------------------------------------------------- |
+| `defaultConfig`      | The config a fresh installation is seeded with.           |
+| `parseConfig`        | Validate a config from the database or an admin request.  |
+| `parseSettings`      | Validate what a room's host chose (e.g. which map).       |
+| `createInitialState` | Setup from players, seed, config and settings.            |
+| `parseAction`        | Shape-check an untrusted payload; copy only known fields. |
+| `validateAction`     | Is this move legal? Returns a stable rule code if not.    |
+| `applyAction`        | Returns a new state. Never mutates.                       |
+| `getGameStatus`      | `playing` or `finished`.                                  |
+| `getResult`          | Winners and scores, once finished.                        |
+| `getPublicView`      | What a given player or spectator may see.                 |
 
-Additions to the original specification: `defaultConfig` and `parseConfig` (see Game
-configuration below), `parseAction` (so every action has runtime
+Additions to the original specification: `defaultConfig`, `parseConfig` and `parseSettings`
+(see Game configuration below), `parseAction` (so every action has runtime
 validation without the platform knowing its shape) and `getResult` (so the platform can store an
 outcome without reading game state).
 
@@ -90,6 +91,18 @@ the row with the highest version.
   changes.
 - **Replay.** Replay re-runs setup with the current config, so it is refused
   (`REPLAY_UNAVAILABLE`) for a match whose `config_version` is not the current one.
+
+### Room settings
+
+Config is what an operator sets for the whole game; settings are what a host picks for one
+room, from the options the config offers (for Harmonies, which map). `POST /rooms` hands the
+host's choice to `engine.parseSettings(raw, config)` and stores the cleaned result on the room.
+When a match starts it is validated again against the config then in force, passed to
+`createInitialState`, and saved on the match so a replay sets up the same way. Sending nothing
+always yields the game's defaults.
+
+On the web, a game opts in by registering a `SettingsForm` (and `describeSettings`) next to its
+renderer in `apps/web/src/games/registry.ts`; the lobby and room pages stay game-agnostic.
 
 Config and rules are versioned separately. `config_version` changes when an operator publishes
 data; `engine_version` changes when the code changes what a state means. A match saved by a

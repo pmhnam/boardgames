@@ -18,6 +18,7 @@ function scriptFullGame(seed: string): ScriptedAction<GridClaimAction>[] {
     players: seats(2),
     seed,
     config: engine.defaultConfig,
+    settings: {},
   });
   while (engine.getGameStatus(state) === 'playing') {
     const playerId = state.turn.activePlayerId;
@@ -37,6 +38,7 @@ describe('createInitialState', () => {
       players: seats(2),
       seed: 'match-123',
       config: engine.defaultConfig,
+      settings: {},
     };
     expect(engine.createInitialState(input)).toEqual(engine.createInitialState(input));
   });
@@ -50,6 +52,7 @@ describe('createInitialState', () => {
             players: seats(2),
             seed,
             config: engine.defaultConfig,
+            settings: {},
           }).cells,
         ),
       ),
@@ -63,6 +66,7 @@ describe('createInitialState', () => {
       players: seats(2),
       seed: 's',
       config: engine.defaultConfig,
+      settings: {},
     });
     expect(state.cells).toHaveLength(25);
     expect(state.cells.filter((cell) => cell === BLOCKED)).toHaveLength(3);
@@ -78,6 +82,7 @@ describe('createInitialState', () => {
         players: seats(3),
         seed: 's',
         config: engine.defaultConfig,
+        settings: {},
       }),
     ).toThrow();
   });
@@ -90,6 +95,7 @@ describe('config', () => {
       players: seats(2),
       seed: 's',
       config: { boardSize: 4, blockedCellCount: 1, targetScore: 6 },
+      settings: {},
     });
     expect(state.size).toBe(4);
     expect(state.cells).toHaveLength(16);
@@ -193,6 +199,7 @@ describe('full matches', () => {
       players: seats(2),
       seed,
       config: engine.defaultConfig,
+      settings: {},
     });
     let pieces = 0;
 

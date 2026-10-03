@@ -71,7 +71,7 @@ export function HarmoniesGameView({
         {view.finalRound && view.phase === 'PLAYING' && ' · final round'}
         <span className="muted">
           {' '}
-          · turn {turn.number} · {view.pouchCount} tokens in the pouch
+          · {view.map.name} · turn {turn.number} · {view.pouchCount} tokens in the pouch
         </span>
       </p>
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import type { GameViewer, PlayerSeat } from '@bgp/game-core';
+import type { AnyGameEngine, GameViewer, PlayerSeat } from '@bgp/game-core';
 import {
   ErrorCodes,
   type GameStateMessage,
@@ -35,10 +35,13 @@ export class MatchesService {
   async createForRoom(input: {
     roomId: string;
     gameType: string;
+    /** As stored on the room. Checked again here: the config may have changed since. */
+    settings: Record<string, unknown>;
     members: Array<{ userId: string; seat: number }>;
   }): Promise<string> {
     const { engine } = this.registry.get(input.gameType);
     const current = await this.configs.getCurrentForPlay(input.gameType);
+    const settings = this.parseSettings(engine, input.settings, current.config);
     const matchId = randomUUID();
     const seed = randomUUID();
     const now = new Date();
@@ -53,6 +56,7 @@ export class MatchesService {
       players: seats,
       seed,
       config: current.config,
+      settings,
     });
 
     await this.matches.create({
@@ -62,6 +66,7 @@ export class MatchesService {
         gameType: input.gameType,
         engineVersion: engine.engineVersion,
         configVersion: current.version,
+        settings,
         status: 'playing',
         state,
         stateVersion: 0,
@@ -166,6 +171,7 @@ export class MatchesService {
       players: players.map(({ playerId, seat }) => ({ playerId, seat })),
       seed: match.randomSeed,
       config: current.config,
+      settings: this.parseSettings(engine, match.settings, current.config),
     });
     const frames: ReplayFrameDto[] = [
       { version: 0, action: null, state: engine.getPublicView(state, spectator) },
@@ -185,6 +191,22 @@ export class MatchesService {
     }
 
     return { match: toMatchDto(match, players), frames };
+  }
+
+  private parseSettings(
+    engine: AnyGameEngine,
+    raw: Record<string, unknown>,
+    config: unknown,
+  ): Record<string, unknown> {
+    const parsed = engine.parseSettings(raw, config);
+    if (!parsed.ok) {
+      throw new AppError(
+        ErrorCodes.InvalidRoomSettings,
+        `This room's settings no longer fit the game's configuration: ${parsed.message}`,
+        409,
+      );
+    }
+    return parsed.settings as Record<string, unknown>;
   }
 
   /** Action logs can reveal hidden information, so they are only served once a match is over. */

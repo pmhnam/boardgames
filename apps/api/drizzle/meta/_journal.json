@@ -15,6 +15,13 @@
       "when": 1791015531263,
       "tag": "0001_game_configs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791023619315,
+      "tag": "0002_match_settings",
+      "breakpoints": true
     }
   ]
 }

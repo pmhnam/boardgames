@@ -26,7 +26,11 @@ export interface PlayerSeat {
   seat: number;
 }
 
-export interface CreateInitialStateInput<TConfig = unknown, TPlayerConfig = PlayerSeat> {
+export interface CreateInitialStateInput<
+  TConfig = unknown,
+  TSettings = unknown,
+  TPlayerConfig = PlayerSeat,
+> {
   gameId: GameId;
   players: TPlayerConfig[];
   seed: string;
@@ -36,7 +40,12 @@ export interface CreateInitialStateInput<TConfig = unknown, TPlayerConfig = Play
    * the platform hands it over.
    */
   config: TConfig;
+  /** The choices made for this one match (which map, which variant...), from `parseSettings`. */
+  settings: TSettings;
 }
+
+export type ParseSettingsResult<TSettings> =
+  { ok: true; settings: TSettings } | { ok: false; message: string };
 
 export type ParseConfigResult<TConfig> =
   { ok: true; config: TConfig } | { ok: false; message: string };
@@ -53,7 +62,13 @@ export interface GameResult {
  * A game's rules. Implementations must be pure and deterministic:
  * same initial input + same actions => same state. No I/O, no clock, no Math.random.
  */
-export interface GameEngine<TState, TAction, TConfig = unknown, TPlayerConfig = PlayerSeat> {
+export interface GameEngine<
+  TState,
+  TAction,
+  TConfig = unknown,
+  TSettings = unknown,
+  TPlayerConfig = PlayerSeat,
+> {
   readonly gameType: string;
   readonly engineVersion: number;
 
@@ -66,7 +81,13 @@ export interface GameEngine<TState, TAction, TConfig = unknown, TPlayerConfig = 
    */
   parseConfig(raw: unknown): ParseConfigResult<TConfig>;
 
-  createInitialState(input: CreateInitialStateInput<TConfig, TPlayerConfig>): TState;
+  /**
+   * Validates what a room's host chose for a match, against the config those choices refer to.
+   * `undefined` must yield the defaults, so a room created without settings is always playable.
+   */
+  parseSettings(raw: unknown, config: TConfig): ParseSettingsResult<TSettings>;
+
+  createInitialState(input: CreateInitialStateInput<TConfig, TSettings, TPlayerConfig>): TState;
 
   /** Runtime shape check of an untrusted payload. Says nothing about legality. */
   parseAction(raw: unknown): ParseActionResult<TAction>;

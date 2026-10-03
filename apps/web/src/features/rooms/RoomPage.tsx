@@ -9,6 +9,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { getGameUi } from '../../games/registry';
+import { useGameConfig } from '../../games/useGameConfig';
 import { api, errorMessage } from '../../shared/api/http';
 import { PlayerList } from '../../shared/components/PlayerList';
 import { useSocket } from '../../shared/websocket/SocketProvider';
@@ -70,6 +72,12 @@ export function RoomPage() {
     onSuccess: update,
   });
 
+  const gameUi = room.data ? getGameUi(room.data.gameType) : undefined;
+  const gameConfig = useGameConfig(
+    room.data?.gameType ?? '',
+    gameUi?.describeSettings !== undefined,
+  );
+
   if (room.isLoading) return <p className="muted">Loading room…</p>;
   if (room.isError || !room.data) return <p className="error">{errorMessage(room.error)}</p>;
 
@@ -77,6 +85,10 @@ export function RoomPage() {
   const me = data.members.find((member) => member.userId === userId);
   const isHost = data.hostUserId === userId;
   const everyoneReady = data.members.every((member) => member.status === 'ready');
+  const settingsSummary =
+    gameUi?.describeSettings && gameConfig.data
+      ? gameUi.describeSettings(data.settings, gameConfig.data.config)
+      : null;
   const inviteLink = `${window.location.origin}/join/${data.code}`;
   const error = setReady.error ?? start.error ?? leave.error ?? join.error;
 
@@ -84,7 +96,8 @@ export function RoomPage() {
     <div className="card">
       <h1>Room {data.code}</h1>
       <p className="muted">
-        {data.gameType} · invite link: <code>{inviteLink}</code>{' '}
+        {data.gameType}
+        {settingsSummary && ` · ${settingsSummary}`} · invite link: <code>{inviteLink}</code>{' '}
         <button
           type="button"
           className="link"

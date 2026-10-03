@@ -1,5 +1,5 @@
 import type { PlayerBoard } from './board.js';
-import type { HarmoniesConfig } from './game-config.js';
+import type { HarmoniesSetup } from './game-config.js';
 import type { TokenColor } from './tokens.js';
 
 export type HarmoniesPhase = 'PLAYING' | 'FINISHED';
@@ -19,10 +19,10 @@ export interface HarmoniesState {
   phase: HarmoniesPhase;
 
   /**
-   * The board, cards and pouch this match was set up with. Kept in the state so a match in
+   * The map, cards and pouch this match was set up with. Kept in the state so a match in
    * progress is unaffected when the stored configuration changes.
    */
-  config: HarmoniesConfig;
+  config: HarmoniesSetup;
 
   /** Play order. The first entry opened the game. */
   turnOrder: string[];

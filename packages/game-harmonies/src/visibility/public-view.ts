@@ -40,6 +40,8 @@ export interface HarmoniesView {
   phase: HarmoniesPhase;
   turnOrder: string[];
   turn: HarmoniesTurn;
+  /** The map this match is played on. */
+  map: { id: string; name: string };
   /** The shape of every player's board in this match. */
   boardCells: Hex[];
   /** How the water column of the score is worked out in this match. */
@@ -100,6 +102,7 @@ export function getPublicView(state: HarmoniesState, viewer: GameViewer): Harmon
     id: state.id,
     phase: state.phase,
     turnOrder: [...state.turnOrder],
+    map: { id: state.config.mapId, name: state.config.mapName },
     boardCells: state.config.boardCells.map((cell) => ({ ...cell })),
     waterScoring: state.config.waterScoring,
     turn: { ...state.turn, hand: [...state.turn.hand] },

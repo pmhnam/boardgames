@@ -11,6 +11,9 @@ export interface GridClaimConfig {
   targetScore: number;
 }
 
+/** Grid Claim has nothing for a room's host to choose. */
+export type GridClaimSettings = Record<string, never>;
+
 export const DEFAULT_GRID_CLAIM_CONFIG: GridClaimConfig = {
   boardSize: 5,
   blockedCellCount: 3,

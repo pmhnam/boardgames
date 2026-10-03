@@ -418,6 +418,65 @@ describe('platform MVP flow', () => {
     });
   });
 
+  it('lets the host choose a map, and plays the match on it', async () => {
+    const host = await createClient('Host');
+    const guest = await createClient('Guest');
+    type HarmoniesState = GameStateMessage<HarmoniesView>;
+
+    const start = async (settings?: Record<string, unknown>): Promise<HarmoniesState> => {
+      const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
+        gameType: 'harmonies',
+        ...(settings ? { settings } : {}),
+      });
+      await guest.api('POST', `/rooms/${room.id}/join`);
+      await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+      await guest.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+      const { body } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+      const ack = await host.emit<HarmoniesState>(ClientEvents.GameSync, { gameId: body.matchId });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+
+    // The room remembers the choice, cleaned by the engine.
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'harmonies',
+      settings: { mapId: 'B', boardCells: [] },
+    });
+    expect(room.settings).toEqual({ mapId: 'B' });
+
+    // No settings: the game's default.
+    const { body: plain } = await host.api<RoomDto>('POST', '/rooms', { gameType: 'harmonies' });
+    expect(plain.settings).toEqual({ mapId: 'A' });
+
+    // A map the game does not have.
+    const unknown = await host.api<{ error: { code: string; message: string } }>('POST', '/rooms', {
+      gameType: 'harmonies',
+      settings: { mapId: 'C' },
+    });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.error.code).toBe(ErrorCodes.InvalidRoomSettings);
+
+    const sideA = await start();
+    expect(sideA.state.map.id).toBe('A');
+    expect(sideA.state.boardCells).toHaveLength(23);
+    expect(sideA.state.waterScoring).toBe('river');
+
+    const sideB = await start({ mapId: 'B' });
+    expect(sideB.state.map.id).toBe('B');
+    expect(sideB.state.boardCells).toHaveLength(25);
+    expect(sideB.state.waterScoring).toBe('islands');
+    // An empty side-B board is one island.
+    expect(Object.values(sideB.state.scores).map((score) => score.water)).toEqual([5, 5]);
+    expect(Object.values(sideA.state.scores).map((score) => score.water)).toEqual([0, 0]);
+
+    // Grid Claim has no settings; whatever is sent is dropped.
+    const { body: grid } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'grid-claim',
+      settings: { mapId: 'B' },
+    });
+    expect(grid.settings).toEqual({});
+  });
+
   // Runs last on purpose: it changes configs the tests above rely on.
   it('keeps game configs in the database, versioned', async () => {
     const publish = async <T>(
@@ -461,7 +520,7 @@ describe('platform MVP flow', () => {
       '/games/harmonies/config',
     );
     expect(seeded.version).toBe(1);
-    expect(seeded.config.boardCells).toHaveLength(23);
+    expect(seeded.config.maps.map((map) => map.id)).toEqual(['A', 'B']);
     expect(seeded.config.cards.length).toBeGreaterThan(0);
 
     const oldMatch = await startHarmonies();
@@ -469,7 +528,14 @@ describe('platform MVP flow', () => {
     // Only an operator may publish, and only something the engine accepts.
     const smaller: HarmoniesConfig = {
       ...seeded.config,
-      boardCells: [0, 1, 2].flatMap((q) => [0, 1, 2].map((r) => ({ q, r }))),
+      maps: [
+        {
+          id: 'A',
+          name: 'Small',
+          boardCells: [0, 1, 2].flatMap((q) => [0, 1, 2].map((r) => ({ q, r }))),
+          waterScoring: 'river',
+        },
+      ],
       tokenCounts: { water: 10, mountain: 0, trunk: 0, leaf: 10, field: 10, building: 0 },
     };
     expect((await publish<ErrorBody>('harmonies', { config: smaller }, null)).status).toBe(403);

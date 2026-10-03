@@ -53,6 +53,9 @@ Rules for engine code:
   config, not in constants. `defaultConfig` seeds the database; `parseConfig` must reject any
   config the engine could not play to the end. If rules need the config after setup, copy it
   into the state in `createInitialState`: that is the only time the platform hands it over.
+- What a host should be able to choose per room (a map, a variant) is a setting.
+  `parseSettings(raw, config)` validates it against the config and must return defaults for
+  `undefined`. To let hosts pick it in the lobby, register a `SettingsForm` with the game's UI.
 - Bump `engineVersion` whenever the shape or meaning of the state changes.
 - Illegal moves return a stable code. Use `CommonRuleCodes.NotYourTurn` for out-of-turn moves so
   the platform can report it as such.
