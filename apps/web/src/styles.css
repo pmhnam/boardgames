@@ -464,20 +464,54 @@ td {
   min-width: 0;
 }
 
-.harmonies-controls {
+/* Sized for its fullest state, so it is the same height on everyone's turn. */
+.harmonies-status {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-start;
-  padding: 0.6rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+  /* Two lines of text: the hint wraps once a full hand of tokens sits beside it. */
+  min-height: 4.2rem;
+  padding: 0.5rem 0.6rem;
   background: var(--bg);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
+.harmonies-mine.active .harmonies-status {
+  border-color: var(--accent);
+}
+
 .harmonies-step {
+  flex: 1 1 9rem;
   margin: 0;
   font-weight: 600;
+}
+
+.harmonies-status .harmonies-hand {
+  min-height: 2.4rem;
+}
+
+/* On a narrow screen the text takes its own line, and the tokens drop their names (the chip
+   still carries one for screen readers) so a full hand and the button share the second. */
+@media (max-width: 40rem) {
+  .harmonies-status {
+    align-content: flex-start;
+    min-height: 7rem;
+  }
+
+  .harmonies-step {
+    flex-basis: 100%;
+    min-height: 2.9rem;
+  }
+
+  .harmonies-status .harmonies-hand {
+    flex: 1 1 auto;
+  }
+
+  .token-label {
+    display: none;
+  }
 }
 
 .harmonies-player {

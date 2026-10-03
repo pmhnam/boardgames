@@ -62,44 +62,67 @@ export function HarmoniesGameView({
     }
   };
 
-  // What to do next, read off what the engine says is possible right now.
+  // What to do next, read off what the engine says is possible right now. It goes by whose
+  // turn it is rather than `isMyTurn`, so it does not flicker while an action is in flight.
+  const mine = playing && turn.activePlayerId === me;
   const hasPlaceable = turn.hand.some((color) => (legal.tokenCells[color]?.length ?? 0) > 0);
-  const nextStep = !isMyTurn
-    ? null
-    : selection
-      ? 'Now pick one of the highlighted cells on your board.'
-      : legal.canTakeTokens
-        ? 'Take a group of three tokens from the central board.'
-        : hasPlaceable
-          ? 'Pick a token, then a cell on your board to put it on.'
-          : legal.canEndTurn
-            ? 'You may take a card or place an animal, then end your turn.'
-            : null;
+  const status = !playing
+    ? 'Game over.'
+    : !mine
+      ? `${playerName(players, turn.activePlayerId)} is playing${turn.hand.length > 0 ? ', holding' : '.'}`
+      : selection
+        ? 'Pick a highlighted cell on your board.'
+        : legal.canTakeTokens
+          ? 'Take three tokens from the central board.'
+          : hasPlaceable
+            ? 'Pick a token, then a cell on your board.'
+            : 'Take a card, place an animal, or end your turn.';
 
   const inProgress = myBoard?.cards.filter((entry) => !entry.complete) ?? [];
 
   // Everyone but the viewer, in play order. A spectator sees every board this way.
   const others = view.turnOrder.filter((playerId) => playerId !== me || !myBoard);
-  const hand = (
-    <div className="harmonies-hand">
-      {turn.hand.map((color, index) => {
-        const placeable = (legal.tokenCells[color]?.length ?? 0) > 0;
-        const selected = selection?.kind === 'token' && selection.color === color;
-        return isMyTurn ? (
-          <button
-            key={index}
-            type="button"
-            className={selected ? 'token-button selected' : 'token-button'}
-            disabled={!placeable}
-            aria-pressed={selected}
-            onClick={() => setSelection(selected ? null : { kind: 'token', color })}
-          >
-            <TokenChip color={color} /> {TOKEN_LABEL[color]}
-          </button>
-        ) : (
-          <TokenChip key={index} color={color} />
-        );
-      })}
+
+  // One bar for the turn, always there and always the same size: what to do or who is
+  // playing, the tokens in hand, and the end of the turn. Nothing around it moves as the
+  // turn passes from player to player.
+  const statusBar = (
+    <div className="harmonies-status">
+      <p className="harmonies-step" aria-live="polite">
+        {status}
+      </p>
+      <div className="harmonies-hand">
+        {turn.hand.map((color, index) => {
+          const placeable = (legal.tokenCells[color]?.length ?? 0) > 0;
+          const selected = selection?.kind === 'token' && selection.color === color;
+          return mine ? (
+            <button
+              key={index}
+              type="button"
+              className={selected ? 'token-button selected' : 'token-button'}
+              disabled={!isMyTurn || !placeable}
+              aria-pressed={selected}
+              onClick={() => setSelection(selected ? null : { kind: 'token', color })}
+            >
+              <TokenChip color={color} />
+              <span className="token-label" aria-hidden="true">
+                {TOKEN_LABEL[color]}
+              </span>
+            </button>
+          ) : (
+            <TokenChip key={index} color={color} />
+          );
+        })}
+      </div>
+      {myBoard && playing && (
+        <button
+          type="button"
+          disabled={!isMyTurn || !legal.canEndTurn}
+          onClick={() => sendAction({ type: 'END_TURN' })}
+        >
+          End turn
+        </button>
+      )}
     </div>
   );
 
@@ -139,22 +162,11 @@ export function HarmoniesGameView({
                 </button>
               ))}
             </div>
-            {!isMyTurn && turn.hand.length > 0 && (
-              <div className="row wrap">
-                <span className="muted">{playerName(players, turn.activePlayerId)} is holding</span>
-                {hand}
-              </div>
-            )}
+            {!myBoard && statusBar}
           </section>
 
           {myBoard && me !== null && (
-            <section
-              className={
-                playing && turn.activePlayerId === me
-                  ? 'card harmonies-mine active'
-                  : 'card harmonies-mine'
-              }
-            >
+            <section className={mine ? 'card harmonies-mine active' : 'card harmonies-mine'}>
               <h2 className="harmonies-player-name">
                 <span>
                   Your board
@@ -164,6 +176,7 @@ export function HarmoniesGameView({
                   {view.scores[me]?.total ?? 0} <span className="muted">pts</span>
                 </span>
               </h2>
+              {statusBar}
               <div className="harmonies-mine-body">
                 <HexBoard
                   cells={view.boardCells}
@@ -173,19 +186,6 @@ export function HarmoniesGameView({
                   onSelect={placeAt}
                 />
                 <div className="harmonies-mine-side">
-                  {isMyTurn && (
-                    <div className="harmonies-controls">
-                      {nextStep && <p className="harmonies-step">{nextStep}</p>}
-                      {turn.hand.length > 0 && hand}
-                      <button
-                        type="button"
-                        disabled={!legal.canEndTurn}
-                        onClick={() => sendAction({ type: 'END_TURN' })}
-                      >
-                        End turn
-                      </button>
-                    </div>
-                  )}
                   {myBoard.cards.length === 0 && (
                     <p className="muted hint">
                       You have no animal cards yet. Take one from the row below.
