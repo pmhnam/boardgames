@@ -1,5 +1,4 @@
 import {
-  GEM_COLORS,
   TIERS,
   TOKEN_COLORS,
   type GemColor,
@@ -11,11 +10,14 @@ import {
 } from '@bgp/game-splendor';
 import { useEffect, useState } from 'react';
 import { playerName, type GameViewProps } from '../types';
-import { CardBack, DevCardView } from './components/DevCard';
-import { GemToken, gemStyle } from './components/GemToken';
+import { Bank } from './components/Bank';
+import { CardSlot } from './components/CardActions';
+import { CardBack, DevCardView, describeMissing } from './components/DevCard';
+import { GemToken } from './components/GemToken';
 import { NobleTile } from './components/NobleTile';
 import { PlayerPanel } from './components/PlayerPanel';
 import { TIER_LABEL, TOKEN_LABEL } from './layout';
+import { useLastMove } from './useLastMove';
 
 /** The card or deck the player has picked and is about to buy or reserve. UI state only. */
 type Selection = { kind: 'card'; cardId: string } | { kind: 'deck'; tier: Tier } | null;
@@ -32,8 +34,12 @@ export function SplendorGameView({
   const view = message.state;
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
-  const isMyTurn = !disabled && view.phase === 'PLAYING' && turn.activePlayerId === me;
+  const playing = view.phase === 'PLAYING';
+  const isMyTurn = !disabled && playing && turn.activePlayerId === me;
   const mine = me === null ? undefined : view.players[me];
+  /** Seated in a game still going: the only viewer who gets controls. */
+  const interactive = mine !== undefined && playing;
+  const lastMove = useLastMove(message);
 
   const [picked, setPicked] = useState<GemColor[]>([]);
   const [returning, setReturning] = useState<Partial<TokenCounts>>({});
@@ -46,16 +52,22 @@ export function SplendorGameView({
     setSelection(null);
   }, [message.version]);
 
-  // The engine says which colours and how many; this only keeps the pick in one of the two
-  // shapes it accepts: different colours, or one colour twice.
-  const isDouble = picked.length === 2 && picked[0] === picked[1];
-  const canPick = (color: GemColor) => {
-    if (!isMyTurn || isDouble) return false;
-    if (picked.length === 1 && picked[0] === color) return legal.doubleColors.includes(color);
-    if (picked.includes(color)) return false;
-    return picked.length < legal.takeCount && legal.gemColors.includes(color);
-  };
-  const canTake = isMyTurn && picked.length > 0 && (isDouble || picked.length === legal.takeCount);
+  // The actions sit under the selected card; Escape or a click elsewhere puts it down.
+  useEffect(() => {
+    if (selection === null) return;
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setSelection(null);
+    const onPointer = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.splendor-slot')) {
+        setSelection(null);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, [selection]);
 
   const returnCount = TOKEN_COLORS.reduce((sum, color) => sum + (returning[color] ?? 0), 0);
   const giveBack = (color: TokenColor, delta: 1 | -1) =>
@@ -68,30 +80,61 @@ export function SplendorGameView({
     setSelection(
       selection?.kind === 'deck' && selection.tier === tier ? null : { kind: 'deck', tier },
     );
-  const canBuy = isMyTurn && selectedCardId !== null && legal.buyable.includes(selectedCardId);
-  const canReserve =
-    isMyTurn &&
-    (selection?.kind === 'deck'
-      ? legal.reservableTiers.includes(selection.tier)
-      : selectedCardId !== null && legal.reservable.includes(selectedCardId));
+  const reserveLabel = `Reserve${view.bank.gold > 0 ? ' (+1 gold)' : ''}`;
+
+  /** The buttons under a selected card. What they allow is the engine's call, via `legal`. */
+  const cardActions = (cardId: string, reservable: boolean) => {
+    const shortfall = view.shortfalls[cardId];
+    const canBuy = isMyTurn && legal.buyable.includes(cardId);
+    return (
+      <>
+        <span className="muted">
+          {!shortfall || shortfall.short === 0
+            ? 'You can afford this card.'
+            : `Short of ${describeMissing(shortfall)}.`}
+        </span>
+        <button
+          type="button"
+          disabled={!canBuy}
+          onClick={() => sendAction({ type: 'BUY_CARD', cardId })}
+        >
+          Buy
+        </button>
+        {reservable && (
+          <button
+            type="button"
+            className="secondary"
+            disabled={!isMyTurn || !legal.reservable.includes(cardId)}
+            onClick={() => sendAction({ type: 'RESERVE_CARD', cardId })}
+          >
+            {reserveLabel}
+          </button>
+        )}
+      </>
+    );
+  };
 
   // The viewer's own panel first; spectators see play order.
   const panelOrder = [...view.turnOrder].sort((a, b) => Number(b === me) - Number(a === me));
 
   return (
     <div className="stack splendor">
-      <p className="splendor-banner">
-        {view.phase === 'FINISHED'
-          ? 'Game over'
-          : isMyTurn
-            ? 'Your turn'
-            : `${playerName(players, turn.activePlayerId)}’s turn`}
-        {view.finalRound && view.phase === 'PLAYING' && ' · final round'}
-        <span className="muted">
-          {' '}
-          · first to {view.targetScore} points · turn {turn.number}
-        </span>
-      </p>
+      <header className="splendor-banner">
+        <p className="splendor-turn">
+          {view.phase === 'FINISHED'
+            ? 'Game over'
+            : isMyTurn
+              ? 'Your turn'
+              : `${playerName(players, turn.activePlayerId)}’s turn`}
+          {view.finalRound && playing && <span className="splendor-final">Final round</span>}
+        </p>
+        <p className="muted" aria-live="polite">
+          {lastMove
+            ? `${lastMove.playerId === me ? 'You' : playerName(players, lastMove.playerId)} ${lastMove.text}. `
+            : ''}
+          First to {view.targetScore} points · turn {turn.number}
+        </p>
+      </header>
 
       {isMyTurn && mine && legal.mustReturn > 0 && (
         <section className="card splendor-prompt">
@@ -162,164 +205,103 @@ export function SplendorGameView({
         </section>
       )}
 
-      <section className="card">
-        <h2>Nobles</h2>
-        {view.nobles.length === 0 ? (
-          <p className="muted splendor-hint">Every noble has found a host.</p>
-        ) : (
-          <div className="row wrap">
-            {view.nobles.map((noble) => (
-              <NobleTile key={noble.id} noble={noble} />
+      <div className="splendor-table">
+        <section className="card splendor-board" aria-label="Table">
+          <div className="splendor-nobles">
+            {view.nobles.length === 0 ? (
+              <span className="muted">Every noble has found a host.</span>
+            ) : (
+              view.nobles.map((noble) => (
+                <NobleTile key={noble.id} noble={noble} bonuses={mine?.bonuses} />
+              ))
+            )}
+          </div>
+
+          <div className="splendor-market">
+            {ROWS.map((tier) => (
+              <div key={tier} className="splendor-row">
+                <CardSlot
+                  open={selection?.kind === 'deck' && selection.tier === tier}
+                  card={
+                    <CardBack
+                      tier={tier}
+                      count={view.deckCounts[tier]}
+                      selected={selection?.kind === 'deck' && selection.tier === tier}
+                      onSelect={interactive ? () => toggleDeck(tier) : undefined}
+                      disabled={view.deckCounts[tier] === 0}
+                    />
+                  }
+                >
+                  <span className="muted">Top card of deck {TIER_LABEL[tier]}, unseen.</span>
+                  <button
+                    type="button"
+                    disabled={!isMyTurn || !legal.reservableTiers.includes(tier)}
+                    onClick={() => sendAction({ type: 'RESERVE_FROM_DECK', tier })}
+                  >
+                    {reserveLabel}
+                  </button>
+                </CardSlot>
+                {view.market[tier].map((card, slot) =>
+                  card ? (
+                    <CardSlot
+                      key={card.id}
+                      open={selectedCardId === card.id}
+                      alignEnd={slot >= 2}
+                      card={
+                        <DevCardView
+                          card={card}
+                          shortfall={view.shortfalls[card.id]}
+                          fresh={lastMove?.freshCardIds.includes(card.id)}
+                          selected={selectedCardId === card.id}
+                          onSelect={interactive ? () => toggleCard(card.id) : undefined}
+                        />
+                      }
+                    >
+                      {cardActions(card.id, true)}
+                    </CardSlot>
+                  ) : (
+                    <div key={slot} className="splendor-card empty" aria-label="Empty slot" />
+                  ),
+                )}
+              </div>
             ))}
           </div>
-        )}
-      </section>
 
-      <section className="card">
-        <h2>Bank</h2>
-        <div className="row wrap">
-          {GEM_COLORS.map((color) => (
-            <button
-              key={color}
-              type="button"
-              className="splendor-bank-token"
-              style={gemStyle(color)}
-              aria-label={`Take ${TOKEN_LABEL[color]}, ${view.bank[color]} in the bank`}
-              disabled={!canPick(color)}
-              onClick={() => setPicked([...picked, color])}
-            >
-              {view.bank[color]}
-            </button>
-          ))}
-          <span
-            className="splendor-bank-token gold"
-            style={gemStyle('gold')}
-            title="Gold comes with a reserved card and pays for any colour"
-          >
-            {view.bank.gold}
-            <span className="sr-only"> Gold in the bank</span>
-          </span>
-        </div>
-        {mine && view.phase === 'PLAYING' && (
-          <div className="row wrap">
-            <span>Taking:</span>
-            {picked.length === 0 ? (
-              <span className="muted">
-                3 different colours, or 2 of one colour from a pile of 4 or more
-              </span>
-            ) : (
-              picked.map((color, index) => <GemToken key={index} color={color} small />)
-            )}
-            <button
-              type="button"
-              disabled={!canTake}
-              onClick={() => sendAction({ type: 'TAKE_GEMS', colors: picked })}
-            >
-              Take
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              disabled={picked.length === 0}
-              onClick={() => setPicked([])}
-            >
-              Clear
-            </button>
-            {isMyTurn && legal.canPass && (
-              <button type="button" onClick={() => sendAction({ type: 'PASS' })}>
-                Pass (no move left)
-              </button>
-            )}
-          </div>
-        )}
-      </section>
+          <Bank
+            bank={view.bank}
+            legal={legal}
+            interactive={interactive}
+            isMyTurn={isMyTurn}
+            picked={picked}
+            onPick={setPicked}
+            onTake={() => sendAction({ type: 'TAKE_GEMS', colors: picked })}
+            onPass={() => sendAction({ type: 'PASS' })}
+          />
+        </section>
 
-      <section className="card">
-        <h2>Cards</h2>
-        <div className="splendor-market">
-          {ROWS.map((tier) => (
-            <div key={tier} className="splendor-row">
-              <CardBack
-                tier={tier}
-                count={view.deckCounts[tier]}
-                selected={selection?.kind === 'deck' && selection.tier === tier}
-                onSelect={mine ? () => toggleDeck(tier) : undefined}
-                disabled={!isMyTurn || !legal.reservableTiers.includes(tier)}
+        <div className="splendor-side">
+          {panelOrder.map((playerId) => {
+            const player = view.players[playerId];
+            if (!player) return null;
+            const own = playerId === me;
+            return (
+              <PlayerPanel
+                key={playerId}
+                name={playerName(players, playerId)}
+                player={player}
+                targetScore={view.targetScore}
+                mine={own}
+                active={playing && turn.activePlayerId === playerId}
+                winner={view.winnerPlayerIds.includes(playerId)}
+                lastMove={lastMove?.playerId === playerId ? lastMove.text : undefined}
+                shortfalls={own ? view.shortfalls : {}}
+                selectedCardId={own ? selectedCardId : null}
+                onSelectCard={own && interactive ? toggleCard : undefined}
+                cardActions={own && selectedCardId ? cardActions(selectedCardId, false) : undefined}
               />
-              {view.market[tier].map((card, slot) =>
-                card ? (
-                  <DevCardView
-                    key={card.id}
-                    card={card}
-                    affordable={legal.buyable.includes(card.id)}
-                    note={legal.buyable.includes(card.id) ? 'You can afford this' : undefined}
-                    selected={selectedCardId === card.id}
-                    onSelect={mine ? () => toggleCard(card.id) : undefined}
-                    disabled={!isMyTurn || legal.mustReturn > 0 || legal.nobleChoices.length > 0}
-                  />
-                ) : (
-                  <div key={slot} className="splendor-card empty" aria-label="Empty slot" />
-                ),
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
-        {mine && view.phase === 'PLAYING' && (
-          <div className="row wrap">
-            <span className="muted">
-              {selection === null
-                ? 'Pick a card to buy or reserve, or a deck to reserve its top card unseen.'
-                : selection.kind === 'deck'
-                  ? `Top card of deck ${TIER_LABEL[selection.tier]}, unseen.`
-                  : canBuy
-                    ? 'You can afford this card.'
-                    : 'You cannot afford this card yet.'}
-            </span>
-            <button
-              type="button"
-              disabled={!canBuy}
-              onClick={() =>
-                selectedCardId && sendAction({ type: 'BUY_CARD', cardId: selectedCardId })
-              }
-            >
-              Buy
-            </button>
-            <button
-              type="button"
-              disabled={!canReserve}
-              onClick={() => {
-                if (selection?.kind === 'deck') {
-                  sendAction({ type: 'RESERVE_FROM_DECK', tier: selection.tier });
-                } else if (selectedCardId) {
-                  sendAction({ type: 'RESERVE_CARD', cardId: selectedCardId });
-                }
-              }}
-            >
-              Reserve{view.bank.gold > 0 ? ' (+1 gold)' : ''}
-            </button>
-          </div>
-        )}
-      </section>
-
-      <div className="splendor-players">
-        {panelOrder.map((playerId) => {
-          const player = view.players[playerId];
-          if (!player) return null;
-          const own = playerId === me;
-          return (
-            <PlayerPanel
-              key={playerId}
-              name={playerName(players, playerId)}
-              player={player}
-              mine={own}
-              active={view.phase === 'PLAYING' && turn.activePlayerId === playerId}
-              winner={view.winnerPlayerIds.includes(playerId)}
-              buyable={own ? legal.buyable : []}
-              selectedCardId={own ? selectedCardId : null}
-              onSelectCard={own && isMyTurn ? toggleCard : undefined}
-            />
-          );
-        })}
       </div>
     </div>
   );

@@ -1,6 +1,11 @@
-import { GEM_COLORS, type DevelopmentCard, type Tier } from '@bgp/game-splendor';
+import {
+  GEM_COLORS,
+  type CardShortfall,
+  type DevelopmentCard,
+  type Tier,
+} from '@bgp/game-splendor';
 import type { CSSProperties, ReactNode } from 'react';
-import { TIER_LABEL, TOKEN_FILL, TOKEN_LABEL } from '../layout';
+import { CARD_TINT, TIER_LABEL, TOKEN_LABEL, TOKEN_NAME } from '../layout';
 import { GemToken } from './GemToken';
 
 interface Selectable {
@@ -8,15 +13,26 @@ interface Selectable {
   /** When given, the card is a button; otherwise it is only shown. */
   onSelect?: () => void;
   disabled?: boolean;
-  /** Extra words for assistive tech, e.g. "you can afford this". */
-  note?: string;
 }
 
-function describe(card: DevelopmentCard): string {
+/** "2 red, 1 blue": the gems a viewer still lacks for a card. */
+export function describeMissing(shortfall: CardShortfall): string {
+  return GEM_COLORS.filter((color) => shortfall.missing[color] > 0)
+    .map((color) => `${shortfall.missing[color]} ${TOKEN_NAME[color]}`)
+    .join(', ');
+}
+
+function describe(card: DevelopmentCard, shortfall?: CardShortfall): string {
   const cost = GEM_COLORS.filter((color) => card.cost[color] > 0)
     .map((color) => `${card.cost[color]} ${TOKEN_LABEL[color]}`)
     .join(', ');
-  return `Tier ${TIER_LABEL[card.tier]} card, ${TOKEN_LABEL[card.bonus]} bonus, ${card.points} ${card.points === 1 ? 'point' : 'points'}, costs ${cost}`;
+  const points = `${card.points} ${card.points === 1 ? 'point' : 'points'}`;
+  const reach = !shortfall
+    ? ''
+    : shortfall.short === 0
+      ? '. You can afford this'
+      : `. You are short of ${describeMissing(shortfall)}`;
+  return `Tier ${TIER_LABEL[card.tier]} card, ${TOKEN_LABEL[card.bonus]} bonus, ${points}, costs ${cost}${reach}`;
 }
 
 function Frame({
@@ -54,15 +70,28 @@ function Frame({
 
 export function DevCardView({
   card,
-  affordable = false,
-  note,
+  shortfall,
+  fresh = false,
   ...selectable
-}: Selectable & { card: DevelopmentCard; affordable?: boolean }) {
+}: Selectable & {
+  card: DevelopmentCard;
+  /** How far the viewer is from affording the card, when they are seated. */
+  shortfall?: CardShortfall;
+  /** Just turned over: draws the eye once. */
+  fresh?: boolean;
+}) {
+  const reach = !shortfall
+    ? ''
+    : shortfall.short === 0
+      ? ' affordable'
+      : shortfall.short <= 2
+        ? ' near'
+        : '';
   return (
     <Frame
-      className={affordable ? 'splendor-card affordable' : 'splendor-card'}
-      label={[describe(card), note].filter(Boolean).join('. ')}
-      tint={TOKEN_FILL[card.bonus]}
+      className={`splendor-card${reach}${fresh ? ' fresh' : ''}`}
+      label={describe(card, shortfall)}
+      tint={CARD_TINT[card.bonus]}
       {...selectable}
     >
       <span className="splendor-card-head" aria-hidden="true">
@@ -70,11 +99,34 @@ export function DevCardView({
         <GemToken color={card.bonus} bonus small />
       </span>
       <span className="splendor-card-cost" aria-hidden="true">
-        {GEM_COLORS.filter((color) => card.cost[color] > 0).map((color) => (
-          <GemToken key={color} color={color} count={card.cost[color]} small />
-        ))}
+        {GEM_COLORS.filter((color) => card.cost[color] > 0).map((color) => {
+          const missing = shortfall?.missing[color];
+          return (
+            <span key={color} className="splendor-pip">
+              <GemToken color={color} count={card.cost[color]} small />
+              {missing !== undefined && (
+                <span className={missing === 0 ? 'splendor-pip-mark met' : 'splendor-pip-mark'}>
+                  {missing === 0 ? '✓' : `−${missing}`}
+                </span>
+              )}
+            </span>
+          );
+        })}
       </span>
     </Frame>
+  );
+}
+
+/** A purchased card at a glance: its colour, and its points if it has any. */
+export function CardStrip({ card }: { card: DevelopmentCard }) {
+  return (
+    <span
+      className="splendor-strip"
+      style={{ '--splendor-tint': CARD_TINT[card.bonus] } as CSSProperties}
+      title={describe(card)}
+    >
+      {card.points > 0 ? card.points : ''}
+    </span>
   );
 }
 
@@ -89,13 +141,18 @@ export function CardBack({
       ? `Hidden tier ${TIER_LABEL[tier]} card`
       : `Tier ${TIER_LABEL[tier]} deck, ${count} cards left`;
   return (
-    <Frame className="splendor-card back" label={label} tint="var(--muted)" {...selectable}>
+    <Frame
+      className={`splendor-card back tier-${tier}`}
+      label={label}
+      tint="var(--muted)"
+      {...selectable}
+    >
       <span className="splendor-card-tier" aria-hidden="true">
         {TIER_LABEL[tier]}
       </span>
       {count !== undefined && (
-        <span className="muted" aria-hidden="true">
-          {count} left
+        <span className="splendor-card-left" aria-hidden="true">
+          {count}
         </span>
       )}
     </Frame>

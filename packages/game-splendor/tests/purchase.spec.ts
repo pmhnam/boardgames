@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SplendorRuleCodes } from '../src/domain/errors.js';
-import { getPayment } from '../src/rules/purchase.rules.js';
+import { getPayment, getShortfall } from '../src/rules/purchase.rules.js';
 import {
   active,
   apply,
@@ -45,6 +45,26 @@ describe('getPayment', () => {
   it('is null when gold cannot cover the shortfall', () => {
     const wallet = { tokens: tokens({ blue: 1, gold: 1 }), bonuses: gems() };
     expect(getPayment(wallet, gems({ blue: 3 }))).toBeNull();
+  });
+});
+
+describe('getShortfall', () => {
+  it('lists what is missing per colour and lets gold cover the total', () => {
+    const wallet = { tokens: tokens({ blue: 1, gold: 1 }), bonuses: gems({ green: 1 }) };
+    expect(getShortfall(wallet, gems({ blue: 3, green: 2, black: 1 }))).toEqual({
+      missing: gems({ blue: 2, green: 1, black: 1 }),
+      short: 3,
+    });
+  });
+
+  it('is zero exactly when the card can be paid for', () => {
+    const cost = gems({ blue: 2, green: 2 });
+    const able = { tokens: tokens({ blue: 1, green: 2, gold: 1 }), bonuses: gems() };
+    const unable = { tokens: tokens({ blue: 1, green: 1, gold: 1 }), bonuses: gems() };
+    expect(getShortfall(able, cost)).toEqual({ missing: gems({ blue: 1 }), short: 0 });
+    expect(getPayment(able, cost)).not.toBeNull();
+    expect(getShortfall(unable, cost).short).toBe(1);
+    expect(getPayment(unable, cost)).toBeNull();
   });
 });
 

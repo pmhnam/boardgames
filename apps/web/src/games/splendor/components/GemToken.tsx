@@ -1,6 +1,7 @@
 import type { TokenColor } from '@bgp/game-splendor';
 import type { CSSProperties } from 'react';
 import { TOKEN_FILL, TOKEN_INK, TOKEN_LABEL } from '../layout';
+import { GemIcon } from './GemIcon';
 
 export function gemStyle(color: TokenColor): CSSProperties {
   return { background: TOKEN_FILL[color], color: TOKEN_INK[color] };
@@ -18,10 +19,19 @@ export function GemToken({
   bonus?: boolean;
   small?: boolean;
 }) {
-  const classes = ['splendor-gem', bonus && 'bonus', small && 'small'].filter(Boolean).join(' ');
+  const classes = [
+    'splendor-gem',
+    bonus && 'bonus',
+    small && 'small',
+    count === 0 && 'none',
+    count === undefined && 'bare',
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
     <span className={classes} style={gemStyle(color)} title={TOKEN_LABEL[color]}>
-      {count}
+      <GemIcon color={color} />
+      {count !== undefined && <span className="splendor-gem-count">{count}</span>}
       <span className="sr-only"> {TOKEN_LABEL[color]}</span>
     </span>
   );

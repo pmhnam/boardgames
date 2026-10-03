@@ -11,9 +11,12 @@ import type {
 import {
   NO_LEGAL_MOVES,
   getLegalMoves,
+  getPurchaseSources,
+  getWallet,
   getWaitingNobles,
   type LegalMoves,
 } from '../rules/legal-moves.js';
+import { getShortfall, type CardShortfall } from '../rules/purchase.rules.js';
 import { getBonuses, getPoints } from '../scoring/score.js';
 
 /**
@@ -45,6 +48,11 @@ export interface SplendorView {
   players: Record<string, PlayerView>;
   finalRound: boolean;
   winnerPlayerIds: string[];
+  /**
+   * How far the viewer is from affording each card they could buy: the face-up ones and their
+   * own reserve. There on every turn, so a player can plan; empty for anyone not seated.
+   */
+  shortfalls: Record<string, CardShortfall>;
   /** What the viewer may do right now. Empty unless it is their turn. */
   legal: LegalMoves;
 }
@@ -67,6 +75,16 @@ function getPlayerView(state: SplendorState, player: PlayerState, isOwner: boole
     reserved: player.reserved.map((entry) => getReservedView(state, entry, isOwner)),
     nobles: player.nobles.map((nobleId) => getNoble(state.config.nobles, nobleId)),
   };
+}
+
+function getShortfalls(state: SplendorState, playerId: string): Record<string, CardShortfall> {
+  const wallet = getWallet(state, playerId);
+  return Object.fromEntries(
+    getPurchaseSources(state, playerId).map((cardId) => [
+      cardId,
+      getShortfall(wallet, getCard(state.config.cards, cardId).cost),
+    ]),
+  );
 }
 
 /**
@@ -102,6 +120,7 @@ export function getPublicView(state: SplendorState, viewer: GameViewer): Splendo
         return [playerId, getPlayerView(state, player, playerId === viewerId)];
       }),
     ),
+    shortfalls: viewerId !== null && state.players[viewerId] ? getShortfalls(state, viewerId) : {},
     finalRound: state.finalRound,
     winnerPlayerIds: [...state.winnerPlayerIds],
     legal: isActiveViewer && viewerId !== null ? getLegalMoves(state, viewerId) : NO_LEGAL_MOVES,

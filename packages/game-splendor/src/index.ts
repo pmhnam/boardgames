@@ -35,4 +35,5 @@ export type { DevelopmentCard, Noble, Tier } from './domain/cards.js';
 export type { SplendorAction } from './domain/actions.js';
 export type { SplendorPhase, SplendorState, SplendorTurn, TurnStep } from './domain/state.js';
 export type { LegalMoves } from './rules/legal-moves.js';
+export type { CardShortfall } from './rules/purchase.rules.js';
 export type { PlayerView, ReservedView, SplendorView } from './visibility/public-view.js';

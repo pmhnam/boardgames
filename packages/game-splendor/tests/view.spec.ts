@@ -98,6 +98,31 @@ describe('public view', () => {
     ).toEqual(NO_LEGAL_MOVES);
   });
 
+  it('tells a seated viewer how far each card they could buy is, on any turn', () => {
+    const start = newGame();
+    const owner = active(start);
+    const rival = other(start);
+    const state = apply(start, { type: 'RESERVE_FROM_DECK', tier: 2 });
+    const held = state.players[owner]!.reserved[0]!.cardId;
+    const faceUp = [1, 2, 3].flatMap((tier) => state.market[tier as 1 | 2 | 3]) as string[];
+
+    // The owner is no longer to move, and still sees what their own reserve would take.
+    const own = engine.getPublicView(state, asPlayer(owner));
+    expect(Object.keys(own.shortfalls).sort()).toEqual([...faceUp, held].sort());
+    expect(own.shortfalls[held]?.short).toBeGreaterThan(0);
+
+    // The rival is to move: affordable is exactly what `legal` lets them buy.
+    const theirs = engine.getPublicView(state, asPlayer(rival));
+    expect(Object.keys(theirs.shortfalls).sort()).toEqual([...faceUp].sort());
+    const affordable = Object.keys(theirs.shortfalls).filter(
+      (cardId) => theirs.shortfalls[cardId]?.short === 0,
+    );
+    expect(affordable.sort()).toEqual([...theirs.legal.buyable].sort());
+
+    expect(engine.getPublicView(state, SPECTATOR).shortfalls).toEqual({});
+    expect(engine.getPublicView(state, ADMIN).shortfalls).toEqual({});
+  });
+
   it('does not change when hidden cards swap places', () => {
     const start = newGame();
     const viewer = asPlayer(other(start));

@@ -318,6 +318,13 @@ describe('full matches', () => {
       const legal = listLegalActions(view.legal, before.players[step.playerId]!.tokens);
       const listed = new Set(legal.map((action) => JSON.stringify(action)));
       for (const action of legal) expect(validate(before, action).valid).toBe(true);
+      // And a card is within reach exactly when it may be bought.
+      if (before.turn.step === 'ACTION') {
+        const withinReach = Object.keys(view.shortfalls).filter(
+          (cardId) => view.shortfalls[cardId]?.short === 0,
+        );
+        expect(withinReach.sort()).toEqual([...view.legal.buyable].sort());
+      }
       for (const action of universe) {
         expect(validate(before, action).valid).toBe(listed.has(JSON.stringify(action)));
       }

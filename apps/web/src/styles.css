@@ -567,8 +567,30 @@ input[type='checkbox'] {
 /* Splendor */
 
 .splendor-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.splendor-banner p {
   margin: 0;
-  font-weight: 600;
+}
+
+.splendor-turn {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.splendor-final {
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--accent-text);
+  background: var(--danger);
+  border-radius: 999px;
+  vertical-align: middle;
 }
 
 .splendor-hint {
@@ -578,55 +600,144 @@ input[type='checkbox'] {
 
 .splendor-prompt {
   border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
-.splendor-gem {
+.splendor-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  gap: 1rem;
+  align-items: start;
+}
+
+.splendor-board {
+  gap: 1rem;
+  align-items: center;
+}
+
+.splendor-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (min-width: 56.01rem) {
+  .splendor-side {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 56rem) {
+  .splendor-table {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Gems: a token is round, a card's permanent bonus is square. */
+
+.splendor-gem,
+.splendor-bank-token {
+  position: relative;
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   width: 1.9rem;
   height: 1.9rem;
-  border: 1px solid rgb(127 127 127 / 0.7);
+  border: 1px solid rgb(127 127 127 / 0.75);
   border-radius: 50%;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.18);
 }
 
 .splendor-gem.bonus {
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .splendor-gem.small {
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.4rem;
+  height: 1.4rem;
   font-size: 0.8rem;
 }
 
-.splendor-bank-token {
-  display: inline-flex;
+.splendor-gem.none {
+  opacity: 0.4;
+}
+
+.splendor-gem-icon {
+  position: absolute;
+  inset: 12%;
+  width: 76%;
+  height: 76%;
+  opacity: 0.28;
+}
+
+.splendor-gem.bare .splendor-gem-icon {
+  opacity: 0.7;
+}
+
+.splendor-gem-count {
+  position: relative;
+}
+
+/* Bank */
+
+.splendor-bank {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.splendor-bank-tokens,
+.splendor-taking {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
+}
+
+.splendor-taking {
+  min-height: 2.4rem;
+  text-align: center;
+}
+
+.splendor-bank-token {
+  width: 3.2rem;
+  height: 3.2rem;
   padding: 0;
-  border: 2px solid rgb(127 127 127 / 0.7);
-  border-radius: 50%;
-  font-size: 1.15rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  border-width: 2px;
+  font-size: 1.2rem;
+  transition: transform 0.12s;
 }
 
 button.splendor-bank-token:not(:disabled):hover {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent);
+  transform: translateY(-2px);
 }
 
 button.splendor-bank-token:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .splendor-bank-token.gold {
   border-style: dashed;
+}
+
+.splendor-picked {
+  padding: 0;
+  background: transparent;
+  border-radius: 50%;
 }
 
 .splendor-stepper {
@@ -640,95 +751,258 @@ button.splendor-bank-token:disabled {
   padding: 0.2rem 0;
 }
 
+/* Cards */
+
 .splendor-market {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .splendor-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 6.5rem));
+  grid-template-columns: repeat(5, minmax(0, 6.25rem));
   gap: 0.5rem;
+  justify-content: center;
+}
+
+.splendor-slot {
+  position: relative;
+  min-width: 0;
+}
+
+.splendor-slot.open {
+  z-index: 2;
+}
+
+.splendor-actions {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: max-content;
+  max-width: min(15rem, 80vw);
+  padding: 0.6rem;
+  font-size: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.3);
+}
+
+.splendor-actions.end {
+  right: 0;
+  left: auto;
 }
 
 .splendor-card {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.3rem;
   justify-content: space-between;
   width: 100%;
-  max-width: 6.5rem;
-  min-height: 6.25rem;
+  min-height: 0;
+  aspect-ratio: 5 / 7;
   padding: 0.3rem;
   font: inherit;
   text-align: left;
   color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--splendor-tint) 62%, var(--surface)),
+    color-mix(in srgb, var(--splendor-tint) 20%, var(--surface)) 70%
+  );
+  border: 1px solid color-mix(in srgb, var(--splendor-tint) 65%, var(--border));
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
 }
 
 button.splendor-card:not(:disabled):hover {
-  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 12px rgb(0 0 0 / 0.35);
 }
 
 button.splendor-card:disabled {
-  opacity: 1;
-  cursor: default;
+  opacity: 0.7;
+}
+
+.splendor-card.near {
+  outline: 2px dashed color-mix(in srgb, #27a05a 60%, transparent);
+  outline-offset: 1px;
 }
 
 .splendor-card.affordable {
-  border-color: #2e9e5b;
-  box-shadow: inset 0 0 0 1px #2e9e5b;
+  outline: 2px solid #27a05a;
+  outline-offset: 1px;
 }
 
 .splendor-card.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+  transform: translateY(-3px);
 }
 
 .splendor-card.empty {
   background: transparent;
   border-style: dashed;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.splendor-card.fresh {
+  animation: splendor-arrive 0.9s ease-out 1;
+}
+
+@keyframes splendor-arrive {
+  from {
+    transform: scale(0.85);
+    box-shadow: 0 0 0 4px var(--accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splendor-card,
+  .splendor-bank-token {
+    transition: none;
+    animation: none;
+  }
 }
 
 .splendor-card.back {
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  background: var(--ground);
+  gap: 0.15rem;
+  background:
+    repeating-linear-gradient(45deg, rgb(127 127 127 / 0.14) 0 6px, transparent 6px 12px),
+    var(--ground);
+  border-color: var(--border);
 }
 
-.splendor-card.back:disabled {
-  opacity: 0.75;
+.splendor-card.back.tier-1 {
+  border-bottom: 4px solid #27a05a;
+}
+
+.splendor-card.back.tier-2 {
+  border-bottom: 4px solid #e6b422;
+}
+
+.splendor-card.back.tier-3 {
+  border-bottom: 4px solid #2f6fde;
 }
 
 .splendor-card-tier {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.1em;
+}
+
+.splendor-card-left {
+  padding: 0 0.4rem;
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
 }
 
 .splendor-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 1.8rem;
-  padding: 0.15rem 0.25rem;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--splendor-tint) 35%, transparent);
+  min-height: 1.5rem;
 }
 
 .splendor-card-points {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgb(127 127 127 / 0.35);
 }
 
 .splendor-card-cost {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  flex-wrap: wrap-reverse;
   gap: 0.15rem;
+  align-content: flex-start;
+  max-height: 6.2rem;
+}
+
+.splendor-pip {
+  position: relative;
+  display: inline-flex;
+  width: max-content;
+}
+
+.splendor-pip-mark {
+  position: absolute;
+  top: -0.3rem;
+  left: 1rem;
+  min-width: 1rem;
+  padding: 0 0.15rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+  color: #fff;
+  background: rgb(20 20 24 / 0.72);
+  border-radius: 999px;
+}
+
+.splendor-pip-mark.met {
+  background: #1f8a4c;
+}
+
+/* Small screens: cards are narrow, so the cost runs in rows instead of a column. */
+@media (max-width: 40rem) {
+  .splendor-card {
+    aspect-ratio: auto;
+    min-height: 5.2rem;
+    padding: 0.2rem;
+  }
+
+  .splendor-card-cost {
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
+  }
+
+  .splendor-card-points {
+    font-size: 1.15rem;
+  }
+
+  .splendor-gem.small {
+    width: 1.2rem;
+    height: 1.2rem;
+    font-size: 0.72rem;
+  }
+
+  .splendor-pip-mark {
+    left: 0.7rem;
+    font-size: 0.58rem;
+    line-height: 0.85rem;
+    min-width: 0.85rem;
+  }
+
+  .splendor-bank-token {
+    width: 2.7rem;
+    height: 2.7rem;
+  }
+}
+
+/* Nobles */
+
+.splendor-nobles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
 }
 
 .splendor-noble {
@@ -736,49 +1010,154 @@ button.splendor-card:disabled {
   flex-direction: column;
   gap: 0.3rem;
   align-items: flex-start;
-  padding: 0.4rem 0.5rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, #e6b422 22%, var(--surface)),
+    var(--surface)
+  );
+  border: 1px solid color-mix(in srgb, #e6b422 45%, var(--border));
+  border-radius: 8px;
   font-size: 0.9rem;
 }
 
 .splendor-noble-needs {
   display: flex;
-  gap: 0.2rem;
+  gap: 0.35rem;
 }
 
-.splendor-players {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: flex-start;
+.splendor-need {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--muted);
 }
+
+.splendor-need.met {
+  color: #1f8a4c;
+  font-weight: 700;
+}
+
+/* Players */
 
 .splendor-player {
-  flex: 1 1 17rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
 .splendor-player.active {
   border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
-.splendor-player .splendor-card {
-  width: 6.5rem;
-}
-
-.splendor-holdings {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.4rem 0.75rem;
-  align-items: center;
+.splendor-player-name {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
   margin: 0;
 }
 
-.splendor-holdings dd {
+.splendor-score {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.splendor-progress {
+  width: 100%;
+  height: 0.4rem;
+  appearance: none;
+  overflow: hidden;
+  background: var(--ground);
+  border: 0;
+  border-radius: 999px;
+  accent-color: var(--accent);
+}
+
+.splendor-progress::-webkit-progress-bar {
+  background: var(--ground);
+}
+
+.splendor-progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+.splendor-progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+.splendor-last {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.splendor-columns {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.splendor-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: center;
+}
+
+.splendor-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.splendor-strip {
+  display: block;
+  height: 0.85rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 0.85rem;
+  text-align: center;
+  background: color-mix(in srgb, var(--splendor-tint) 55%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--splendor-tint) 65%, var(--border));
+  border-radius: 3px;
+}
+
+.splendor-tokens {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  margin: 0;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.splendor-reserved {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(0, 5rem));
+  gap: 0.4rem;
+}
+
+/* Cards in a panel are narrower than on the table: their cost runs in rows. */
+.splendor-reserved .splendor-card-cost {
+  flex-direction: row;
+  flex-wrap: wrap;
+  max-height: none;
+}
+
+.splendor-reserved .splendor-card {
+  aspect-ratio: auto;
+  min-height: 6rem;
+}
+
+.splendor-purchased summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.splendor-purchased .splendor-reserved {
+  margin-top: 0.5rem;
 }
