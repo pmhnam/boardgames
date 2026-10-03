@@ -1,5 +1,6 @@
 import {
   type AddBotRequest,
+  type UpdateRoomSettingsRequest,
   type BotLevel,
   type GameDefinitionDto,
   ClientEvents,
@@ -85,6 +86,11 @@ export function RoomPage() {
     mutationFn: (botUserId: string) => api<RoomDto>('DELETE', `/rooms/${roomId}/bots/${botUserId}`),
     onSuccess: update,
   });
+  const changeSettings = useMutation({
+    mutationFn: (body: UpdateRoomSettingsRequest) =>
+      api<RoomDto>('PUT', `/rooms/${roomId}/settings`, body),
+    onSuccess: update,
+  });
   const [botLevel, setBotLevel] = useState<BotLevel>('normal');
   const games = useQuery({
     queryKey: ['games'],
@@ -94,7 +100,7 @@ export function RoomPage() {
   const gameUi = room.data ? getGameUi(room.data.gameType) : undefined;
   const gameConfig = useGameConfig(
     room.data?.gameType ?? '',
-    gameUi?.describeSettings !== undefined,
+    gameUi?.describeSettings !== undefined || gameUi?.SettingsForm !== undefined,
   );
 
   if (room.isLoading) return <p className="muted">Loading room…</p>;
@@ -109,8 +115,15 @@ export function RoomPage() {
       ? gameUi.describeSettings(data.settings, gameConfig.data.config)
       : null;
   const inviteLink = `${window.location.origin}/join/${data.code}`;
+  const SettingsForm = gameUi?.SettingsForm;
   const error =
-    setReady.error ?? start.error ?? leave.error ?? join.error ?? addBot.error ?? removeBot.error;
+    setReady.error ??
+    start.error ??
+    leave.error ??
+    join.error ??
+    addBot.error ??
+    removeBot.error ??
+    changeSettings.error;
   const game = games.data?.find((definition) => definition.gameType === data.gameType);
   const canAddBot =
     isHost &&
@@ -162,6 +175,19 @@ export function RoomPage() {
         <p>
           A match is in progress. <Link to={`/matches/${data.currentMatchId}`}>Open it</Link>
         </p>
+      )}
+
+      {SettingsForm && gameConfig.data && isHost && data.status === 'open' && (
+        <div className="stack-small">
+          <SettingsForm
+            config={gameConfig.data.config}
+            value={data.settings}
+            onChange={(settings) => changeSettings.mutate({ settings })}
+          />
+          <span className="muted hint">
+            Changing this asks everyone to confirm they are ready again.
+          </span>
+        </div>
       )}
 
       {canAddBot && (

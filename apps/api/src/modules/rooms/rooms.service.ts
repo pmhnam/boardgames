@@ -26,6 +26,9 @@ import { RoomsRepository, type RoomMemberRecord, type RoomRecord } from './rooms
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 
+const LOBBY_ROOM_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const LOBBY_ROOM_LIMIT = 100;
+
 const BOT_LEVEL_NAMES: Record<BotLevel, string> = { easy: 'Dễ', normal: 'Thường', hard: 'Khó' };
 
 function generateRoomCode(): string {
@@ -66,6 +69,21 @@ export class RoomsService {
       settings: parsed.settings,
     });
     return this.getDto(id);
+  }
+
+  /**
+   * The rooms a person can see from the lobby: public ones, and any they are a member of.
+   * Rooms older than a day are left out so abandoned ones do not pile up.
+   */
+  async listForLobby(userId: string): Promise<RoomDto[]> {
+    const createdAfter = new Date(Date.now() - LOBBY_ROOM_MAX_AGE_MS);
+    const listed: RoomDto[] = [];
+    for (const room of await this.rooms.listActive(createdAfter, LOBBY_ROOM_LIMIT)) {
+      const members = await this.rooms.listMembers(room.id);
+      const isMember = members.some((member) => member.userId === userId);
+      if (room.visibility === 'public' || isMember) listed.push(await this.toDto(room, members));
+    }
+    return listed;
   }
 
   async getDto(roomId: string): Promise<RoomDto> {
@@ -176,6 +194,30 @@ export class RoomsService {
     await this.requireMember(roomId, userId);
     this.requireOpen(room);
     await this.rooms.setMemberStatus(roomId, userId, ready ? 'ready' : 'joined');
+    return this.changed(roomId);
+  }
+
+  /**
+   * The host changes what the room will play (for Harmonies, the map). Everyone agreed to the
+   * old settings, so people have to say they are ready again.
+   */
+  async updateSettings(
+    roomId: string,
+    userId: string,
+    rawSettings: Record<string, unknown>,
+  ): Promise<RoomDto> {
+    const room = await this.requireRoom(roomId);
+    await this.requireMember(roomId, userId);
+    this.requireOpen(room);
+    this.requireHost(room, userId, 'Only the host can change the room settings.');
+
+    const { engine } = this.registry.get(room.gameType);
+    const current = await this.configs.getCurrentForPlay(room.gameType);
+    const parsed = engine.parseSettings(rawSettings, current.config);
+    if (!parsed.ok) throw new AppError(ErrorCodes.InvalidRoomSettings, parsed.message, 400);
+
+    await this.rooms.update(roomId, { settings: parsed.settings });
+    await this.rooms.resetMemberStatuses(roomId);
     return this.changed(roomId);
   }
 

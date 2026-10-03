@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import type { RoomDto, StartRoomResponse } from '@bgp/shared-types';
@@ -28,6 +29,8 @@ const createRoomSchema = z.object({
 
 const setReadySchema = z.object({ ready: z.boolean() });
 
+const updateSettingsSchema = z.object({ settings: z.record(z.string(), z.unknown()) });
+
 const addBotSchema = z.object({ level: z.enum(['easy', 'normal', 'hard']) });
 
 @Controller('rooms')
@@ -41,6 +44,11 @@ export class RoomsController {
     @Body(new ZodValidationPipe(createRoomSchema)) body: z.infer<typeof createRoomSchema>,
   ): Promise<RoomDto> {
     return this.rooms.create(user.userId, body);
+  }
+
+  @Get()
+  list(@CurrentUser() user: AuthenticatedUser): Promise<RoomDto[]> {
+    return this.rooms.listForLobby(user.userId);
   }
 
   @Get('by-code/:code')
@@ -79,6 +87,15 @@ export class RoomsController {
     @Body(new ZodValidationPipe(setReadySchema)) body: z.infer<typeof setReadySchema>,
   ): Promise<RoomDto> {
     return this.rooms.setReady(roomId, user.userId, body.ready);
+  }
+
+  @Put(':roomId/settings')
+  updateSettings(
+    @Param('roomId', ParseUUIDPipe) roomId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(updateSettingsSchema)) body: z.infer<typeof updateSettingsSchema>,
+  ): Promise<RoomDto> {
+    return this.rooms.updateSettings(roomId, user.userId, body.settings);
   }
 
   @Post(':roomId/bots')

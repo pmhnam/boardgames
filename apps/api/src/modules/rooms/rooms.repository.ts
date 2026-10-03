@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { BotLevel } from '@bgp/shared-types';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, ne } from 'drizzle-orm';
 import { DatabaseConnection } from '../../infrastructure/database/database.connection.js';
 import { matches, roomMembers, rooms, users } from '../../infrastructure/database/schema.js';
 
@@ -96,9 +96,19 @@ export class RoomsRepository {
 
   async update(
     roomId: string,
-    patch: Partial<Pick<RoomRecord, 'status' | 'hostUserId'>>,
+    patch: Partial<Pick<RoomRecord, 'status' | 'hostUserId' | 'settings'>>,
   ): Promise<void> {
     await this.connection.db.update(rooms).set(patch).where(eq(rooms.id, roomId));
+  }
+
+  /** Rooms that are still in use and were created recently, newest first. */
+  listActive(createdAfter: Date, limit: number): Promise<RoomRecord[]> {
+    return this.connection.db
+      .select()
+      .from(rooms)
+      .where(and(ne(rooms.status, 'closed'), gt(rooms.createdAt, createdAfter)))
+      .orderBy(desc(rooms.createdAt))
+      .limit(limit);
   }
 
   async findCurrentMatchId(roomId: string): Promise<string | null> {

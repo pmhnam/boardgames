@@ -479,6 +479,85 @@ describe('platform MVP flow', () => {
     expect(grid.settings).toEqual({});
   });
 
+  it('lists rooms in the lobby and lets the host change the map', async () => {
+    const host = await createClient('Host');
+    const guest = await createClient('Guest');
+    const stranger = await createClient('Stranger');
+    type ErrorBody = { error: { code: string } };
+    const listed = async (client: Client) =>
+      (await client.api<RoomDto[]>('GET', '/rooms')).body.map((room) => room.id);
+
+    const { body: open } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'harmonies',
+      visibility: 'public',
+    });
+    const { body: hidden } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'grid-claim',
+      visibility: 'private',
+    });
+
+    // Public rooms are listed for everyone; private ones only for their members.
+    expect(await listed(stranger)).toContain(open.id);
+    expect(await listed(stranger)).not.toContain(hidden.id);
+    expect(await listed(host)).toEqual(expect.arrayContaining([open.id, hidden.id]));
+    await guest.api('POST', `/rooms/${hidden.id}/join`);
+    expect(await listed(guest)).toContain(hidden.id);
+
+    // A room nobody is left in is closed and drops off the list.
+    const { body: abandoned } = await stranger.api<RoomDto>('POST', '/rooms', {
+      gameType: 'harmonies',
+      visibility: 'public',
+    });
+    await stranger.api('POST', `/rooms/${abandoned.id}/leave`);
+    expect(await listed(host)).not.toContain(abandoned.id);
+
+    // The list carries what the lobby shows: game, members, settings.
+    const { body: rooms } = await stranger.api<RoomDto[]>('GET', '/rooms');
+    expect(rooms.find((room) => room.id === open.id)).toMatchObject({
+      gameType: 'harmonies',
+      settings: { mapId: 'A' },
+      members: [{ displayName: 'Host' }],
+    });
+
+    // Only the host changes the map, only to a map that exists, and it un-readies people.
+    await guest.api('POST', `/rooms/${open.id}/join`);
+    await guest.api('POST', `/rooms/${open.id}/ready`, { ready: true });
+    await host.api('POST', `/rooms/${open.id}/bots`, { level: 'easy' });
+
+    const notHost = await guest.api<ErrorBody>('PUT', `/rooms/${open.id}/settings`, {
+      settings: { mapId: 'B' },
+    });
+    expect(notHost.body.error.code).toBe(ErrorCodes.NotRoomHost);
+    const noSuchMap = await host.api<ErrorBody>('PUT', `/rooms/${open.id}/settings`, {
+      settings: { mapId: 'Z' },
+    });
+    expect(noSuchMap.body.error.code).toBe(ErrorCodes.InvalidRoomSettings);
+
+    const { body: changed } = await host.api<RoomDto>('PUT', `/rooms/${open.id}/settings`, {
+      settings: { mapId: 'B' },
+    });
+    expect(changed.settings).toEqual({ mapId: 'B' });
+    expect(changed.members.map((member) => [member.displayName, member.status])).toEqual([
+      ['Host', 'joined'],
+      ['Guest', 'joined'],
+      [expect.stringContaining('Bot'), 'ready'],
+    ]);
+
+    // The match is then played on the new map, and cannot be changed once it has started.
+    await host.api('POST', `/rooms/${open.id}/ready`, { ready: true });
+    await guest.api('POST', `/rooms/${open.id}/ready`, { ready: true });
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${open.id}/start`);
+    const ack = await host.emit<GameStateMessage<HarmoniesView>>(ClientEvents.GameSync, {
+      gameId: started.matchId,
+    });
+    if (!ack.ok) throw new Error(ack.error.code);
+    expect(ack.data.state.map.id).toBe('B');
+    const tooLate = await host.api<ErrorBody>('PUT', `/rooms/${open.id}/settings`, {
+      settings: { mapId: 'A' },
+    });
+    expect(tooLate.body.error.code).toBe(ErrorCodes.RoomNotOpen);
+  });
+
   it('lets a person play against computer players', async () => {
     const host = await createClient('Host');
     const guest = await createClient('Guest');

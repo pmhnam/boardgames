@@ -136,6 +136,10 @@ export interface GuestLoginRequest {
   displayName: string;
 }
 
+export interface UpdateRoomSettingsRequest {
+  settings: Record<string, unknown>;
+}
+
 export interface AddBotRequest {
   level: BotLevel;
 }

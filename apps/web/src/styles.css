@@ -531,3 +531,35 @@ td {
   flex: 1 1 20rem;
   min-width: 0;
 }
+
+/* Lobby */
+
+.game-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.room-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.room-list li {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+}
