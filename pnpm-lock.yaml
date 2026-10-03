@@ -41,6 +41,9 @@ importers:
       '@bgp/game-harmonies':
         specifier: workspace:*
         version: link:../../packages/game-harmonies
+      '@bgp/game-splendor':
+        specifier: workspace:*
+        version: link:../../packages/game-splendor
       '@bgp/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -123,6 +126,9 @@ importers:
       '@bgp/game-harmonies':
         specifier: workspace:*
         version: link:../../packages/game-harmonies
+      '@bgp/game-splendor':
+        specifier: workspace:*
+        version: link:../../packages/game-splendor
       '@bgp/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types

@@ -15,6 +15,7 @@
     "@bgp/game-core": "workspace:*",
     "@bgp/game-demo": "workspace:*",
     "@bgp/game-harmonies": "workspace:*",
+    "@bgp/game-splendor": "workspace:*",
     "@bgp/shared-types": "workspace:*",
     "@electric-sql/pglite": "^0.5.8",
     "@nestjs/common": "^12.1.2",

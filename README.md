@@ -53,6 +53,7 @@ apps/
 packages/
   game-core/           Engine contract, seeded PRNG, test helpers
   game-harmonies/      Harmonies: hex boards, token stacking, animal cards
+  game-splendor/       Splendor: gem tokens, development cards, nobles
   game-demo/           Grid Claim: a tiny 5x5 game used to exercise the platform
   shared-types/        REST and WebSocket contracts shared by API and web
 deploy/                Dockerfile, production compose, nginx config, server script
@@ -82,6 +83,21 @@ board, and place animals on matching habitats. Two caveats:
 - Harmonies is a commercial game. Its name, artwork and card set belong to its publisher; get a
   licence before shipping this beyond private use.
 
+**Splendor** (2–4 players) implements the base game: take three different gems or two of one
+colour, reserve a card for a gold, or buy a card with gems, gold and the bonuses of the cards
+already bought; nobles visit whoever has the bonuses they ask for. The first to 15 points ends
+the game once the round is complete.
+
+- The default config is the 90 development cards and 10 nobles of the base set. The room's host
+  picks the winning score from the ones the config offers (10, 15 or 20).
+- Three different gems means three, unless the bank has fewer colours left. Payment is worked
+  out for the player: gems first, gold only for what is still short.
+- A card reserved from the top of a deck is hidden from everyone but its owner, in play and in
+  the replay. It is the one game here where players see different things.
+- If nobody can take, reserve or buy, players pass; a whole round of passes ends the game.
+- Splendor is a commercial game. Its name and card set belong to its publisher; get a licence
+  before shipping this beyond private use. No artwork from the game is used.
+
 **Grid Claim** (2 players) is an original, deliberately small game kept as a second
 implementation of the engine contract.
 
@@ -93,6 +109,10 @@ A room's host can fill empty seats with computer players, at three levels. In Ha
 - **Thường** places each token where it looks best right now.
 - **Khó** plans the whole hand before placing, stacks rather than spreads when the board is
   about to fill up, and puts each animal where it blocks the least.
+
+In Splendor, **Dễ** plays a random legal move but buys whenever it can, **Thường** makes the
+move that leaves its own position best, and **Khó** plans three turns ahead and takes or
+reserves the card an opponent is about to buy.
 
 Bots are algorithmic, not an LLM: they run inside the API, cost nothing and answer at once
 (`BOT_ACTION_DELAY_MS`, 700 by default, paces them so people can follow). A bot sees only what

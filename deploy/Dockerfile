@@ -11,6 +11,7 @@ COPY apps/web/package.json apps/web/
 COPY packages/game-core/package.json packages/game-core/
 COPY packages/game-demo/package.json packages/game-demo/
 COPY packages/game-harmonies/package.json packages/game-harmonies/
+COPY packages/game-splendor/package.json packages/game-splendor/
 COPY packages/shared-types/package.json packages/shared-types/
 RUN pnpm install --frozen-lockfile
 

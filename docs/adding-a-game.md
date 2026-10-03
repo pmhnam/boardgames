@@ -28,7 +28,8 @@ Config:               what an operator may change without a code change
 
 ## 2. Create the package
 
-Copy the layout of `packages/game-demo` (small) or `packages/game-harmonies` (realistic).
+Copy the layout of `packages/game-demo` (small), `packages/game-harmonies` (realistic) or
+`packages/game-splendor` (realistic, with information hidden per player).
 
 ```text
 packages/game-<name>/src/
@@ -86,14 +87,16 @@ each other and fails on any illegal action; use it to test legality and to compa
 `apps/api/src/modules/games/registered-games.ts`:
 
 ```ts
-export const registeredGames: GameModule[] = [HarmoniesGame, GridClaimGame, NewGame];
+export const registeredGames: GameModule[] = [HarmoniesGame, SplendorGame, GridClaimGame, NewGame];
 ```
 
-Add the package to `apps/api/package.json` dependencies.
+Add the package to `apps/api/package.json` dependencies, and its `package.json` to the list of
+manifests copied in `deploy/Dockerfile`, then run `pnpm install` so the lockfile knows it.
 
 ## 6. Build the UI
 
-Create `apps/web/src/games/<name>/GameView.tsx`. It receives `GameViewProps`: the server's view,
+Add the package to `apps/web/package.json` dependencies, then create
+`apps/web/src/games/<name>/GameView.tsx`. It receives `GameViewProps`: the server's view,
 the players, `sendAction`, and `disabled`. It renders the view and sends intent; it does not
 decide what is legal. Have the engine's view say what the viewer may do (see `legal` in the
 Harmonies view) rather than re-implementing rules in React.

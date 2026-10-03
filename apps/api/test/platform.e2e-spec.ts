@@ -5,6 +5,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { GridClaimView } from '@bgp/game-demo';
 import type { HarmoniesConfig, HarmoniesView } from '@bgp/game-harmonies';
+import type { SplendorView } from '@bgp/game-splendor';
 import {
   ClientEvents,
   ErrorCodes,
@@ -418,6 +419,82 @@ describe('platform MVP flow', () => {
       ok: false,
       error: { code: ErrorCodes.InvalidAction, details: { rule: 'TOKENS_REMAINING' } },
     });
+  });
+
+  it('keeps a card reserved unseen to its owner, for a game with private information', async () => {
+    const host = await createClient('Host');
+    const guest = await createClient('Guest');
+    const watcher = await createClient('Watcher');
+
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'splendor',
+      settings: { targetScore: 10 },
+    });
+    expect(room.settings).toEqual({ targetScore: 10 });
+    await guest.api('POST', `/rooms/${room.id}/join`);
+    await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+    await guest.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    const gameId = started.matchId;
+
+    type SplendorState = GameStateMessage<SplendorView>;
+    const sync = async (client: Client): Promise<SplendorState> => {
+      const ack = await client.emit<SplendorState>(ClientEvents.GameSync, { gameId });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+    const seated = [host, guest];
+    const before = await Promise.all(seated.map(sync));
+    for (const view of [...before, await sync(watcher)]) {
+      expect(view.state).not.toHaveProperty('decks');
+      expect(view.state).not.toHaveProperty('config');
+      expect(view.state.deckCounts).toEqual({ 1: 36, 2: 26, 3: 16 });
+      expect(view.state.targetScore).toBe(10);
+    }
+
+    const ownerIndex = before.findIndex((view) => view.state.legal.reservableTiers.length > 0);
+    const owner = seated[ownerIndex] as Client;
+    const rival = seated[1 - ownerIndex] as Client;
+    const ownerId = before[ownerIndex]?.viewerPlayerId as string;
+
+    const reserved = await owner.emit(ClientEvents.GameAction, {
+      gameId,
+      requestId: randomUUID(),
+      expectedVersion: 0,
+      action: { type: 'RESERVE_FROM_DECK', tier: 3 },
+    });
+    expect(reserved.ok).toBe(true);
+
+    // The owner sees the card they drew, and got a gold with it.
+    const own = (await sync(owner)).state.players[ownerId];
+    const entry = own?.reserved[0];
+    if (!entry || entry.hidden) throw new Error('The owner cannot see their own reserved card');
+    expect(entry.card.tier).toBe(3);
+    expect(own?.tokens.gold).toBe(1);
+
+    // Everyone else sees a face-down tier 3 card, and the id is nowhere in what they get.
+    for (const client of [rival, watcher]) {
+      const view = await sync(client);
+      expect(view.state.players[ownerId]?.reserved).toEqual([{ hidden: true, tier: 3 }]);
+      expect(view.state.deckCounts[3]).toBe(15);
+      expect(JSON.stringify(view)).not.toContain(entry.card.id);
+    }
+
+    // Guessing the id tells the rival nothing: it is refused exactly like a made-up one.
+    const guess = (cardId: string) =>
+      rival.emit(ClientEvents.GameAction, {
+        gameId,
+        requestId: randomUUID(),
+        expectedVersion: 1,
+        action: { type: 'BUY_CARD', cardId },
+      });
+    const [real, invented] = [await guess(entry.card.id), await guess('no-such-card')];
+    expect(real).toMatchObject({
+      ok: false,
+      error: { code: ErrorCodes.InvalidAction, details: { rule: 'CARD_NOT_AVAILABLE' } },
+    });
+    if (real.ok || invented.ok) throw new Error('A guess was accepted');
+    expect(real.error.message).toBe(invented.error.message);
   });
 
   it('lets the host choose a map, and plays the match on it', async () => {
