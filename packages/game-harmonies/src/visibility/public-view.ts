@@ -47,6 +47,8 @@ export interface HarmoniesView {
   /** How the water column of the score is worked out in this match. */
   waterScoring: WaterScoring;
   centralSpaces: TokenColor[][];
+  /** How many tokens of each colour the game started with. */
+  tokenCounts: Record<TokenColor, number>;
   /** The pouch and the deck are hidden draw piles: viewers only learn their size. */
   pouchCount: number;
   cardDeckCount: number;
@@ -107,6 +109,7 @@ export function getPublicView(state: HarmoniesState, viewer: GameViewer): Harmon
     waterScoring: state.config.waterScoring,
     turn: { ...state.turn, hand: [...state.turn.hand] },
     centralSpaces: state.centralSpaces.map((space) => [...space]),
+    tokenCounts: { ...state.config.tokenCounts },
     pouchCount: state.pouch.length,
     cardDeckCount: state.cardDeck.length,
     cardRiver: state.cardRiver.map((cardId) => getCard(cards, cardId)),

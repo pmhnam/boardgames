@@ -39,6 +39,7 @@ export { getCubeCount } from './domain/cards.js';
 export type { AnimalCard, CardTerrain, HabitatCell } from './domain/cards.js';
 export type { HarmoniesAction } from './domain/actions.js';
 export type { HarmoniesPhase, HarmoniesState, HarmoniesTurn } from './domain/state.js';
+export { SCORING_RULES } from './scoring/score.js';
 export type { ScoreBreakdown } from './scoring/score.js';
 export type {
   HarmoniesView,

@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { playerName, type GameViewProps } from '../types';
 import { AnimalCardView } from './components/AnimalCardView';
 import { HexBoard } from './components/HexBoard';
+import { ScoringGuide } from './components/ScoringGuide';
 import { TokenChip } from './components/TokenChip';
 import { TOKEN_LABEL } from './layout';
 
@@ -74,6 +75,8 @@ export function HarmoniesGameView({
           · {view.map.name} · turn {turn.number} · {view.pouchCount} tokens in the pouch
         </span>
       </p>
+
+      <ScoringGuide view={view} />
 
       <section className="card">
         <h2>Central board</h2>

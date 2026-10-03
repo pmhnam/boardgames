@@ -23,6 +23,22 @@ const RIVER_POINTS = [0, 0, 2, 5, 8, 11, 15];
 const RIVER_EXTRA_POINTS = 4;
 const ISLAND_POINTS = 5;
 
+/**
+ * The scoring table, for anything that explains the rules to players. Kept next to the code
+ * that applies it, so an explanation cannot drift from what is actually scored.
+ */
+export const SCORING_RULES = {
+  /** Points for a finished tree, or a mountain beside another mountain, by height. */
+  pointsByHeight: HEIGHT_POINTS,
+  fieldGroupPoints: FIELD_GROUP_POINTS,
+  buildingPoints: BUILDING_POINTS,
+  buildingMinNeighbourColors: BUILDING_MIN_NEIGHBOUR_COLORS,
+  /** Index = length of the longest river. */
+  riverPoints: RIVER_POINTS,
+  riverExtraPointsPerCell: RIVER_EXTRA_POINTS,
+  islandPoints: ISLAND_POINTS,
+} as const;
+
 /** Scoring reads only what has been built, so it needs no knowledge of the board's shape. */
 function cellsOfKind(board: PlayerBoard, kind: string): Hex[] {
   return Object.keys(board.stacks)
