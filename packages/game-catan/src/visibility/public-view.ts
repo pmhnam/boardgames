@@ -1,7 +1,7 @@
 import type { GameViewer } from '@bgp/game-core';
 import type { Tile } from '../domain/default-board.js';
 import type { DevelopmentCardType } from '../domain/development-cards.js';
-import type { Costs, Harbor, Pieces } from '../domain/game-config.js';
+import type { Costs, Port, Pieces } from '../domain/game-config.js';
 import { hexKey, type Hex } from '../domain/hex.js';
 import { countResources, type Resource, type ResourceCounts } from '../domain/resources.js';
 import type {
@@ -15,7 +15,7 @@ import type {
 import { NO_LEGAL_MOVES, getLegalMoves, type LegalMoves } from '../rules/legal-moves.js';
 import { getPiecesLeft } from '../rules/placement.rules.js';
 import { getSupplyRates } from '../rules/trade.rules.js';
-import { getRoadLength } from '../scoring/longest-road.js';
+import { getRouteLength } from '../scoring/longest-route.js';
 import { getPoints, getPublicPoints } from '../scoring/score.js';
 
 export interface HexView extends Hex, Tile {}
@@ -35,9 +35,9 @@ export interface PlayerView {
   /** Only the viewer's own, until the game is over. */
   developmentCards: HeldCardView[] | null;
   knightsPlayed: number;
-  roadLength: number;
+  routeLength: number;
   piecesLeft: Pieces;
-  /** What the table can count: buildings, Longest Road and Largest Army. */
+  /** What the table can count: buildings, Longest Route and Largest Army. */
   publicPoints: number;
   /** With Victory Point cards: only the viewer's own, until the game is over. */
   points: number | null;
@@ -70,7 +70,7 @@ export interface CatanView {
   turn: TurnView;
   board: {
     hexes: HexView[];
-    harbors: Harbor[];
+    ports: Port[];
     robber: string;
   };
   buildings: Record<string, Building>;
@@ -78,11 +78,11 @@ export interface CatanView {
   supply: ResourceCounts;
   developmentDeckCount: number;
   players: Record<string, PlayerView>;
-  longestRoadPlayerId: string | null;
+  longestRoutePlayerId: string | null;
   largestArmyPlayerId: string | null;
   victoryPointsToWin: number;
-  /** The shortest road that can hold Longest Road, and the fewest knights for Largest Army. */
-  longestRoadMinimum: number;
+  /** The shortest road that can hold Longest Route, and the fewest knights for Largest Army. */
+  longestRouteMinimum: number;
   largestArmyMinimum: number;
   /** A hand larger than this loses half to a 7. */
   discardLimit: number;
@@ -109,7 +109,7 @@ function getPlayerView(
         }))
       : null,
     knightsPlayed: player.knightsPlayed,
-    roadLength: getRoadLength(state, playerId),
+    routeLength: getRouteLength(state, playerId),
     piecesLeft: getPiecesLeft(state, playerId),
     publicPoints: getPublicPoints(state, playerId),
     points: revealed ? getPoints(state, playerId) : null,
@@ -166,7 +166,7 @@ export function getPublicView(state: CatanState, viewer: GameViewer): CatanView 
     },
     board: {
       hexes: getHexViews(state),
-      harbors: state.config.harbors.map((harbor) => ({ edge: harbor.edge, type: harbor.type })),
+      ports: state.config.ports.map((port) => ({ edge: port.edge, type: port.type })),
       robber: state.robber,
     },
     buildings: Object.fromEntries(
@@ -188,10 +188,10 @@ export function getPublicView(state: CatanState, viewer: GameViewer): CatanView 
         ];
       }),
     ),
-    longestRoadPlayerId: state.longestRoadPlayerId,
+    longestRoutePlayerId: state.longestRoutePlayerId,
     largestArmyPlayerId: state.largestArmyPlayerId,
     victoryPointsToWin: state.config.victoryPointsToWin,
-    longestRoadMinimum: state.config.longestRoadMinimum,
+    longestRouteMinimum: state.config.longestRouteMinimum,
     largestArmyMinimum: state.config.largestArmyMinimum,
     discardLimit: state.config.discardLimit,
     costs: copyCosts(state.config.costs),

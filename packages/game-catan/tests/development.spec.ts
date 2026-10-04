@@ -24,7 +24,7 @@ import {
   withTurn,
 } from './fixtures/states.js';
 
-const CARD_COST = { wool: 1, grain: 1, ore: 1 };
+const CARD_COST = { wool: 1, wheat: 1, ore: 1 };
 
 function withKnights(state: CatanState, playerId: string, knightsPlayed: number): CatanState {
   return deepFreeze({
@@ -34,7 +34,7 @@ function withKnights(state: CatanState, playerId: string, knightsPlayed: number)
 }
 
 describe('buying a development card', () => {
-  it('costs a wool, a grain and an ore and takes the top card of the deck', () => {
+  it('costs a wool, a wheat and an ore and takes the top card of the deck', () => {
     const base = inMain();
     const me = active(base);
     const state = hold(base, me, { ...CARD_COST, brick: 1 });
@@ -54,7 +54,7 @@ describe('buying a development card', () => {
     const base = inMain();
     const me = active(base);
     expectRejected(
-      hold(base, me, { wool: 1, grain: 1 }),
+      hold(base, me, { wool: 1, wheat: 1 }),
       { type: 'BUY_DEVELOPMENT_CARD' },
       CatanRuleCodes.CannotAfford,
     );
@@ -264,17 +264,17 @@ describe('Road Building', () => {
   });
 });
 
-describe('Year of Plenty', () => {
+describe('Invention', () => {
   it('takes any two cards from the supply', () => {
     const base = inMain();
     const me = active(base);
-    const state = holdCards(base, me, ['yearOfPlenty', 'yearOfPlenty']);
+    const state = holdCards(base, me, ['invention', 'invention']);
 
-    const mixed = apply(state, { type: 'PLAY_YEAR_OF_PLENTY', resources: ['ore', 'wool'] });
+    const mixed = apply(state, { type: 'PLAY_INVENTION', resources: ['ore', 'wool'] });
     expect(player(mixed, me).resources).toEqual(cards({ ore: 1, wool: 1 }));
     expect(mixed.supply).toMatchObject({ ore: 18, wool: 18 });
 
-    const same = apply(state, { type: 'PLAY_YEAR_OF_PLENTY', resources: ['ore', 'ore'] });
+    const same = apply(state, { type: 'PLAY_INVENTION', resources: ['ore', 'ore'] });
     expect(player(same, me).resources).toEqual(cards({ ore: 2 }));
     expect(player(same, me).developmentCards).toHaveLength(1);
   });
@@ -282,24 +282,24 @@ describe('Year of Plenty', () => {
   it('is refused for cards the supply does not have', () => {
     const base = inMain();
     const state = deepFreeze({
-      ...holdCards(base, active(base), ['yearOfPlenty']),
+      ...holdCards(base, active(base), ['invention']),
       supply: { ...base.supply, ore: 1, wool: 0 },
     });
     expectRejected(
       state,
-      { type: 'PLAY_YEAR_OF_PLENTY', resources: ['ore', 'ore'] },
+      { type: 'PLAY_INVENTION', resources: ['ore', 'ore'] },
       CatanRuleCodes.SupplyShort,
     );
     expectRejected(
       state,
-      { type: 'PLAY_YEAR_OF_PLENTY', resources: ['wool', 'grain'] },
+      { type: 'PLAY_INVENTION', resources: ['wool', 'wheat'] },
       CatanRuleCodes.SupplyShort,
     );
   });
 
   it('must name exactly two resources', () => {
-    expect(engine.parseAction({ type: 'PLAY_YEAR_OF_PLENTY', resources: ['ore'] }).ok).toBe(false);
-    expect(engine.parseAction({ type: 'PLAY_YEAR_OF_PLENTY', resources: ['ore', 'gold'] }).ok).toBe(
+    expect(engine.parseAction({ type: 'PLAY_INVENTION', resources: ['ore'] }).ok).toBe(false);
+    expect(engine.parseAction({ type: 'PLAY_INVENTION', resources: ['ore', 'gold'] }).ok).toBe(
       false,
     );
   });

@@ -2,7 +2,7 @@ import { RESOURCES, type Resource, type ResourceCounts } from '@bgp/game-catan';
 import { RESOURCE_LABEL } from '../layout';
 import { ResourceChip } from './ResourceChip';
 
-export const NO_RESOURCES: ResourceCounts = { brick: 0, wood: 0, wool: 0, grain: 0, ore: 0 };
+export const NO_RESOURCES: ResourceCounts = { brick: 0, wood: 0, wool: 0, wheat: 0, ore: 0 };
 
 export function totalOf(counts: Readonly<ResourceCounts>): number {
   return RESOURCES.reduce((sum, resource) => sum + counts[resource], 0);

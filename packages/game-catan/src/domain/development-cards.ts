@@ -2,7 +2,7 @@ export const DEVELOPMENT_CARD_TYPES = [
   'knight',
   'victoryPoint',
   'roadBuilding',
-  'yearOfPlenty',
+  'invention',
   'monopoly',
 ] as const;
 export type DevelopmentCardType = (typeof DEVELOPMENT_CARD_TYPES)[number];

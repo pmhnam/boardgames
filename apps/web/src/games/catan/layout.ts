@@ -2,7 +2,7 @@ import {
   parseEdgeId,
   parseVertexId,
   type DevelopmentCardType,
-  type HarborType,
+  type PortType,
   type Hex,
   type Resource,
   type Terrain,
@@ -30,7 +30,7 @@ export const RESOURCE_FILL: Record<Resource, string> = {
   brick: TERRAIN_FILL.hills,
   wood: TERRAIN_FILL.forest,
   wool: TERRAIN_FILL.pasture,
-  grain: TERRAIN_FILL.fields,
+  wheat: TERRAIN_FILL.fields,
   ore: TERRAIN_FILL.mountains,
 };
 
@@ -39,7 +39,7 @@ export const RESOURCE_INK: Record<Resource, string> = {
   brick: '#fff',
   wood: '#fff',
   wool: '#1c1d1f',
-  grain: '#1c1d1f',
+  wheat: '#1c1d1f',
   ore: '#fff',
 };
 
@@ -47,7 +47,7 @@ export const RESOURCE_LABEL: Record<Resource, string> = {
   brick: 'Brick',
   wood: 'Wood',
   wool: 'Wool',
-  grain: 'Grain',
+  wheat: 'Wheat',
   ore: 'Ore',
 };
 
@@ -55,7 +55,7 @@ export const CARD_LABEL: Record<DevelopmentCardType, string> = {
   knight: 'Knight',
   victoryPoint: 'Victory Point',
   roadBuilding: 'Road Building',
-  yearOfPlenty: 'Year of Plenty',
+  invention: 'Invention',
   monopoly: 'Monopoly',
 };
 
@@ -63,11 +63,11 @@ export const CARD_HINT: Record<DevelopmentCardType, string> = {
   knight: 'Move the robber and rob a player next to it.',
   victoryPoint: 'Worth 1 point. Stays hidden until you win.',
   roadBuilding: 'Place 2 roads for free.',
-  yearOfPlenty: 'Take any 2 cards from the supply.',
+  invention: 'Take any 2 cards from the supply.',
   monopoly: 'Every other player gives you all their cards of one resource.',
 };
 
-export function harborLabel(type: HarborType): string {
+export function portLabel(type: PortType): string {
   return type === 'any' ? '3:1' : '2:1';
 }
 

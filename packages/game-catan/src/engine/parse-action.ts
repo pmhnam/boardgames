@@ -1,6 +1,6 @@
 import type { ParseActionResult } from '@bgp/game-core';
 import type { CatanAction } from '../domain/actions.js';
-import { YEAR_OF_PLENTY_CARDS } from '../domain/config.js';
+import { INVENTION_CARDS } from '../domain/config.js';
 import { RESOURCES, isResource, type ResourceCounts } from '../domain/resources.js';
 
 /** Board ids are short; anything longer is not one. */
@@ -72,16 +72,12 @@ export function parseAction(raw: unknown): ParseActionResult<CatanAction> {
       return { ok: true, action: { type: 'MOVE_ROBBER', hex: raw.hex, victimId: raw.victimId } };
     }
 
-    case 'PLAY_YEAR_OF_PLENTY': {
+    case 'PLAY_INVENTION': {
       const picks = raw.resources;
-      if (
-        !Array.isArray(picks) ||
-        picks.length !== YEAR_OF_PLENTY_CARDS ||
-        !picks.every(isResource)
-      ) {
-        return fail(`PLAY_YEAR_OF_PLENTY needs ${YEAR_OF_PLENTY_CARDS} resources.`);
+      if (!Array.isArray(picks) || picks.length !== INVENTION_CARDS || !picks.every(isResource)) {
+        return fail(`PLAY_INVENTION needs ${INVENTION_CARDS} resources.`);
       }
-      return { ok: true, action: { type: 'PLAY_YEAR_OF_PLENTY', resources: [...picks] } };
+      return { ok: true, action: { type: 'PLAY_INVENTION', resources: [...picks] } };
     }
 
     case 'PLAY_MONOPOLY':

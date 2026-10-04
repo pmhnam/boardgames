@@ -40,14 +40,14 @@ export function getProduction(model: Model): ResourceCounts {
 
 /** What a kind of resource the seat does not produce yet is worth next to one it does. */
 const NEW_RESOURCE_BONUS = 2;
-/** What a harbor is worth: a generic one, and one for a resource the seat produces. */
-const GENERIC_HARBOR_VALUE = 1.5;
-const RESOURCE_HARBOR_VALUE = 0.5;
+/** What a port is worth: a generic one, and one for a resource the seat produces. */
+const GENERIC_PORT_VALUE = 1.5;
+const RESOURCE_PORT_VALUE = 0.5;
 
 /**
  * How good a corner is to settle. The plain score is how often it produces, plus a little for
  * each different resource. The aware score also counts what the seat still lacks and what a
- * harbor there would do for what it already makes.
+ * port there would do for what it already makes.
  */
 export function evaluateSite(model: Model, vertex: string, aware: boolean): number {
   const yielded = getYield(model, vertex);
@@ -57,11 +57,11 @@ export function evaluateSite(model: Model, vertex: string, aware: boolean): numb
 
   const production = getProduction(model);
   const fresh = kinds.filter((resource) => production[resource] === 0).length;
-  const harbor = model.harbors[vertex];
-  let harborValue = 0;
-  if (harbor === 'any') harborValue = GENERIC_HARBOR_VALUE;
-  else if (harbor) harborValue = RESOURCE_HARBOR_VALUE * (production[harbor] + yielded[harbor]);
-  return pips + kinds.length + NEW_RESOURCE_BONUS * fresh + harborValue;
+  const port = model.ports[vertex];
+  let portValue = 0;
+  if (port === 'any') portValue = GENERIC_PORT_VALUE;
+  else if (port) portValue = RESOURCE_PORT_VALUE * (production[port] + yielded[port]);
+  return pips + kinds.length + NEW_RESOURCE_BONUS * fresh + portValue;
 }
 
 /** How much a road counts for the site two steps along it, next to one at its end. */

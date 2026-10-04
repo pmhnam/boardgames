@@ -8,7 +8,7 @@ import {
   validateBuildSettlement,
   validateBuyDevelopmentCard,
 } from '../rules/build.rules.js';
-import { validatePlayCard, validateYearOfPlenty } from '../rules/development.rules.js';
+import { validatePlayCard, validateInvention } from '../rules/development.rules.js';
 import { validateSettlementSite, validateSetupRoadSite } from '../rules/placement.rules.js';
 import { validateDiscard, validateMoveRobber } from '../rules/robber.rules.js';
 import {
@@ -39,8 +39,8 @@ function validateTurnAction(
       return validatePlayCard(state, playerId, 'knight');
     case 'PLAY_ROAD_BUILDING':
       return validatePlayCard(state, playerId, 'roadBuilding');
-    case 'PLAY_YEAR_OF_PLENTY':
-      return validateYearOfPlenty(state, playerId, action.resources);
+    case 'PLAY_INVENTION':
+      return validateInvention(state, playerId, action.resources);
     case 'PLAY_MONOPOLY':
       return validatePlayCard(state, playerId, 'monopoly');
     case 'SUPPLY_TRADE':

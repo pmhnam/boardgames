@@ -90,7 +90,7 @@ export interface CatanState {
   developmentDeck: DevelopmentCardType[];
   players: Record<string, PlayerState>;
   /** Stored because a tie leaves the card with whoever held it first. */
-  longestRoadPlayerId: string | null;
+  longestRoutePlayerId: string | null;
   largestArmyPlayerId: string | null;
   random: RandomState;
   winnerPlayerIds: string[];

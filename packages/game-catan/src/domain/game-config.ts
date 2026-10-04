@@ -1,17 +1,24 @@
 import type { ParseConfigResult, ParseSettingsResult } from '@bgp/game-core';
+import { listCoast, type HexSideRef } from './coast.js';
 import { MAX_PLAYERS, ROBBER_ROLL, SETUP_ROUNDS } from './config.js';
 import {
-  DEFAULT_BEGINNER_TILES,
-  DEFAULT_HARBORS,
+  DEFAULT_FIXED_SETUP,
+  DEFAULT_FRAME,
   DEFAULT_HEXES,
-  DEFAULT_NUMBER_TOKENS,
+  DEFAULT_NUMBER_DISCS,
   DEFAULT_TERRAIN_COUNTS,
-  type HarborPlacement,
-  type HarborType,
+  type FixedSetup,
+  type Frame,
+  type FramePiece,
+  type FramePort,
+  type HexCornerRef,
+  type PortType,
+  type StartingPieces,
+  type StartingPlacement,
   type Tile,
 } from './default-board.js';
 import { DEVELOPMENT_CARD_TYPES, type DevelopmentCardType } from './development-cards.js';
-import { HEX_SIDES, hexKey, hexNeighbour, hexSideEdge, isHexSide, type Hex } from './hex.js';
+import { HEX_SIDES, hexCorner, hexKey, hexSideEdge, isHexSide, type Hex } from './hex.js';
 import {
   RESOURCES,
   TERRAINS,
@@ -22,7 +29,7 @@ import {
   type ResourceCounts,
   type Terrain,
 } from './resources.js';
-import { buildTopology } from './topology.js';
+import { buildTopology, endsOf, neighboursOf } from './topology.js';
 
 /** The pieces each player starts with. */
 export interface Pieces {
@@ -42,30 +49,33 @@ export interface Costs {
 export interface CatanConfig {
   /** The hexes of the island. */
   hexes: Hex[];
-  /** How many hexes of each terrain a random board is made of. */
+  /** How many hexes of each terrain the variable setup deals. */
   terrainCounts: Record<Terrain, number>;
-  /** The number tokens a random board deals onto its producing hexes. */
-  numberTokens: number[];
-  /** The fixed board for a first game, one tile per hex, in the order of `hexes`. */
-  beginnerTiles: Tile[];
-  harbors: HarborPlacement[];
-  /** Whether a random board keeps the 6s and 8s off neighbouring hexes. */
-  keepRedNumbersApart: boolean;
+  /**
+   * The number discs in the order of the letters on their backs. The variable setup lays them
+   * in that order from a corner of the island, counterclockwise and inwards, skipping deserts.
+   */
+  numberDiscs: number[];
+  /** The board and the starting pieces for a first game. */
+  fixedSetup: FixedSetup;
+  /** The sea frame and the ports on it. */
+  frame: Frame;
   /** Resource cards of each kind in the supply. */
   resourcesPerType: number;
   developmentCards: Record<DevelopmentCardType, number>;
   pieces: Pieces;
   costs: Costs;
   victoryPointsToWin: number;
-  /** The shortest road that can hold Longest Road. */
-  longestRoadMinimum: number;
+  /** The shortest route that can hold Longest Route. */
+  longestRouteMinimum: number;
   /** The fewest played knights that can hold Largest Army. */
   largestArmyMinimum: number;
   /** A player holding more resource cards than this loses half of them to a 7. */
   discardLimit: number;
 }
 
-export const BOARD_SETUPS = ['random', 'beginner'] as const;
+/** The variable setup deals the island afresh; the fixed one is the rulebook's first game. */
+export const BOARD_SETUPS = ['variable', 'fixed'] as const;
 export type BoardSetup = (typeof BOARD_SETUPS)[number];
 
 /** What a room's host chooses for a match. */
@@ -73,10 +83,10 @@ export interface CatanSettings {
   boardSetup: BoardSetup;
 }
 
-/** A harbor as a match plays it: the edge whose two corners trade through it. */
-export interface Harbor {
+/** A port as a match plays it: the edge whose two corners trade through it. */
+export interface Port {
   edge: string;
-  type: HarborType;
+  type: PortType;
 }
 
 /**
@@ -85,11 +95,11 @@ export interface Harbor {
  */
 export interface CatanSetup {
   hexes: Hex[];
-  harbors: Harbor[];
+  ports: Port[];
   pieces: Pieces;
   costs: Costs;
   victoryPointsToWin: number;
-  longestRoadMinimum: number;
+  longestRouteMinimum: number;
   largestArmyMinimum: number;
   discardLimit: number;
 }
@@ -99,35 +109,70 @@ const cost = (counts: Partial<ResourceCounts>): ResourceCounts => ({
   ...counts,
 });
 
+const copyPlacement = (placement: StartingPlacement): StartingPlacement => ({
+  settlement: { ...placement.settlement },
+  road: { ...placement.road },
+});
+
 export const DEFAULT_CATAN_CONFIG: CatanConfig = {
   hexes: DEFAULT_HEXES.map((hex) => ({ ...hex })),
   terrainCounts: { ...DEFAULT_TERRAIN_COUNTS },
-  numberTokens: [...DEFAULT_NUMBER_TOKENS],
-  beginnerTiles: DEFAULT_BEGINNER_TILES.map((tile) => ({ ...tile })),
-  harbors: DEFAULT_HARBORS.map((harbor) => ({ ...harbor })),
-  keepRedNumbersApart: true,
+  numberDiscs: [...DEFAULT_NUMBER_DISCS],
+  fixedSetup: {
+    tiles: DEFAULT_FIXED_SETUP.tiles.map((tile) => ({ ...tile })),
+    seats: DEFAULT_FIXED_SETUP.seats.map((seat) => ({
+      first: copyPlacement(seat.first),
+      second: copyPlacement(seat.second),
+    })),
+  },
+  frame: {
+    start: { ...DEFAULT_FRAME.start },
+    pieces: DEFAULT_FRAME.pieces.map((piece) => ({
+      length: piece.length,
+      ports: piece.ports.map((port) => ({ ...port })),
+    })),
+  },
   resourcesPerType: 19,
-  developmentCards: { knight: 14, victoryPoint: 5, roadBuilding: 2, yearOfPlenty: 2, monopoly: 2 },
+  developmentCards: { knight: 14, victoryPoint: 5, roadBuilding: 2, invention: 2, monopoly: 2 },
   pieces: { roads: 15, settlements: 5, cities: 4 },
   costs: {
     road: cost({ brick: 1, wood: 1 }),
-    settlement: cost({ brick: 1, wood: 1, wool: 1, grain: 1 }),
-    city: cost({ grain: 2, ore: 3 }),
-    developmentCard: cost({ wool: 1, grain: 1, ore: 1 }),
+    settlement: cost({ brick: 1, wood: 1, wool: 1, wheat: 1 }),
+    city: cost({ wheat: 2, ore: 3 }),
+    developmentCard: cost({ wool: 1, wheat: 1, ore: 1 }),
   },
   victoryPointsToWin: 10,
-  longestRoadMinimum: 5,
+  longestRouteMinimum: 5,
   largestArmyMinimum: 3,
   discardLimit: 7,
 };
 
-export function resolveSetup(config: CatanConfig): CatanSetup {
+/** Where the ports end up once the frame pieces are laid round the coast in the given order. */
+export function layFrame(
+  hexes: readonly Hex[],
+  start: HexSideRef,
+  pieces: readonly FramePiece[],
+): Port[] {
+  const coast = listCoast(hexes, start);
+  if (!coast) throw new Error('The coast is not a single ring');
+  const ports: Port[] = [];
+  let offset = 0;
+  for (const piece of pieces) {
+    for (const port of piece.ports) {
+      const edge = coast[offset + port.at];
+      if (edge === undefined) throw new Error('The frame is longer than the coast');
+      ports.push({ edge, type: port.type });
+    }
+    offset += piece.length;
+  }
+  return ports;
+}
+
+/** What a match keeps of the config: `ports` are the ones its own frame was laid with. */
+export function resolveSetup(config: CatanConfig, ports: readonly Port[]): CatanSetup {
   return {
     hexes: config.hexes.map((hex) => ({ ...hex })),
-    harbors: config.harbors.map((harbor) => ({
-      edge: hexSideEdge(harbor, harbor.side),
-      type: harbor.type,
-    })),
+    ports: ports.map((port) => ({ ...port })),
     pieces: { ...config.pieces },
     costs: {
       road: { ...config.costs.road },
@@ -136,18 +181,18 @@ export function resolveSetup(config: CatanConfig): CatanSetup {
       developmentCard: { ...config.costs.developmentCard },
     },
     victoryPointsToWin: config.victoryPointsToWin,
-    longestRoadMinimum: config.longestRoadMinimum,
+    longestRouteMinimum: config.longestRouteMinimum,
     largestArmyMinimum: config.largestArmyMinimum,
     discardLimit: config.discardLimit,
   };
 }
 
-/** No settings means a random board. */
+/** No settings means the variable setup. */
 export function parseSettings(
   raw: unknown,
   _config: CatanConfig,
 ): ParseSettingsResult<CatanSettings> {
-  const defaults: CatanSettings = { boardSetup: 'random' };
+  const defaults: CatanSettings = { boardSetup: 'variable' };
   if (raw === undefined || raw === null) return { ok: true, settings: defaults };
 
   if (typeof raw !== 'object' || Array.isArray(raw)) {
@@ -162,7 +207,7 @@ export function parseSettings(
 
 const MAX_HEXES = 61;
 const MAX_COORDINATE = 10;
-const MAX_HARBORS = 30;
+const MAX_FRAME_PIECES = 30;
 const MAX_CARDS = 50;
 const MAX_PIECES = 50;
 const MAX_COST_PER_RESOURCE = 10;
@@ -235,11 +280,11 @@ function parseNumber(value: unknown, what: string): number {
   return number;
 }
 
-function parseNumberTokens(raw: unknown, producingHexes: number): number[] {
+function parseNumberDiscs(raw: unknown, producingHexes: number): number[] {
   if (!Array.isArray(raw) || raw.length !== producingHexes) {
-    fail(`numberTokens must be a list of ${producingHexes} numbers, one per producing hex.`);
+    fail(`numberDiscs must be a list of ${producingHexes} numbers, one per producing hex.`);
   }
-  return raw.map((value, index) => parseNumber(value, `numberTokens[${index}]`));
+  return raw.map((value, index) => parseNumber(value, `numberDiscs[${index}]`));
 }
 
 function sameItems(a: readonly (string | number)[], b: readonly (string | number)[]): boolean {
@@ -247,17 +292,17 @@ function sameItems(a: readonly (string | number)[], b: readonly (string | number
   return sorted(a) === sorted(b);
 }
 
-function parseBeginnerTiles(
+function parseFixedTiles(
   raw: unknown,
   terrainCounts: Record<Terrain, number>,
-  numberTokens: readonly number[],
+  numberDiscs: readonly number[],
   hexCount: number,
 ): Tile[] {
   if (!Array.isArray(raw) || raw.length !== hexCount) {
-    fail(`beginnerTiles must be a list of ${hexCount} tiles, one per hex.`);
+    fail(`fixedSetup.tiles must be a list of ${hexCount} tiles, one per hex.`);
   }
   const tiles = raw.map((tile, index): Tile => {
-    const at = `beginnerTiles[${index}]`;
+    const at = `fixedSetup.tiles[${index}]`;
     if (!isRecord(tile)) fail(`${at} must be an object.`);
     const { terrain } = tile;
     if (!isTerrain(terrain)) fail(`${at}.terrain must be one of: ${TERRAINS.join(', ')}.`);
@@ -279,40 +324,130 @@ function parseBeginnerTiles(
       terrains,
     )
   ) {
-    fail('beginnerTiles must use exactly the terrains in terrainCounts.');
+    fail('fixedSetup.tiles must use exactly the terrains in terrainCounts.');
   }
   const numbers = tiles.flatMap((tile) => (tile.number === null ? [] : [tile.number]));
-  if (!sameItems(numbers, numberTokens)) {
-    fail('beginnerTiles must use exactly the numbers in numberTokens.');
+  if (!sameItems(numbers, numberDiscs)) {
+    fail('fixedSetup.tiles must use exactly the numbers in numberDiscs.');
   }
   return tiles;
 }
 
-function parseHarbors(raw: unknown, hexes: readonly Hex[]): HarborPlacement[] {
-  const onBoard = new Set(hexes.map(hexKey));
-  const harbors = parseArray(raw, 'harbors', 0, MAX_HARBORS).map(
-    (harbor, index): HarborPlacement => {
-      const at = `harbors[${index}]`;
-      if (!isRecord(harbor)) fail(`${at} must be an object.`);
-      const hex = {
-        q: parseInteger(harbor.q, `${at}.q`, -MAX_COORDINATE, MAX_COORDINATE),
-        r: parseInteger(harbor.r, `${at}.r`, -MAX_COORDINATE, MAX_COORDINATE),
-      };
-      const { side, type } = harbor;
-      if (!onBoard.has(hexKey(hex))) fail(`${at} must sit on a hex of the board.`);
-      if (!isHexSide(side)) fail(`${at}.side must be one of: ${HEX_SIDES.join(', ')}.`);
-      if (type !== 'any' && !isResource(type)) {
-        fail(`${at}.type must be one of: any, ${RESOURCES.join(', ')}.`);
+function parseHex(raw: Record<string, unknown>, what: string): Hex {
+  return {
+    q: parseInteger(raw.q, `${what}.q`, -MAX_COORDINATE, MAX_COORDINATE),
+    r: parseInteger(raw.r, `${what}.r`, -MAX_COORDINATE, MAX_COORDINATE),
+  };
+}
+
+function parseSideRef(raw: unknown, what: string): HexSideRef {
+  if (!isRecord(raw)) fail(`${what} must be an object.`);
+  const { side } = raw;
+  if (!isHexSide(side)) fail(`${what}.side must be one of: ${HEX_SIDES.join(', ')}.`);
+  return { ...parseHex(raw, what), side };
+}
+
+function parseCornerRef(raw: unknown, what: string): HexCornerRef {
+  if (!isRecord(raw)) fail(`${what} must be an object.`);
+  const { corner } = raw;
+  if (corner !== 'N' && corner !== 'S') fail(`${what}.corner must be N or S.`);
+  return { ...parseHex(raw, what), corner };
+}
+
+/** The starting pieces must be where the rules would let a player put them. */
+function parseFixedSeats(raw: unknown, hexes: readonly Hex[]): StartingPieces[] {
+  const topology = buildTopology(hexes);
+  const settled = new Set<string>();
+  const paved = new Set<string>();
+
+  const parsePlacement = (placement: unknown, at: string): StartingPlacement => {
+    if (!isRecord(placement)) fail(`${at} must be an object.`);
+    const settlement = parseCornerRef(placement.settlement, `${at}.settlement`);
+    const road = parseSideRef(placement.road, `${at}.road`);
+    const vertex = hexCorner(settlement, settlement.corner);
+    const edge = hexSideEdge(road, road.side);
+
+    if (!topology.vertexEdges[vertex]) fail(`${at}.settlement must be a corner of the board.`);
+    if (settled.has(vertex) || neighboursOf(topology, vertex).some((near) => settled.has(near))) {
+      fail(`${at}.settlement must be two edges away from every other settlement.`);
+    }
+    if (!topology.edgeVertices[edge] || !endsOf(topology, edge).includes(vertex)) {
+      fail(`${at}.road must be an edge of the board next to its settlement.`);
+    }
+    if (paved.has(edge)) fail(`${at}.road is on an edge that already has a road.`);
+    settled.add(vertex);
+    paved.add(edge);
+    return { settlement, road };
+  };
+
+  if (!Array.isArray(raw) || raw.length !== MAX_PLAYERS) {
+    fail(`fixedSetup.seats must be a list of ${MAX_PLAYERS} seats.`);
+  }
+  return raw.map((seat, index): StartingPieces => {
+    const at = `fixedSetup.seats[${index}]`;
+    if (!isRecord(seat)) fail(`${at} must be an object.`);
+    return {
+      first: parsePlacement(seat.first, `${at}.first`),
+      second: parsePlacement(seat.second, `${at}.second`),
+    };
+  });
+}
+
+function parseFixedSetup(
+  raw: unknown,
+  hexes: readonly Hex[],
+  terrainCounts: Record<Terrain, number>,
+  numberDiscs: readonly number[],
+): FixedSetup {
+  if (!isRecord(raw)) fail('fixedSetup must be an object.');
+  return {
+    tiles: parseFixedTiles(raw.tiles, terrainCounts, numberDiscs, hexes.length),
+    seats: parseFixedSeats(raw.seats, hexes),
+  };
+}
+
+function parsePortType(raw: unknown, what: string): PortType {
+  if (raw !== 'any' && !isResource(raw)) {
+    fail(`${what} must be one of: any, ${RESOURCES.join(', ')}.`);
+  }
+  return raw;
+}
+
+/** The pieces must go round the whole coast, which must be a single ring to go round. */
+function parseFrame(raw: unknown, hexes: readonly Hex[]): Frame {
+  if (!isRecord(raw)) fail('frame must be an object.');
+  const start = parseSideRef(raw.start, 'frame.start');
+  const coast = listCoast(hexes, start);
+  if (!coast) {
+    fail('frame.start must be a side of a hex that faces the sea, on an island with one coast.');
+  }
+
+  const pieces = parseArray(raw.pieces, 'frame.pieces', 1, MAX_FRAME_PIECES).map(
+    (piece, index): FramePiece => {
+      const at = `frame.pieces[${index}]`;
+      if (!isRecord(piece)) fail(`${at} must be an object.`);
+      const length = parseInteger(piece.length, `${at}.length`, 1, coast.length);
+      const ports = parseArray(piece.ports, `${at}.ports`, 0, length).map(
+        (port, portIndex): FramePort => {
+          const where = `${at}.ports[${portIndex}]`;
+          if (!isRecord(port)) fail(`${where} must be an object.`);
+          return {
+            at: parseInteger(port.at, `${where}.at`, 0, length - 1),
+            type: parsePortType(port.type, `${where}.type`),
+          };
+        },
+      );
+      if (new Set(ports.map((port) => port.at)).size !== ports.length) {
+        fail(`${at}.ports puts two ports on one edge.`);
       }
-      if (onBoard.has(hexKey(hexNeighbour(hex, side)))) {
-        fail(`${at} must be on a side of its hex that faces the sea.`);
-      }
-      return { ...hex, side, type };
+      return { length, ports };
     },
   );
-  const edges = harbors.map((harbor) => hexSideEdge(harbor, harbor.side));
-  if (new Set(edges).size !== edges.length) fail('harbors puts two harbors on one edge.');
-  return harbors;
+  const covered = pieces.reduce((sum, piece) => sum + piece.length, 0);
+  if (covered !== coast.length) {
+    fail(`frame.pieces must cover the ${coast.length} edges of the coast, not ${covered}.`);
+  }
+  return { start, pieces };
 }
 
 function parseDevelopmentCards(raw: unknown): Record<DevelopmentCardType, number> {
@@ -363,17 +498,9 @@ export function parseConfig(raw: unknown): ParseConfigResult<CatanConfig> {
     if (!isRecord(raw)) fail('Config must be an object.');
     const hexes = parseHexes(raw.hexes);
     const terrainCounts = parseTerrainCounts(raw.terrainCounts, hexes.length);
-    const numberTokens = parseNumberTokens(raw.numberTokens, hexes.length - terrainCounts.desert);
-    const beginnerTiles = parseBeginnerTiles(
-      raw.beginnerTiles,
-      terrainCounts,
-      numberTokens,
-      hexes.length,
-    );
-    const harbors = parseHarbors(raw.harbors, hexes);
-    if (typeof raw.keepRedNumbersApart !== 'boolean') {
-      fail('keepRedNumbersApart must be true or false.');
-    }
+    const numberDiscs = parseNumberDiscs(raw.numberDiscs, hexes.length - terrainCounts.desert);
+    const fixedSetup = parseFixedSetup(raw.fixedSetup, hexes, terrainCounts, numberDiscs);
+    const frame = parseFrame(raw.frame, hexes);
     const resourcesPerType = parseInteger(raw.resourcesPerType, 'resourcesPerType', 1, MAX_CARDS);
     const pieces = parsePieces(raw.pieces);
 
@@ -392,18 +519,17 @@ export function parseConfig(raw: unknown): ParseConfigResult<CatanConfig> {
       config: {
         hexes,
         terrainCounts,
-        numberTokens,
-        beginnerTiles,
-        harbors,
-        keepRedNumbersApart: raw.keepRedNumbersApart,
+        numberDiscs,
+        fixedSetup,
+        frame,
         resourcesPerType,
         developmentCards: parseDevelopmentCards(raw.developmentCards),
         pieces,
         costs: parseCosts(raw.costs, resourcesPerType),
         victoryPointsToWin,
-        longestRoadMinimum: parseInteger(
-          raw.longestRoadMinimum,
-          'longestRoadMinimum',
+        longestRouteMinimum: parseInteger(
+          raw.longestRouteMinimum,
+          'longestRouteMinimum',
           1,
           MAX_PIECES,
         ),

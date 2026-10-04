@@ -25,7 +25,7 @@ import {
   getSetupTurns,
   isLastSetupRound,
 } from '../rules/turn.rules.js';
-import { resolveLongestRoad } from '../scoring/longest-road.js';
+import { resolveLongestRoute } from '../scoring/longest-route.js';
 import { resolveLargestArmy } from '../scoring/score.js';
 import { validateAction } from './validate-action.js';
 
@@ -83,9 +83,9 @@ function payFor(state: CatanState, playerId: string, item: keyof Costs): CatanSt
   return pay(state, playerId, state.config.costs[item]);
 }
 
-/** A new road or a settlement cutting one can both move Longest Road. */
-function withLongestRoad(state: CatanState): CatanState {
-  return { ...state, longestRoadPlayerId: resolveLongestRoad(state) };
+/** A new road or a settlement cutting one can both move Longest Route. */
+function withLongestRoute(state: CatanState): CatanState {
+  return { ...state, longestRoutePlayerId: resolveLongestRoute(state) };
 }
 
 function startTurn(state: CatanState, activePlayerId: string, step: CatanTurn['step']): CatanState {
@@ -121,7 +121,7 @@ function applyPlaceSetupSettlement(
 }
 
 function applyPlaceSetupRoad(state: CatanState, playerId: string, edge: string): CatanState {
-  const placed = withLongestRoad({ ...state, roads: { ...state.roads, [edge]: playerId } });
+  const placed = withLongestRoute({ ...state, roads: { ...state.roads, [edge]: playerId } });
   const nextNumber = placed.turn.number + 1;
   const firstPlayerId = placed.turnOrder[0];
   if (firstPlayerId === undefined) throw new Error('No players');
@@ -182,7 +182,7 @@ function applyMoveRobber(
 function applyBuildRoad(state: CatanState, playerId: string, edge: string): CatanState {
   const free = isRoadFree(state);
   const paid = free ? state : payFor(state, playerId, 'road');
-  const built = withLongestRoad({ ...paid, roads: { ...paid.roads, [edge]: playerId } });
+  const built = withLongestRoute({ ...paid, roads: { ...paid.roads, [edge]: playerId } });
   if (!free) return built;
 
   // The second free road is lost if there is nowhere to put it, or nothing to put.
@@ -194,7 +194,7 @@ function applyBuildRoad(state: CatanState, playerId: string, edge: string): Cata
 
 function applyBuildSettlement(state: CatanState, playerId: string, vertex: string): CatanState {
   const paid = payFor(state, playerId, 'settlement');
-  return withLongestRoad({
+  return withLongestRoute({
     ...paid,
     buildings: { ...paid.buildings, [vertex]: { playerId, kind: 'settlement' } },
   });
@@ -249,14 +249,14 @@ function applyPlayRoadBuilding(state: CatanState, playerId: string): CatanState 
   });
 }
 
-function applyPlayYearOfPlenty(
+function applyPlayInvention(
   state: CatanState,
   playerId: string,
   picks: readonly Resource[],
 ): CatanState {
   const taken = emptyResources();
   for (const resource of picks) taken[resource] += 1;
-  return grant(playCard(state, playerId, 'yearOfPlenty'), playerId, taken);
+  return grant(playCard(state, playerId, 'invention'), playerId, taken);
 }
 
 /** Every other player hands over all they hold of one resource. */
@@ -311,8 +311,8 @@ function reduce(state: CatanState, action: CatanAction, playerId: string): Catan
       return applyPlayKnight(state, playerId);
     case 'PLAY_ROAD_BUILDING':
       return applyPlayRoadBuilding(state, playerId);
-    case 'PLAY_YEAR_OF_PLENTY':
-      return applyPlayYearOfPlenty(state, playerId, action.resources);
+    case 'PLAY_INVENTION':
+      return applyPlayInvention(state, playerId, action.resources);
     case 'PLAY_MONOPOLY':
       return applyPlayMonopoly(state, playerId, action.resource);
     case 'SUPPLY_TRADE':

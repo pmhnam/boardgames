@@ -8,7 +8,7 @@ import {
   TERRAIN_LABEL,
   boundsOf,
   edgePoints,
-  harborLabel,
+  portLabel,
   hexCentre,
   hexPoints,
   pips,
@@ -17,7 +17,7 @@ import {
   type Point,
 } from '../layout';
 
-/** Room around the island for the harbors. */
+/** Room around the island for the ports. */
 const PADDING = SIZE * 1.5;
 const TOKEN_RADIUS = 13;
 /** How far a road stops short of the corners at its ends, as a share of the edge. */
@@ -70,7 +70,7 @@ export function Board({
   onEdge,
   onHex,
 }: BoardProps) {
-  const { hexes, harbors, robber } = view.board;
+  const { hexes, ports, robber } = view.board;
   const bounds = useMemo(() => boundsOf(hexes, PADDING), [hexes]);
 
   return (
@@ -111,28 +111,23 @@ export function Board({
         );
       })}
 
-      {harbors.map((harbor) => {
-        const [a, b] = edgePoints(harbor.edge);
+      {ports.map((port) => {
+        const [a, b] = edgePoints(port.edge);
         const middle = towards(a, b, 0.5);
         // Out to sea: away from the middle of the island.
         const spot = towards(bounds.centre, middle, 1.24);
         const label =
-          harbor.type === 'any'
-            ? 'Harbor: any 3 of a kind for 1'
-            : `Harbor: 2 ${harbor.type} for 1`;
+          port.type === 'any' ? 'Port: any 3 of a kind for 1' : `Port: 2 ${port.type} for 1`;
         return (
-          <g key={harbor.edge} className="catan-harbor">
+          <g key={port.edge} className="catan-port">
             <title>{label}</title>
             <line x1={a.x} y1={a.y} x2={spot.x} y2={spot.y} />
             <line x1={b.x} y1={b.y} x2={spot.x} y2={spot.y} />
             <g transform={at(spot)}>
-              <circle
-                r={11}
-                fill={harbor.type === 'any' ? undefined : RESOURCE_FILL[harbor.type]}
-              />
-              <text y={-0.5}>{harborLabel(harbor.type)}</text>
-              <text className="catan-harbor-kind" y={6.5}>
-                {harbor.type === 'any' ? 'any' : RESOURCE_LABEL[harbor.type].toLowerCase()}
+              <circle r={11} fill={port.type === 'any' ? undefined : RESOURCE_FILL[port.type]} />
+              <text y={-0.5}>{portLabel(port.type)}</text>
+              <text className="catan-port-kind" y={6.5}>
+                {port.type === 'any' ? 'any' : RESOURCE_LABEL[port.type].toLowerCase()}
               </text>
             </g>
           </g>

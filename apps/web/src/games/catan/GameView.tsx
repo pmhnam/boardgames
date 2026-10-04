@@ -21,7 +21,7 @@ import { CARD_HINT, CARD_LABEL, RESOURCE_LABEL, playerColors } from './layout';
 type Tool = 'road' | 'settlement' | 'city';
 
 /** A card that needs a choice before it can be played. UI state only. */
-type CardPick = { type: 'yearOfPlenty'; picks: Resource[] } | { type: 'monopoly' } | null;
+type CardPick = { type: 'invention'; picks: Resource[] } | { type: 'monopoly' } | null;
 
 const TOOL_HINT: Record<Tool, string> = {
   road: 'Pick a highlighted edge for your road.',
@@ -104,16 +104,16 @@ export function CatanGameView({
   const playCard = (type: PlayableCardType) => {
     if (type === 'knight') sendAction({ type: 'PLAY_KNIGHT' });
     else if (type === 'roadBuilding') sendAction({ type: 'PLAY_ROAD_BUILDING' });
-    else if (type === 'yearOfPlenty') setCardPick({ type: 'yearOfPlenty', picks: [] });
+    else if (type === 'invention') setCardPick({ type: 'invention', picks: [] });
     else setCardPick({ type: 'monopoly' });
   };
   const pickResource = (resource: Resource) => {
     if (cardPick?.type === 'monopoly') {
       sendAction({ type: 'PLAY_MONOPOLY', resource });
-    } else if (cardPick?.type === 'yearOfPlenty') {
+    } else if (cardPick?.type === 'invention') {
       const picks = [...cardPick.picks, resource];
-      if (picks.length < 2) setCardPick({ type: 'yearOfPlenty', picks });
-      else sendAction({ type: 'PLAY_YEAR_OF_PLENTY', resources: picks });
+      if (picks.length < 2) setCardPick({ type: 'invention', picks });
+      else sendAction({ type: 'PLAY_INVENTION', resources: picks });
     }
   };
 
@@ -144,8 +144,8 @@ export function CatanGameView({
       return `Place ${turn.freeRoads} free ${turn.freeRoads === 1 ? 'road' : 'roads'}.`;
     }
     if (cardPick?.type === 'monopoly') return 'Monopoly: name the resource to collect.';
-    if (cardPick?.type === 'yearOfPlenty') {
-      return `Year of Plenty: take ${2 - cardPick.picks.length} from the supply.`;
+    if (cardPick?.type === 'invention') {
+      return `Invention: take ${2 - cardPick.picks.length} from the supply.`;
     }
     if (turn.step === 'ROLL') {
       return legal.playableCards.length > 0
@@ -205,7 +205,7 @@ export function CatanGameView({
     }
     if (cardPick !== null) {
       const taken = (resource: Resource) =>
-        cardPick.type === 'yearOfPlenty'
+        cardPick.type === 'invention'
           ? cardPick.picks.filter((pick) => pick === resource).length
           : 0;
       return (
@@ -217,7 +217,7 @@ export function CatanGameView({
               className="secondary catan-pick"
               disabled={
                 !canAct ||
-                (cardPick.type === 'yearOfPlenty' && view.supply[resource] <= taken(resource))
+                (cardPick.type === 'invention' && view.supply[resource] <= taken(resource))
               }
               onClick={() => pickResource(resource)}
             >
@@ -373,7 +373,7 @@ export function CatanGameView({
                 mine={playerId === me}
                 active={playing && turn.activePlayerId === playerId}
                 winner={view.winnerPlayerIds.includes(playerId)}
-                longestRoad={view.longestRoadPlayerId === playerId}
+                longestRoute={view.longestRoutePlayerId === playerId}
                 largestArmy={view.largestArmyPlayerId === playerId}
                 owes={turn.pendingDiscards[playerId] ?? 0}
                 response={turn.offer?.responses[playerId]}

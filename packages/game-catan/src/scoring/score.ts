@@ -1,14 +1,14 @@
 import {
   CITY_POINTS,
   LARGEST_ARMY_POINTS,
-  LONGEST_ROAD_POINTS,
+  LONGEST_ROUTE_POINTS,
   SETTLEMENT_POINTS,
 } from '../domain/config.js';
 import type { CatanState } from '../domain/state.js';
 
 type Scored = Pick<
   CatanState,
-  'buildings' | 'players' | 'longestRoadPlayerId' | 'largestArmyPlayerId'
+  'buildings' | 'players' | 'longestRoutePlayerId' | 'largestArmyPlayerId'
 >;
 
 /** What everyone can count from the table: buildings and the two special cards. */
@@ -21,7 +21,7 @@ export function getPublicPoints(state: Scored, playerId: string): number {
     );
   return (
     fromBuildings +
-    (state.longestRoadPlayerId === playerId ? LONGEST_ROAD_POINTS : 0) +
+    (state.longestRoutePlayerId === playerId ? LONGEST_ROUTE_POINTS : 0) +
     (state.largestArmyPlayerId === playerId ? LARGEST_ARMY_POINTS : 0)
   );
 }

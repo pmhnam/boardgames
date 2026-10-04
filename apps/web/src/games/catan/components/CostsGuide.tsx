@@ -3,14 +3,14 @@ import { ResourceList } from './ResourcePicker';
 
 type Rules = Pick<
   CatanView,
-  'costs' | 'victoryPointsToWin' | 'longestRoadMinimum' | 'largestArmyMinimum' | 'discardLimit'
+  'costs' | 'victoryPointsToWin' | 'longestRouteMinimum' | 'largestArmyMinimum' | 'discardLimit'
 >;
 
 const ITEMS: Array<[keyof Costs, string, (view: Rules) => string]> = [
   [
     'road',
     'Road',
-    (view) => `Longest Road, ${view.longestRoadMinimum} or more in a row, is worth 2 points.`,
+    (view) => `Longest Route, ${view.longestRouteMinimum} or more in a row, is worth 2 points.`,
   ],
   ['settlement', 'Settlement', () => '1 point. Collects 1 card from each hex around it.'],
   ['city', 'City', () => '2 points. Replaces a settlement and collects 2 cards.'],

@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_HARBORS, DEFAULT_HEXES } from '../src/domain/default-board.js';
-import { hexCorners, hexKey, hexNeighbour, hexSideEdge, parseEdgeId } from '../src/domain/hex.js';
+import { listCoast } from '../src/domain/coast.js';
+import { DEFAULT_FRAME, DEFAULT_HEXES } from '../src/domain/default-board.js';
+import { layFrame } from '../src/domain/game-config.js';
+import {
+  HEX_SIDES,
+  hexCorners,
+  hexKey,
+  hexNeighbour,
+  hexSideEdge,
+  parseEdgeId,
+  type HexSide,
+} from '../src/domain/hex.js';
+import { listSpiral } from '../src/domain/spiral.js';
 import { buildTopology, endsOf, neighboursOf } from '../src/domain/topology.js';
 
 const topology = buildTopology(DEFAULT_HEXES);
@@ -61,21 +72,120 @@ describe('the island', () => {
   });
 });
 
-describe('the default harbors', () => {
-  const edges = DEFAULT_HARBORS.map((harbor) => hexSideEdge(harbor, harbor.side));
+describe('the coast', () => {
+  const coast = listCoast(DEFAULT_HEXES, DEFAULT_FRAME.start);
 
-  it('are nine: four generic and one for each resource', () => {
-    expect(DEFAULT_HARBORS.map((harbor) => harbor.type).sort()).toEqual(
-      ['any', 'any', 'any', 'any', 'brick', 'grain', 'ore', 'wood', 'wool'].sort(),
+  it('is a ring of 30 edges, each on one hex only, starting where it is told to', () => {
+    expect(coast).toHaveLength(30);
+    expect(new Set(coast).size).toBe(30);
+    expect(coast?.[0]).toBe(hexSideEdge({ q: 0, r: -2 }, 'NW'));
+    const onBoard = new Set(topology.hexes);
+    for (const hex of DEFAULT_HEXES) {
+      for (const side of HEX_SIDES) {
+        const coastal = !onBoard.has(hexKey(hexNeighbour(hex, side)));
+        expect(coast?.includes(hexSideEdge(hex, side))).toBe(coastal);
+      }
+    }
+  });
+
+  it('runs clockwise, each edge meeting the next at a corner', () => {
+    expect(coast?.slice(0, 4)).toEqual([
+      hexSideEdge({ q: 0, r: -2 }, 'NW'),
+      hexSideEdge({ q: 0, r: -2 }, 'NE'),
+      hexSideEdge({ q: 1, r: -2 }, 'NW'),
+      hexSideEdge({ q: 1, r: -2 }, 'NE'),
+    ]);
+    coast?.forEach((edge, index) => {
+      const next = coast[(index + 1) % coast.length] as string;
+      const shared = endsOf(topology, edge).filter((end) => endsOf(topology, next).includes(end));
+      expect(shared).toHaveLength(1);
+    });
+  });
+
+  it('is refused from a side that faces inland, or round an island with a lake', () => {
+    expect(listCoast(DEFAULT_HEXES, { q: 0, r: -2, side: 'SE' })).toBeNull();
+    expect(listCoast(DEFAULT_HEXES, { q: 9, r: 9, side: 'NW' })).toBeNull();
+    const lake = DEFAULT_HEXES.filter((hex) => hex.q !== 0 || hex.r !== 0);
+    expect(listCoast(lake, DEFAULT_FRAME.start)).toBeNull();
+  });
+});
+
+describe('the sea frame', () => {
+  const fixed = layFrame(DEFAULT_HEXES, DEFAULT_FRAME.start, DEFAULT_FRAME.pieces);
+  const at = (q: number, r: number, side: HexSide) =>
+    fixed.find((port) => port.edge === hexSideEdge({ q, r }, side))?.type;
+
+  it('carries nine ports: four generic and one for each resource', () => {
+    expect(fixed.map((port) => port.type).sort()).toEqual(
+      ['any', 'any', 'any', 'any', 'brick', 'wheat', 'ore', 'wood', 'wool'].sort(),
     );
   });
 
-  it('sit on coastal edges and share no corner', () => {
-    const onBoard = new Set(topology.hexes);
-    for (const harbor of DEFAULT_HARBORS) {
-      expect(onBoard.has(hexKey(hexNeighbour(harbor, harbor.side)))).toBe(false);
+  it('puts them where the rulebook shows them when laid in order', () => {
+    expect(at(0, -2, 'NW')).toBe('any');
+    expect(at(1, -2, 'NE')).toBe('wool');
+    expect(at(2, -1, 'NE')).toBe('any');
+    expect(at(2, 0, 'E')).toBe('any');
+    expect(at(1, 1, 'SE')).toBe('brick');
+    expect(at(-1, 2, 'SE')).toBe('wood');
+    expect(at(-2, 2, 'SW')).toBe('any');
+    expect(at(-2, 1, 'W')).toBe('wheat');
+    expect(at(-1, -1, 'W')).toBe('ore');
+  });
+
+  it('never lets two ports share a corner, in whatever order the pieces are laid', () => {
+    const pieces = DEFAULT_FRAME.pieces;
+    const orders = [
+      pieces,
+      [...pieces].reverse(),
+      [0, 2, 4, 1, 3, 5].map((index) => pieces[index] as (typeof pieces)[number]),
+      [1, 3, 5, 0, 2, 4].map((index) => pieces[index] as (typeof pieces)[number]),
+    ];
+    for (const order of orders) {
+      const ports = layFrame(DEFAULT_HEXES, DEFAULT_FRAME.start, order);
+      const corners = ports.flatMap((port) => endsOf(topology, port.edge));
+      expect(ports).toHaveLength(9);
+      expect(new Set(corners).size).toBe(18);
     }
-    const corners = edges.flatMap((edge) => endsOf(topology, edge));
-    expect(new Set(corners).size).toBe(18);
+  });
+});
+
+describe('the spiral the number discs follow', () => {
+  const keys = (corner: number) => listSpiral(DEFAULT_HEXES, corner).map(hexKey);
+
+  it('goes counterclockwise round the outside from a corner, then inwards to the middle', () => {
+    // From the upper-right corner, as the rulebook draws it.
+    expect(keys(0)).toEqual([
+      '2,-2',
+      '1,-2',
+      '0,-2',
+      '-1,-1',
+      '-2,0',
+      '-2,1',
+      '-2,2',
+      '-1,2',
+      '0,2',
+      '1,1',
+      '2,0',
+      '2,-1',
+      '1,-1',
+      '0,-1',
+      '-1,0',
+      '-1,1',
+      '0,1',
+      '1,0',
+      '0,0',
+    ]);
+  });
+
+  it('visits every hex once from each of the six corners', () => {
+    const starts = new Set<string>();
+    for (let corner = 0; corner < 6; corner += 1) {
+      const spiral = keys(corner);
+      expect([...spiral].sort()).toEqual([...topology.hexes].sort());
+      expect(spiral.at(-1)).toBe('0,0');
+      starts.add(spiral[0] as string);
+    }
+    expect([...starts].sort()).toEqual(['-2,0', '-2,2', '0,-2', '0,2', '2,-2', '2,0']);
   });
 });

@@ -864,9 +864,9 @@ describe('platform MVP flow', () => {
 
     const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
       gameType: 'catan',
-      settings: { boardSetup: 'beginner' },
+      settings: { boardSetup: 'variable' },
     });
-    expect(room.settings).toEqual({ boardSetup: 'beginner' });
+    expect(room.settings).toEqual({ boardSetup: 'variable' });
     // Three seats at least: one person cannot start alone, or with one computer player.
     await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
     await host.api('POST', `/rooms/${room.id}/bots`, { level: 'normal' });
@@ -921,7 +921,8 @@ describe('platform MVP flow', () => {
     const me = rolling.viewerPlayerId as string;
     expect(Object.keys(rolling.state.buildings)).toHaveLength(6);
     expect(Object.keys(rolling.state.roads).length).toBeGreaterThanOrEqual(6);
-    expect(rolling.state.board.hexes[9]).toEqual({ q: 0, r: 0, terrain: 'desert', number: null });
+    expect(rolling.state.board.hexes).toHaveLength(19);
+    expect(rolling.state.board.ports).toHaveLength(9);
 
     // The host sees their own hand; of the others, only how many cards they hold.
     const mine = rolling.state.players[me];
@@ -963,6 +964,24 @@ describe('platform MVP flow', () => {
     const [first, second] = after.state.turn.roll ?? [0, 0];
     expect(first).toBeGreaterThanOrEqual(1);
     expect(second).toBeLessThanOrEqual(6);
+
+    // The fixed setup has no opening: the pieces are on the board when the match starts.
+    const { body: fixedRoom } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'catan',
+      settings: { boardSetup: 'fixed' },
+    });
+    await host.api('POST', `/rooms/${fixedRoom.id}/ready`, { ready: true });
+    await host.api('POST', `/rooms/${fixedRoom.id}/bots`, { level: 'easy' });
+    await host.api('POST', `/rooms/${fixedRoom.id}/bots`, { level: 'easy' });
+    const { body: fixed } = await host.api<StartRoomResponse>(
+      'POST',
+      `/rooms/${fixedRoom.id}/start`,
+    );
+    const ack = await host.emit<CatanState>(ClientEvents.GameSync, { gameId: fixed.matchId });
+    if (!ack.ok) throw new Error(ack.error.code);
+    expect(Object.keys(ack.data.state.buildings)).toHaveLength(6);
+    expect(ack.data.state.board.hexes[0]).toEqual({ q: 0, r: -2, terrain: 'desert', number: null });
+    expect(ack.data.state.turn.step).not.toBe('SETUP_SETTLEMENT');
   });
 
   it('lets the host choose a map, and plays the match on it', async () => {

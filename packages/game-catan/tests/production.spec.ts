@@ -16,7 +16,7 @@ import {
   started,
 } from './fixtures/states.js';
 
-// On the beginner board the hex at (1, 0) is a forest that produces on a 3.
+// On the test island the hex at (1, 0) is a forest that produces on a 3.
 const FOREST = { q: 1, r: 0 };
 const FOREST_ROLL = 3;
 
@@ -51,7 +51,7 @@ describe('what a roll produces', () => {
     const me = active(state);
     // Fields (4) at (0, 1) and pasture (4) at (1, -1) both produce on a 4.
     const built = build(build(state, me, corner(0, 1, 3)), me, corner(1, -1, 0));
-    expect(getProduction(built, 4)).toEqual({ [me]: cards({ grain: 1, wool: 1 }) });
+    expect(getProduction(built, 4)).toEqual({ [me]: cards({ wheat: 1, wool: 1 }) });
   });
 
   it('gives nothing from the hex the robber stands on', () => {
@@ -86,7 +86,7 @@ describe('what a roll produces', () => {
       me,
       corner(1, -1, 0),
     );
-    const short = { ...built, supply: { ...built.supply, grain: 1 } };
+    const short = { ...built, supply: { ...built.supply, wheat: 1 } };
     expect(getProduction(short, 4)).toEqual({ [me]: cards({ wool: 1 }) });
   });
 

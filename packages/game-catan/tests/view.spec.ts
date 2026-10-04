@@ -86,7 +86,7 @@ describe('what a player sees', () => {
         ...state.players,
         [you]: {
           ...player(state, you),
-          resources: cards({ ore: 2, grain: 1 }),
+          resources: cards({ ore: 2, wheat: 1 }),
           developmentCards: [
             { type: 'knight' as const, boughtOnTurn: 0 },
             { type: 'knight' as const, boughtOnTurn: 0 },
@@ -132,14 +132,14 @@ describe('what a player sees', () => {
     const view = engine.getPublicView(state, { type: 'spectator' });
     expect(view.board.hexes).toHaveLength(19);
     expect(view.board.hexes[9]).toEqual({ q: 0, r: 0, terrain: 'desert', number: null });
-    expect(view.board.harbors).toHaveLength(9);
+    expect(view.board.ports).toHaveLength(9);
     expect(view.board.robber).toBe('0,0');
-    expect(view.supply).toEqual(cards({ brick: 19, wood: 19, wool: 19, grain: 19, ore: 19 }));
+    expect(view.supply).toEqual(cards({ brick: 19, wood: 19, wool: 19, wheat: 19, ore: 19 }));
     expect(view.developmentDeckCount).toBe(25);
-    expect(view.costs.city).toEqual(cards({ grain: 2, ore: 3 }));
+    expect(view.costs.city).toEqual(cards({ wheat: 2, ore: 3 }));
     expect(view).toMatchObject({
       victoryPointsToWin: 10,
-      longestRoadMinimum: 5,
+      longestRouteMinimum: 5,
       largestArmyMinimum: 3,
       discardLimit: 7,
     });
@@ -155,10 +155,10 @@ describe('what a player sees', () => {
       side(0, 0, 'E'),
     );
     expect(viewOf(state, me).players[me]).toMatchObject({
-      roadLength: 2,
+      routeLength: 2,
       piecesLeft: { roads: 13, settlements: 4, cities: 3 },
       publicPoints: 3,
-      supplyRates: { brick: 3, wood: 3, wool: 3, grain: 3, ore: 3 },
+      supplyRates: { brick: 3, wood: 3, wool: 3, wheat: 3, ore: 3 },
     });
   });
 
@@ -209,7 +209,7 @@ describe('what a player may do', () => {
     });
 
     const rich = viewOf(
-      hold(settled, me, { brick: 1, wood: 1, wool: 1, grain: 2, ore: 3 }),
+      hold(settled, me, { brick: 1, wood: 1, wool: 1, wheat: 2, ore: 3 }),
       me,
     ).legal;
     expect(rich.settlementVertices).toEqual([corner(0, 0, 2)]);

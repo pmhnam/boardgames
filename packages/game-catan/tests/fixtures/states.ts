@@ -2,9 +2,15 @@ import { expect } from 'vitest';
 import { deepFreeze, seats } from '@bgp/game-core/testing';
 import type { CatanAction } from '../../src/domain/actions.js';
 import type { DevelopmentCardType } from '../../src/domain/development-cards.js';
-import type { BoardSetup, CatanConfig } from '../../src/domain/game-config.js';
-import { hexCorners, hexSideEdge, type HexSide } from '../../src/domain/hex.js';
-import { RESOURCES, emptyResources, type ResourceCounts } from '../../src/domain/resources.js';
+import type { Tile } from '../../src/domain/default-board.js';
+import { layFrame, type CatanConfig } from '../../src/domain/game-config.js';
+import { hexCorners, hexKey, hexSideEdge, type HexSide } from '../../src/domain/hex.js';
+import {
+  RESOURCES,
+  emptyResources,
+  type ResourceCounts,
+  type Terrain,
+} from '../../src/domain/resources.js';
 import type { BuildingKind, CatanState, CatanTurn, PlayerState } from '../../src/domain/state.js';
 import { CatanGame } from '../../src/index.js';
 import { drawRandom } from '../../src/random/draw.js';
@@ -20,23 +26,67 @@ export function context(actorPlayerId: string) {
 export interface GameOptions {
   seed?: string;
   players?: number;
-  boardSetup?: BoardSetup;
   config?: CatanConfig;
+  /** Keep the island the variable setup dealt, rather than the one the tests know. */
+  dealt?: boolean;
 }
 
+const tile = (terrain: Terrain, number: number | null = null): Tile => ({ terrain, number });
+
+/** The island the rule tests are written against: the desert in the middle. */
+const TEST_TILES: Tile[] = [
+  tile('mountains', 10),
+  tile('pasture', 2),
+  tile('forest', 9),
+
+  tile('fields', 12),
+  tile('hills', 6),
+  tile('pasture', 4),
+  tile('hills', 10),
+
+  tile('fields', 9),
+  tile('forest', 11),
+  tile('desert'),
+  tile('forest', 3),
+  tile('mountains', 8),
+
+  tile('forest', 8),
+  tile('mountains', 3),
+  tile('fields', 4),
+  tile('pasture', 5),
+
+  tile('hills', 5),
+  tile('fields', 6),
+  tile('pasture', 11),
+];
+
 /**
- * A fresh game at the start of the opening, frozen so mutation fails loudly. It is dealt the
- * beginner board unless asked otherwise, so tests know what is on every hex.
+ * A fresh game at the start of the opening, frozen so mutation fails loudly. Unless asked
+ * otherwise it is given the test island and the frame in its fixed order, so tests know what
+ * is on every hex and where every port is.
  */
 export function newGame(overrides: Partial<CatanState> = {}, options: GameOptions = {}) {
+  const config = options.config ?? gameConfig;
   const state = engine.createInitialState({
     gameId: 'g',
     players: seats(options.players ?? 3),
     seed: options.seed ?? 'fixture',
-    config: options.config ?? gameConfig,
-    settings: { boardSetup: options.boardSetup ?? 'beginner' },
+    config,
+    settings: { boardSetup: 'variable' },
   });
-  return deepFreeze({ ...state, ...overrides });
+  if (options.dealt) return deepFreeze({ ...state, ...overrides });
+
+  const known: Partial<CatanState> = {
+    tiles: Object.fromEntries(
+      config.hexes.map((hex, index) => [hexKey(hex), TEST_TILES[index] as Tile]),
+    ),
+    robber: '0,0',
+    config: {
+      ...state.config,
+      ports: layFrame(config.hexes, config.frame.start, config.frame.pieces),
+    },
+  };
+  return deepFreeze({ ...state, ...known, ...overrides });
 }
 
 export function withTurn(state: CatanState, patch: Partial<CatanTurn>): CatanState {

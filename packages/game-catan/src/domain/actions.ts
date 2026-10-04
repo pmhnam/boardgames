@@ -58,8 +58,8 @@ export interface PlayRoadBuildingAction {
   type: 'PLAY_ROAD_BUILDING';
 }
 
-export interface PlayYearOfPlentyAction {
-  type: 'PLAY_YEAR_OF_PLENTY';
+export interface PlayInventionAction {
+  type: 'PLAY_INVENTION';
   resources: Resource[];
 }
 
@@ -68,7 +68,7 @@ export interface PlayMonopolyAction {
   resource: Resource;
 }
 
-/** One card from the supply, paid for at the best rate the player's harbors give. */
+/** One card from the supply, paid for at the best rate the player's ports give. */
 export interface SupplyTradeAction {
   type: 'SUPPLY_TRADE';
   give: Resource;
@@ -114,7 +114,7 @@ export type CatanAction =
   | BuyDevelopmentCardAction
   | PlayKnightAction
   | PlayRoadBuildingAction
-  | PlayYearOfPlentyAction
+  | PlayInventionAction
   | PlayMonopolyAction
   | SupplyTradeAction
   | ProposeTradeAction

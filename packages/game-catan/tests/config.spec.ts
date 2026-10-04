@@ -6,6 +6,9 @@ import { getPoints } from '../src/scoring/score.js';
 import { scriptFullGame } from './fixtures/script.js';
 import { engine, gameConfig } from './fixtures/states.js';
 
+type Seat = CatanConfig['fixedSetup']['seats'][number];
+type Piece = CatanConfig['frame']['pieces'][number];
+
 /** A deep copy of the default config with one part replaced. */
 function configWith(patch: (config: CatanConfig) => void): CatanConfig {
   const config = JSON.parse(JSON.stringify(gameConfig)) as CatanConfig;
@@ -31,7 +34,9 @@ describe('the default config', () => {
 
   it('is the base game: 19 hexes, 95 resource cards, 25 development cards', () => {
     expect(gameConfig.hexes).toHaveLength(19);
-    expect(gameConfig.numberTokens).toHaveLength(18);
+    expect(gameConfig.numberDiscs).toHaveLength(18);
+    expect(gameConfig.frame.pieces.flatMap((piece) => piece.ports)).toHaveLength(9);
+    expect(gameConfig.fixedSetup.seats).toHaveLength(4);
     expect(gameConfig.resourcesPerType * 5).toBe(95);
     expect(Object.values(gameConfig.developmentCards).reduce((sum, count) => sum + count)).toBe(25);
     expect(gameConfig.pieces).toEqual({ roads: 15, settlements: 5, cities: 4 });
@@ -86,65 +91,100 @@ describe('parseConfig', () => {
       /terrainCounts\.desert must be at least 1/,
     ],
     [
-      'too few number tokens',
-      configWith((c) => c.numberTokens.pop()),
-      /numberTokens must be a list of 18 numbers/,
+      'too few number discs',
+      configWith((c) => c.numberDiscs.pop()),
+      /numberDiscs must be a list of 18 numbers/,
     ],
-    ['a 7 token', configWith((c) => (c.numberTokens[0] = 7)), /numberTokens\[0\] must not be 7/],
+    ['a 7 disc', configWith((c) => (c.numberDiscs[0] = 7)), /numberDiscs\[0\] must not be 7/],
     [
-      'a token no dice can roll',
-      configWith((c) => (c.numberTokens[0] = 13)),
-      /numberTokens\[0\] must be an integer from 2 to 12/,
-    ],
-    [
-      'a beginner board of the wrong size',
-      configWith((c) => c.beginnerTiles.pop()),
-      /beginnerTiles must be a list of 19 tiles/,
+      'a disc no dice can roll',
+      configWith((c) => (c.numberDiscs[0] = 13)),
+      /numberDiscs\[0\] must be an integer from 2 to 12/,
     ],
     [
-      'a number on the beginner desert',
-      configWith((c) => ((c.beginnerTiles[9] as { number: number | null }).number = 5)),
-      /beginnerTiles\[9\]\.number must be null on a desert/,
+      'a fixed island of the wrong size',
+      configWith((c) => c.fixedSetup.tiles.pop()),
+      /fixedSetup\.tiles must be a list of 19 tiles/,
     ],
     [
-      'a beginner board with other terrains than the counts',
-      configWith((c) => ((c.beginnerTiles[0] as { terrain: string }).terrain = 'forest')),
-      /beginnerTiles must use exactly the terrains/,
+      'a number on the fixed desert',
+      configWith((c) => ((c.fixedSetup.tiles[0] as { number: number | null }).number = 5)),
+      /fixedSetup\.tiles\[0\]\.number must be null on a desert/,
     ],
     [
-      'a beginner board with other numbers than the tokens',
-      configWith((c) => ((c.beginnerTiles[0] as { number: number | null }).number = 9)),
-      /beginnerTiles must use exactly the numbers/,
+      'a fixed island with other terrains than the counts',
+      configWith((c) => ((c.fixedSetup.tiles[1] as { terrain: string }).terrain = 'forest')),
+      /fixedSetup\.tiles must use exactly the terrains/,
     ],
     [
-      'a harbor off the board',
-      configWith((c) => ((c.harbors[0] as { q: number }).q = 5)),
-      /harbors\[0\] must sit on a hex of the board/,
+      'a fixed island with other numbers than the discs',
+      configWith((c) => ((c.fixedSetup.tiles[1] as { number: number | null }).number = 9)),
+      /fixedSetup\.tiles must use exactly the numbers/,
     ],
     [
-      'a harbor facing inland',
-      configWith((c) => ((c.harbors[0] as { side: string }).side = 'SE')),
-      /harbors\[0\] must be on a side of its hex that faces the sea/,
+      'starting pieces for too few seats',
+      configWith((c) => c.fixedSetup.seats.pop()),
+      /fixedSetup\.seats must be a list of 4 seats/,
     ],
     [
-      'a harbor on no side',
-      configWith((c) => ((c.harbors[0] as { side: string }).side = 'N')),
-      /harbors\[0\]\.side must be one of/,
+      'a starting settlement off the board',
+      configWith((c) => ((c.fixedSetup.seats[0] as Seat).first.settlement.q = 7)),
+      /fixedSetup\.seats\[0\]\.first\.settlement must be a corner of the board/,
     ],
     [
-      'a harbor for no resource',
-      configWith((c) => ((c.harbors[0] as { type: string }).type = 'gold')),
-      /harbors\[0\]\.type must be one of/,
+      'a starting settlement on no corner',
+      configWith((c) =>
+        Object.assign((c.fixedSetup.seats[0] as Seat).first.settlement, { corner: 'E' }),
+      ),
+      /fixedSetup\.seats\[0\]\.first\.settlement\.corner must be N or S/,
     ],
     [
-      'two harbors on one edge',
-      configWith((c) => (c.harbors[1] = { ...(c.harbors[0] as CatanConfig['harbors'][number]) })),
-      /two harbors on one edge/,
+      'two starting settlements next to each other',
+      configWith((c) => {
+        // The bottom of the hex above-left of the one the first settlement sits on top of.
+        (c.fixedSetup.seats[1] as Seat).first = {
+          settlement: { q: -2, r: 1, corner: 'S' },
+          road: { q: -2, r: 1, side: 'SW' },
+        };
+      }),
+      /fixedSetup\.seats\[1\]\.first\.settlement must be two edges away/,
     ],
     [
-      'no answer on keeping red numbers apart',
-      configWith((c) => Object.assign(c, { keepRedNumbersApart: 'yes' })),
-      /keepRedNumbersApart must be true or false/,
+      'a starting road away from its settlement',
+      configWith((c) => ((c.fixedSetup.seats[0] as Seat).first.road.side = 'SE')),
+      /fixedSetup\.seats\[0\]\.first\.road must be an edge of the board next to its settlement/,
+    ],
+    [
+      'a frame that starts inland',
+      configWith((c) => (c.frame.start.side = 'SE')),
+      /frame\.start must be a side of a hex that faces the sea/,
+    ],
+    [
+      'a frame that starts on no side',
+      configWith((c) => Object.assign(c.frame.start, { side: 'N' })),
+      /frame\.start\.side must be one of/,
+    ],
+    [
+      'a frame too short for the coast',
+      configWith((c) => c.frame.pieces.pop()),
+      /frame\.pieces must cover the 30 edges of the coast, not 25/,
+    ],
+    [
+      'a port beyond the end of its piece',
+      configWith((c) => (((c.frame.pieces[0] as Piece).ports[0] as { at: number }).at = 5)),
+      /frame\.pieces\[0\]\.ports\[0\]\.at must be an integer from 0 to 4/,
+    ],
+    [
+      'a port for no resource',
+      configWith((c) =>
+        Object.assign((c.frame.pieces[0] as Piece).ports[0] as object, { type: 'gold' }),
+      ),
+      /frame\.pieces\[0\]\.ports\[0\]\.type must be one of/,
+    ],
+    [
+      'two ports on one edge',
+      configWith((c) => (((c.frame.pieces[0] as Piece).ports[1] as { at: number }).at = 0)),
+      /frame\.pieces\[0\]\.ports puts two ports on one edge/,
     ],
     [
       'an empty supply',
@@ -168,7 +208,7 @@ describe('parseConfig', () => {
     ],
     [
       'something that costs nothing',
-      configWith((c) => (c.costs.road = { brick: 0, wood: 0, wool: 0, grain: 0, ore: 0 })),
+      configWith((c) => (c.costs.road = { brick: 0, wood: 0, wool: 0, wheat: 0, ore: 0 })),
       /costs\.road must ask for at least one resource/,
     ],
     [
@@ -190,9 +230,9 @@ describe('parseConfig', () => {
       /victoryPointsToWin must be an integer from 3 to 13/,
     ],
     [
-      'no minimum for Longest Road',
-      configWith((c) => (c.longestRoadMinimum = 0)),
-      /longestRoadMinimum must be an integer from 1/,
+      'no minimum for Longest Route',
+      configWith((c) => (c.longestRouteMinimum = 0)),
+      /longestRouteMinimum must be an integer from 1/,
     ],
     [
       'no minimum for Largest Army',
@@ -210,27 +250,27 @@ describe('parseConfig', () => {
 });
 
 describe('parseSettings', () => {
-  it('gives a random board when nothing is chosen', () => {
+  it('gives the variable setup when nothing is chosen', () => {
     expect(engine.parseSettings(undefined, gameConfig)).toEqual({
       ok: true,
-      settings: { boardSetup: 'random' },
+      settings: { boardSetup: 'variable' },
     });
     expect(engine.parseSettings({}, gameConfig)).toEqual({
       ok: true,
-      settings: { boardSetup: 'random' },
+      settings: { boardSetup: 'variable' },
     });
   });
 
-  it('takes the beginner board, and drops anything else it is sent', () => {
-    expect(engine.parseSettings({ boardSetup: 'beginner', extra: 1 }, gameConfig)).toEqual({
+  it('takes the fixed setup, and drops anything else it is sent', () => {
+    expect(engine.parseSettings({ boardSetup: 'fixed', extra: 1 }, gameConfig)).toEqual({
       ok: true,
-      settings: { boardSetup: 'beginner' },
+      settings: { boardSetup: 'fixed' },
     });
   });
 
   it('refuses a setup it does not know, and anything that is not an object', () => {
     expect(engine.parseSettings({ boardSetup: 'islands' }, gameConfig).ok).toBe(false);
-    expect(engine.parseSettings('beginner', gameConfig).ok).toBe(false);
+    expect(engine.parseSettings('fixed', gameConfig).ok).toBe(false);
     expect(engine.parseSettings([], gameConfig).ok).toBe(false);
   });
 });
@@ -243,13 +283,16 @@ describe('a match from another config', () => {
       knight: 4,
       victoryPoint: 1,
       roadBuilding: 1,
-      yearOfPlenty: 0,
+      invention: 0,
       monopoly: 0,
     };
     config.pieces = { roads: 8, settlements: 4, cities: 2 };
-    config.costs.road = { brick: 1, wood: 0, wool: 0, grain: 0, ore: 0 };
-    config.harbors = [{ q: 0, r: -2, side: 'NW', type: 'ore' }];
-    config.longestRoadMinimum = 3;
+    config.costs.road = { brick: 1, wood: 0, wool: 0, wheat: 0, ore: 0 };
+    // One piece all the way round, with a single ore port at its start.
+    config.frame.pieces = [{ length: 30, ports: [{ at: 0, type: 'ore' }] }];
+    config.numberDiscs = [...config.numberDiscs].reverse();
+    config.fixedSetup.tiles = config.fixedSetup.tiles.map((tile) => ({ ...tile }));
+    config.longestRouteMinimum = 3;
     config.discardLimit = 5;
   });
 
@@ -265,8 +308,8 @@ describe('a match from another config', () => {
     expect(final.config).toMatchObject({
       victoryPointsToWin: 5,
       pieces: { roads: 8, settlements: 4, cities: 2 },
-      harbors: [{ edge: hexSideEdge({ q: 0, r: -2 }, 'NW'), type: 'ore' }],
-      longestRoadMinimum: 3,
+      ports: [{ edge: hexSideEdge({ q: 0, r: -2 }, 'NW'), type: 'ore' }],
+      longestRouteMinimum: 3,
       discardLimit: 5,
     });
     expect(final.phase).toBe('FINISHED');
@@ -287,7 +330,7 @@ describe('a match from another config', () => {
       players: seats(3),
       seed: 'kept',
       config: gameConfig,
-      settings: { boardSetup: 'random' },
+      settings: { boardSetup: 'variable' },
     });
     // The state holds its own copy of everything the rules read after setup.
     expect(state.config.costs).not.toBe(gameConfig.costs);

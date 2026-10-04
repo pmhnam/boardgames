@@ -30,40 +30,40 @@ describe('trading with the supply', () => {
     expect(countAll(next)).toEqual(countAll(state));
   });
 
-  it('costs three of anything from a generic harbor', () => {
+  it('costs three of anything from a generic port', () => {
     const base = inMain();
     const me = active(base);
-    // The default board has a generic harbor on the upper-left side of the top-left hex.
+    // The frame puts a generic port on the upper-left side of the top-left hex.
     const state = hold(build(base, me, corner(0, -2, 0)), me, { wool: 3 });
 
-    expect(getSupplyRates(state, me)).toEqual({ brick: 3, wood: 3, wool: 3, grain: 3, ore: 3 });
+    expect(getSupplyRates(state, me)).toEqual({ brick: 3, wood: 3, wool: 3, wheat: 3, ore: 3 });
     const next = apply(state, { type: 'SUPPLY_TRADE', give: 'wool', receive: 'brick' });
     expect(player(next, me).resources).toEqual(cards({ brick: 1 }));
   });
 
-  it('costs two of its own resource from a resource harbor, and four of the others', () => {
+  it('costs two of its own resource from a resource port, and four of the others', () => {
     const base = inMain();
     const me = active(base);
-    // The grain harbor is on the upper-right side of the top-middle hex.
-    const state = hold(build(base, me, corner(1, -2, 1), 'city'), me, { grain: 2, wool: 3 });
+    // The wool port is on the upper-right side of the top-middle hex.
+    const state = hold(build(base, me, corner(1, -2, 1), 'city'), me, { wool: 2, wheat: 3 });
 
-    expect(getSupplyRates(state, me)).toEqual({ brick: 4, wood: 4, wool: 4, grain: 2, ore: 4 });
-    const next = apply(state, { type: 'SUPPLY_TRADE', give: 'grain', receive: 'ore' });
-    expect(player(next, me).resources).toEqual(cards({ wool: 3, ore: 1 }));
+    expect(getSupplyRates(state, me)).toEqual({ brick: 4, wood: 4, wool: 2, wheat: 4, ore: 4 });
+    const next = apply(state, { type: 'SUPPLY_TRADE', give: 'wool', receive: 'ore' });
+    expect(player(next, me).resources).toEqual(cards({ wheat: 3, ore: 1 }));
     expectRejected(
       state,
-      { type: 'SUPPLY_TRADE', give: 'wool', receive: 'ore' },
+      { type: 'SUPPLY_TRADE', give: 'wheat', receive: 'ore' },
       CatanRuleCodes.CannotAfford,
     );
   });
 
-  it('takes the better of two harbors, and nothing from somebody else harbor', () => {
+  it('takes the better of two ports, and nothing from somebody else port', () => {
     const base = inMain();
     const me = active(base);
     const you = others(base)[0] as string;
     const state = build(build(base, me, corner(0, -2, 0)), me, corner(1, -2, 1));
-    expect(getSupplyRates(state, me)).toEqual({ brick: 3, wood: 3, wool: 3, grain: 2, ore: 3 });
-    expect(getSupplyRates(state, you)).toEqual({ brick: 4, wood: 4, wool: 4, grain: 4, ore: 4 });
+    expect(getSupplyRates(state, me)).toEqual({ brick: 3, wood: 3, wool: 2, wheat: 3, ore: 3 });
+    expect(getSupplyRates(state, you)).toEqual({ brick: 4, wood: 4, wool: 4, wheat: 4, ore: 4 });
   });
 
   it('is refused without enough cards, for the same resource, or for one the supply lacks', () => {

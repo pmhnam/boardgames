@@ -8,7 +8,7 @@ type Board = Pick<CatanState, 'config' | 'roads' | 'buildings'>;
  * The longest unbroken run of a player's roads: no road counted twice, and no passing through
  * a corner somebody else has built on. A run may start or end at such a corner.
  */
-export function getRoadLength(state: Board, playerId: string): number {
+export function getRouteLength(state: Board, playerId: string): number {
   const topology = getTopology(state);
   const own = Object.keys(state.roads).filter((edge) => state.roads[edge] === playerId);
   const isBroken = (vertex: string) => {
@@ -36,21 +36,21 @@ export function getRoadLength(state: Board, playerId: string): number {
 }
 
 /**
- * Who holds Longest Road after the board changed. The holder keeps it while nobody is strictly
- * ahead; otherwise it goes to the one player with the longest road, and to nobody when several
+ * Who holds Longest Route after the board changed. The holder keeps it while nobody is strictly
+ * ahead; otherwise it goes to the one player with the longest route, and to nobody when several
  * are level or none is long enough.
  */
-export function resolveLongestRoad(
-  state: Board & Pick<CatanState, 'turnOrder' | 'longestRoadPlayerId'>,
+export function resolveLongestRoute(
+  state: Board & Pick<CatanState, 'turnOrder' | 'longestRoutePlayerId'>,
 ): string | null {
   const lengths = state.turnOrder.map(
-    (playerId) => [playerId, getRoadLength(state, playerId)] as const,
+    (playerId) => [playerId, getRouteLength(state, playerId)] as const,
   );
   const longest = Math.max(...lengths.map(([, length]) => length));
-  if (longest < state.config.longestRoadMinimum) return null;
+  if (longest < state.config.longestRouteMinimum) return null;
 
   const leaders = lengths.filter(([, length]) => length === longest).map(([playerId]) => playerId);
-  const holder = state.longestRoadPlayerId;
+  const holder = state.longestRoutePlayerId;
   if (holder !== null && leaders.includes(holder)) return holder;
   return leaders.length === 1 ? (leaders[0] ?? null) : null;
 }

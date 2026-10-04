@@ -81,18 +81,18 @@ describe('CATAN bot', () => {
     expect(state.winnerPlayerIds).toHaveLength(1);
   });
 
-  it('finishes on the beginner board', () => {
+  it('finishes the fixed setup', () => {
     const { state } = playBotMatch(engine, CatanBot, {
       seed: 'first-game',
       levels: ['normal', 'hard', 'normal'],
-      settings: { boardSetup: 'beginner' },
+      settings: { boardSetup: 'fixed' },
       maxActions: 1500,
     });
     expect(state.phase).toBe('FINISHED');
   });
 
   it('is deterministic for the same view and random seed', () => {
-    const state = newGame({}, { boardSetup: 'random', seed: 'same' });
+    const state = newGame({}, { dealt: true, seed: 'same' });
     for (const level of BOT_LEVELS) {
       expect(choose(state, level, active(state), 'x')).toEqual(
         choose(state, level, active(state), 'x'),
@@ -110,7 +110,7 @@ describe('CATAN bot', () => {
       ore: 2,
     });
     const before = hold(holdCards(state, you, ['knight']), you, { wool: 2, ore: 1 });
-    const after = hold(holdCards(state, you, ['victoryPoint']), you, { grain: 3 });
+    const after = hold(holdCards(state, you, ['victoryPoint']), you, { wheat: 3 });
 
     for (const level of BOT_LEVELS) {
       expect(choose(after, level)).toEqual(choose(before, level));
@@ -153,7 +153,7 @@ describe('getPips', () => {
 
 describe('what the planning bots look for', () => {
   it('opens on a corner that produces as often as any', () => {
-    // The beginner board: the best corners collect 12 or 13 pips.
+    // The test island: the best corners collect 12 or 13 pips.
     const state = newGame();
     const model = modelOf(state);
     const best = Math.max(
@@ -185,7 +185,7 @@ describe('what the planning bots look for', () => {
     // Next to the 6 and the 4, and out on the coast next to a lone 5.
     const rich = corner(0, -1, 2);
     const poor = corner(-2, 2, 3);
-    const state = hold(build(build(base, me, rich), me, poor), me, { grain: 2, ore: 3 });
+    const state = hold(build(build(base, me, rich), me, poor), me, { wheat: 2, ore: 3 });
     for (const level of ['normal', 'hard'] as const) {
       expect(choose(state, level)).toEqual({ type: 'BUILD_CITY', vertex: rich });
     }
@@ -195,7 +195,7 @@ describe('what the planning bots look for', () => {
     const base = inMain();
     const me = active(base);
     const settled = build(base, me, corner(0, 0, 0));
-    expect(choosePlan(modelOf(hold(settled, me, { grain: 2, ore: 2 })))).toMatchObject({
+    expect(choosePlan(modelOf(hold(settled, me, { wheat: 2, ore: 2 })))).toMatchObject({
       goal: 'city',
       missing: 1,
     });
@@ -214,7 +214,7 @@ describe('what the planning bots look for', () => {
   it('trades four spare cards with the supply for the one card its plan lacks', () => {
     const base = inMain();
     const me = active(base);
-    const state = hold(build(base, me, corner(0, 0, 0)), me, { grain: 2, ore: 2, wood: 4 });
+    const state = hold(build(base, me, corner(0, 0, 0)), me, { wheat: 2, ore: 2, wood: 4 });
     for (const level of ['normal', 'hard'] as const) {
       expect(choose(state, level)).toEqual({ type: 'SUPPLY_TRADE', give: 'wood', receive: 'ore' });
     }
@@ -223,7 +223,7 @@ describe('what the planning bots look for', () => {
   it('ends its turn rather than trade away what its plan needs', () => {
     const base = inMain();
     const me = active(base);
-    const state = hold(build(base, me, corner(0, 0, 0)), me, { grain: 2, ore: 2 });
+    const state = hold(build(base, me, corner(0, 0, 0)), me, { wheat: 2, ore: 2 });
     for (const level of ['normal', 'hard'] as const) {
       expect(choose(state, level)).toEqual({ type: 'END_TURN' });
     }
@@ -233,7 +233,7 @@ describe('what the planning bots look for', () => {
     const base = started();
     const me = active(base);
     const state = hold(build(base, me, corner(0, 0, 0)), me, {
-      grain: 2,
+      wheat: 2,
       ore: 3,
       wood: 4,
       wool: 1,
@@ -292,7 +292,7 @@ describe('answering an offer', () => {
     const me = active(base);
     const you = others(base)[0] as string;
     const state = hold(hold(build(base, you, corner(0, 0, 0)), me, { ore: 3, brick: 3 }), you, {
-      grain: 2,
+      wheat: 2,
       ore: 2,
       wood: 2,
     });
@@ -312,7 +312,7 @@ describe('answering an offer', () => {
   });
 
   it('says no when the price is a card its plan needs', () => {
-    const { state, you } = offered({ ore: 1 }, { grain: 1 });
+    const { state, you } = offered({ ore: 1 }, { wheat: 1 });
     expect(chooseResponse(modelOf(state, you), false)).toBe(false);
   });
 
@@ -322,7 +322,7 @@ describe('answering an offer', () => {
     const you = others(base)[0] as string;
     const state = apply(
       hold(hold(build(base, you, corner(0, 0, 0)), me, { ore: 1 }), you, {
-        grain: 2,
+        wheat: 2,
         ore: 2,
         wood: 3,
       }),
@@ -347,7 +347,7 @@ describe('answering an offer', () => {
         corner(2, 0, 0),
         'city',
       ),
-      longestRoadPlayerId: me,
+      longestRoutePlayerId: me,
     });
     expect(player(leading, me)).toBeDefined();
     expect(chooseResponse(modelOf(leading, you), true)).toBe(false);

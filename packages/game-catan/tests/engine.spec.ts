@@ -82,7 +82,7 @@ describe('winning', () => {
     const base = inMain();
     const me = active(base);
     // Three cities and three settlements are nine points; a fourth city makes ten.
-    const state = hold(withBuildings(base, me, 3, 2), me, { grain: 2, ore: 3 });
+    const state = hold(withBuildings(base, me, 3, 2), me, { wheat: 2, ore: 3 });
     const last = corner(0, -2, 0);
     const ready = build(state, me, last);
     expect(getPoints(ready, me)).toBe(9);
@@ -106,7 +106,7 @@ describe('winning', () => {
     const state = hold(
       holdCards(withBuildings(base, me, 2, 3), me, ['victoryPoint', 'victoryPoint']),
       me,
-      { grain: 2, ore: 3 },
+      { wheat: 2, ore: 3 },
     );
     expect(getPoints(state, me)).toBe(9);
 
@@ -119,19 +119,19 @@ describe('winning', () => {
     const base = inMain();
     const me = active(base);
     const state = deepFreeze({
-      ...hold(withBuildings(base, me, 4, 1), me, { wool: 1, grain: 1, ore: 1 }),
+      ...hold(withBuildings(base, me, 4, 1), me, { wool: 1, wheat: 1, ore: 1 }),
       developmentDeck: ['victoryPoint' as const],
     });
     const next = apply(state, { type: 'BUY_DEVELOPMENT_CARD' });
     expect(next.winnerPlayerIds).toEqual([me]);
   });
 
-  it('counts Longest Road and Largest Army', () => {
+  it('counts Longest Route and Largest Army', () => {
     const base = inMain();
     const me = active(base);
     const state = deepFreeze({
       ...withBuildings(base, me, 2, 2),
-      longestRoadPlayerId: me,
+      longestRoutePlayerId: me,
       largestArmyPlayerId: me,
     });
     expect(getPoints(state, me)).toBe(10);
@@ -143,7 +143,7 @@ describe('winning', () => {
     const next = others(base)[0] as string;
     // The next player already has ten points, say from a road somebody else just cut.
     const state = hold(withBuildings(base, next, 4, 1), me, { wood: 4 });
-    const waiting = deepFreeze({ ...state, longestRoadPlayerId: next });
+    const waiting = deepFreeze({ ...state, longestRoutePlayerId: next });
     expect(getPoints(waiting, next)).toBe(11);
 
     const traded = apply(waiting, { type: 'SUPPLY_TRADE', give: 'wood', receive: 'ore' });
@@ -205,7 +205,7 @@ describe('untrusted actions', () => {
 
 /** What must hold after every action of every game. */
 function expectSound(state: CatanState): void {
-  expect(countAll(state)).toEqual({ brick: 19, wood: 19, wool: 19, grain: 19, ore: 19 });
+  expect(countAll(state)).toEqual({ brick: 19, wood: 19, wool: 19, wheat: 19, ore: 19 });
   for (const resource of RESOURCES) expect(state.supply[resource]).toBeGreaterThanOrEqual(0);
 
   let cardsOut = state.developmentDeck.length;
@@ -255,7 +255,7 @@ function universe(state: CatanState): CatanAction[] {
     { type: 'BUY_DEVELOPMENT_CARD' },
     { type: 'PLAY_KNIGHT' },
     { type: 'PLAY_ROAD_BUILDING' },
-    ...pairs.map((resources): CatanAction => ({ type: 'PLAY_YEAR_OF_PLENTY', resources })),
+    ...pairs.map((resources): CatanAction => ({ type: 'PLAY_INVENTION', resources })),
     ...RESOURCES.map((resource): CatanAction => ({ type: 'PLAY_MONOPOLY', resource })),
     ...RESOURCES.flatMap((give) =>
       RESOURCES.map((receive): CatanAction => ({ type: 'SUPPLY_TRADE', give, receive })),
@@ -319,12 +319,14 @@ describe('whole games', () => {
     }
   });
 
-  it('plays the beginner board too', () => {
-    const settings = { boardSetup: 'beginner' as const };
-    const actions = scriptFullGame('echo', 4, engine.defaultConfig, settings);
+  it('plays the fixed setup too, from the first roll', () => {
+    const settings = { boardSetup: 'fixed' as const };
+    const actions = scriptFullGame('echo', 4, engine.defaultConfig, settings, expectSound);
     const final = runMatch(engine, { seed: 'echo', players: seats(4), actions, settings });
+    expect(actions[0]?.action.type).not.toBe('PLACE_SETUP_SETTLEMENT');
+    expect(actions.every((step) => !step.action.type.startsWith('PLACE_SETUP'))).toBe(true);
     expect(final.phase).toBe('FINISHED');
-    expect(final.tiles['0,0']).toEqual({ terrain: 'desert', number: null });
+    expect(final.tiles['0,-2']).toEqual({ terrain: 'desert', number: null });
   });
 
   it('survives being saved and loaded in the middle', () => {

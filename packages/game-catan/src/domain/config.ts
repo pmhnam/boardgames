@@ -10,14 +10,14 @@ export const SETUP_ROUNDS = 2;
 /** The roll that produces nothing and wakes the robber. */
 export const ROBBER_ROLL = 7;
 
-/** Resource cards given for one of the supply's, without and with a harbor. */
+/** Resource cards given for one of the supply's, without and with a port. */
 export const SUPPLY_TRADE_RATE = 4;
-export const GENERIC_HARBOR_RATE = 3;
-export const RESOURCE_HARBOR_RATE = 2;
+export const GENERIC_PORT_RATE = 3;
+export const RESOURCE_PORT_RATE = 2;
 
 export const SETTLEMENT_POINTS = 1;
 export const CITY_POINTS = 2;
-export const LONGEST_ROAD_POINTS = 2;
+export const LONGEST_ROUTE_POINTS = 2;
 export const LARGEST_ARMY_POINTS = 2;
 
 /** Resource cards a settlement and a city collect from one producing hex. */
@@ -26,5 +26,5 @@ export const CITY_YIELD = 2;
 
 /** Roads placed for free by a Road Building card. */
 export const ROAD_BUILDING_ROADS = 2;
-/** Resource cards taken from the supply by a Year of Plenty card. */
-export const YEAR_OF_PLENTY_CARDS = 2;
+/** Resource cards taken from the supply by an Invention card. */
+export const INVENTION_CARDS = 2;

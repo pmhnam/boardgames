@@ -1,60 +1,59 @@
 import { createSeededRandom, type SeededRandom } from '@bgp/game-core';
-import type { Tile } from '../domain/default-board.js';
+import type { FramePiece, Tile } from '../domain/default-board.js';
 import { DEVELOPMENT_CARD_TYPES, type DevelopmentCardType } from '../domain/development-cards.js';
-import type { BoardSetup, CatanConfig } from '../domain/game-config.js';
-import { hexKey, hexNeighbours, type Hex } from '../domain/hex.js';
+import { layFrame, type BoardSetup, type CatanConfig, type Port } from '../domain/game-config.js';
+import { hexKey, type Hex } from '../domain/hex.js';
 import { TERRAINS, type Terrain } from '../domain/resources.js';
+import { CORNER_COUNT, listSpiral } from '../domain/spiral.js';
 
 export interface RandomSetup {
   /** One tile per hex, in the order of the config's hexes. */
   tiles: Tile[];
+  /** Where the frame pieces put the ports. */
+  ports: Port[];
   /** Shuffled. Cards are drawn from the end. */
   developmentDeck: DevelopmentCardType[];
   startingPlayerIndex: number;
 }
 
-/** The numbers rolled most often, printed in red on the tokens. */
-const RED_NUMBERS = [6, 8];
-/** How many times a random board is dealt again to keep the red numbers apart. */
-const MAX_DEALS = 500;
-
-function hasRedNeighbours(hexes: readonly Hex[], tiles: readonly Tile[]): boolean {
-  const isRed = (tile: Tile | undefined) =>
-    tile !== undefined && RED_NUMBERS.includes(tile.number ?? 0);
-  const byKey = new Map(hexes.map((hex, index) => [hexKey(hex), tiles[index]]));
-  return hexes.some(
-    (hex, index) =>
-      isRed(tiles[index]) &&
-      hexNeighbours(hex).some((neighbour) => isRed(byKey.get(hexKey(neighbour)))),
-  );
-}
-
-function dealNumbers(
-  random: SeededRandom,
+/**
+ * Lays the number discs in their letter order along the spiral from one corner of the island,
+ * passing over the deserts.
+ */
+export function layNumberDiscs(
+  hexes: readonly Hex[],
   terrains: readonly Terrain[],
-  numberTokens: readonly number[],
+  discs: readonly number[],
+  corner: number,
 ): Tile[] {
-  const numbers = random.shuffle(numberTokens);
-  return terrains.map((terrain) => ({
-    terrain,
-    number: terrain === 'desert' ? null : (numbers.pop() ?? null),
+  const terrainAt = new Map(hexes.map((hex, index) => [hexKey(hex), terrains[index]]));
+  const numberAt = new Map<string, number>();
+  let next = 0;
+  for (const hex of listSpiral(hexes, corner)) {
+    if (terrainAt.get(hexKey(hex)) === 'desert') continue;
+    const disc = discs[next];
+    if (disc !== undefined) numberAt.set(hexKey(hex), disc);
+    next += 1;
+  }
+  return hexes.map((hex, index) => ({
+    terrain: terrains[index] as Terrain,
+    number: numberAt.get(hexKey(hex)) ?? null,
   }));
 }
 
-function randomTiles(random: SeededRandom, config: CatanConfig): Tile[] {
+/** The variable setup: hexes at random, discs spiralling in from a corner, frame shuffled. */
+function dealVariable(random: SeededRandom, config: CatanConfig) {
   const terrains = random.shuffle(
     TERRAINS.flatMap((terrain) =>
       Array.from({ length: config.terrainCounts[terrain] }, () => terrain),
     ),
   );
-  let tiles = dealNumbers(random, terrains, config.numberTokens);
-  if (!config.keepRedNumbersApart) return tiles;
-
-  // Some sets of tokens cannot be kept apart at all: after enough deals, play the last one.
-  for (let deal = 1; deal < MAX_DEALS && hasRedNeighbours(config.hexes, tiles); deal += 1) {
-    tiles = dealNumbers(random, terrains, config.numberTokens);
-  }
-  return tiles;
+  const corner = random.int(CORNER_COUNT);
+  const pieces: FramePiece[] = random.shuffle(config.frame.pieces);
+  return {
+    tiles: layNumberDiscs(config.hexes, terrains, config.numberDiscs, corner),
+    ports: layFrame(config.hexes, config.frame.start, pieces),
+  };
 }
 
 /**
@@ -75,9 +74,12 @@ export function randomizeSetup(input: {
       Array.from({ length: config.developmentCards[type] }, () => type),
     ),
   );
-  const tiles =
-    input.boardSetup === 'beginner'
-      ? config.beginnerTiles.map((tile) => ({ ...tile }))
-      : randomTiles(random, config);
-  return { tiles, developmentDeck, startingPlayerIndex };
+  const board =
+    input.boardSetup === 'fixed'
+      ? {
+          tiles: config.fixedSetup.tiles.map((tile) => ({ ...tile })),
+          ports: layFrame(config.hexes, config.frame.start, config.frame.pieces),
+        }
+      : dealVariable(random, config);
+  return { ...board, developmentDeck, startingPlayerIndex };
 }

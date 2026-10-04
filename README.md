@@ -134,23 +134,26 @@ game, unless the Assassin then names Merlin.
 - Avalon is a commercial game. Its name belongs to its publisher; get a licence before shipping
   this beyond private use. No artwork from the game is used.
 
-**CATAN** (3–4 players) implements the base game: settle the corners of a hex island and
-collect what the dice produce, build roads, settlements and cities, buy development cards, and
-trade with the supply or with the other players. The first to 10 points on their own turn wins.
+**CATAN** (3–4 players) implements the base game as the 6th edition rulebook gives it: settle
+the corners of a hex island and collect what the dice produce, build roads, settlements and
+cities, buy development cards, and trade with the supply or with the other players. The first
+to 10 points on their own turn wins.
 
-- The room's host picks a random island or the fixed one for a first game. A random island
-  keeps the 6s and 8s off neighbouring hexes; that is a config switch.
-- A 7 makes every hand of more than seven cards discard half, at the same time: it is the one
-  game here where several players may have to act at once. A trade offer is answered out of
-  turn in the same way, and the player who made it picks whom to trade with or withdraws it.
+- The room's host picks one of the rulebook's two setups. The variable setup places the hexes
+  at random, lays the number discs in their letter order from a corner of the island inwards,
+  skipping the desert, and shuffles the six pieces of the sea frame, so the ports move too. The
+  fixed setup is the rulebook's first game: its island, its ports, and every player's two
+  settlements and roads already on the board, so play starts with the first roll.
+- A 7 makes every hand of more than seven cards discard half, all at the same time. A trade
+  offer is answered out of turn in the same way, and the player who made it picks whom to trade
+  with or withdraws it.
+  The rulebook also lets the others make counteroffers; here they can only accept or decline.
 - Hands and development cards are hidden from the other players, and a Victory Point card
   stays hidden until the game is over. Dice and robbery are drawn from the match's seed as they
   happen, so a replay rolls the same dice.
-- The island, the harbors, the decks, the costs, the pieces and the thresholds for Longest
-  Road, Largest Army and discarding are config.
-- The fixed island and the harbor positions follow the widely published base-game layout and
-  have not been checked against the 6th edition rulebook. Both are config, so a correction is a
-  new config version, not a code change.
+- The island, the frame and its ports, the number discs, the fixed setup, the decks, the costs,
+  the pieces and the thresholds for Longest Route, Largest Army and discarding are config.
+- Names follow the 6th edition: wheat, ports, the Invention card and Longest Route.
 - CATAN is a commercial game. Its name and rules belong to its publisher; get a licence before
   shipping this beyond private use. No artwork from the game is used.
 
@@ -176,7 +179,7 @@ follows where the last vote leaned.
 
 In CATAN, **Dễ** plays a random legal move but builds whenever it can, **Thường** settles where
 the dice roll most and saves for the nearest thing it can build, and **Khó** also counts
-harbors and the resources it lacks, trades with the supply towards its plan, and robs and
+ports and the resources it lacks, trades with the supply towards its plan, and robs and
 refuses to trade with whoever is nearest to winning. All three discard and answer trade offers
 out of turn; none makes offers of its own.
 

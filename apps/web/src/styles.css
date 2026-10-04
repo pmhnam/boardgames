@@ -2056,19 +2056,19 @@ button.avalon-seat-body {
   fill: #b3261e;
 }
 
-.catan-harbor line {
+.catan-port line {
   stroke: var(--muted);
   stroke-width: 1.5;
   stroke-dasharray: 3 3;
 }
 
-.catan-harbor circle {
+.catan-port circle {
   fill: var(--surface);
   stroke: var(--muted);
   stroke-width: 1;
 }
 
-.catan-harbor text {
+.catan-port text {
   font-size: 8px;
   font-weight: 700;
   fill: #1c1d1f;
@@ -2079,7 +2079,7 @@ button.avalon-seat-body {
   stroke-width: 2px;
 }
 
-.catan-harbor .catan-harbor-kind {
+.catan-port .catan-port-kind {
   font-size: 5px;
   font-weight: 600;
   stroke-width: 1.5px;

@@ -56,7 +56,7 @@ describe('discarding to a 7', () => {
     const me = active(base);
     const [second, third] = others(base) as [string, string];
     const state = rollSeven(
-      hold(hold(hold(base, me, { grain: 10 }), second, { wood: 8 }), third, { ore: 9 }),
+      hold(hold(hold(base, me, { wheat: 10 }), second, { wood: 8 }), third, { ore: 9 }),
     );
 
     const afterThird = apply(state, { type: 'DISCARD', resources: { ore: 4 } }, third);
@@ -64,7 +64,7 @@ describe('discarding to a 7', () => {
     expect(afterThird.supply.ore).toBe(state.supply.ore + 4);
     expect(engine.getCurrentPlayerIds(afterThird)).toEqual([me, second]);
 
-    const afterMe = apply(afterThird, { type: 'DISCARD', resources: { grain: 5 } }, me);
+    const afterMe = apply(afterThird, { type: 'DISCARD', resources: { wheat: 5 } }, me);
     expect(afterMe.turn.step).toBe('DISCARD');
 
     const done = apply(afterMe, { type: 'DISCARD', resources: { wood: 4 } }, second);

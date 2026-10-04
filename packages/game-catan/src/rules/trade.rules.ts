@@ -1,5 +1,5 @@
 import type { GameValidationResult } from '@bgp/game-core';
-import { GENERIC_HARBOR_RATE, RESOURCE_HARBOR_RATE, SUPPLY_TRADE_RATE } from '../domain/config.js';
+import { GENERIC_PORT_RATE, RESOURCE_PORT_RATE, SUPPLY_TRADE_RATE } from '../domain/config.js';
 import { CatanRuleCodes, VALID, invalid } from '../domain/errors.js';
 import {
   RESOURCES,
@@ -15,7 +15,7 @@ import { getPlayer, validateStep } from './turn.rules.js';
 
 /**
  * How many cards of each resource a player gives for one from the supply. A building on either
- * corner of a harbor's edge gives its rate.
+ * corner of a port's edge gives its rate.
  */
 export function getSupplyRates(
   state: Pick<CatanState, 'config' | 'buildings'>,
@@ -29,14 +29,13 @@ export function getSupplyRates(
     rates[resource] = Math.min(rates[resource], rate);
   };
 
-  for (const harbor of state.config.harbors) {
-    const reached = endsOf(topology, harbor.edge).some(
+  for (const port of state.config.ports) {
+    const reached = endsOf(topology, port.edge).some(
       (vertex) => state.buildings[vertex]?.playerId === playerId,
     );
     if (!reached) continue;
-    if (harbor.type === 'any')
-      RESOURCES.forEach((resource) => lower(resource, GENERIC_HARBOR_RATE));
-    else lower(harbor.type, RESOURCE_HARBOR_RATE);
+    if (port.type === 'any') RESOURCES.forEach((resource) => lower(resource, GENERIC_PORT_RATE));
+    else lower(port.type, RESOURCE_PORT_RATE);
   }
   return rates;
 }

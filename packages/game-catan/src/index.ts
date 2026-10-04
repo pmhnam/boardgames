@@ -28,10 +28,18 @@ export type {
   CatanSettings,
   CatanSetup,
   Costs,
-  Harbor,
+  Port,
   Pieces,
 } from './domain/game-config.js';
-export type { HarborPlacement, HarborType, Tile } from './domain/default-board.js';
+export type {
+  FixedSetup,
+  Frame,
+  FramePiece,
+  FramePort,
+  PortType,
+  StartingPieces,
+  Tile,
+} from './domain/default-board.js';
 export { DEVELOPMENT_CARD_TYPES } from './domain/development-cards.js';
 export type { DevelopmentCardType, PlayableCardType } from './domain/development-cards.js';
 export { hexKey, parseEdgeId, parseHexKey, parseVertexId } from './domain/hex.js';

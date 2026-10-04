@@ -23,8 +23,8 @@ import {
 const topology = buildTopology(DEFAULT_HEXES);
 
 const ROAD = { brick: 1, wood: 1 };
-const SETTLEMENT = { brick: 1, wood: 1, wool: 1, grain: 1 };
-const CITY = { grain: 2, ore: 3 };
+const SETTLEMENT = { brick: 1, wood: 1, wool: 1, wheat: 1 };
+const CITY = { wheat: 2, ore: 3 };
 
 /** The active player with a settlement on top of the centre hex and cards to spend. */
 function settled(hand: Parameters<typeof hold>[2] = {}) {
@@ -135,7 +135,7 @@ describe('building a settlement', () => {
     return pave(state, active(state), side(0, 0, 'NE'), side(0, 0, 'E'));
   };
 
-  it('costs a brick, a wood, a wool and a grain, on a corner the player road reaches', () => {
+  it('costs a brick, a wood, a wool and a wheat, on a corner the player road reaches', () => {
     const state = withRoads({ ...SETTLEMENT, ore: 2 });
     const vertex = corner(0, 0, 2);
 
@@ -214,7 +214,7 @@ describe('building a settlement', () => {
 });
 
 describe('building a city', () => {
-  it('costs two grain and three ore and replaces a settlement, which comes back', () => {
+  it('costs two wheat and three ore and replaces a settlement, which comes back', () => {
     const state = settled({ ...CITY, wool: 1 });
     const me = active(state);
     const vertex = corner(0, 0, 0);
@@ -253,7 +253,7 @@ describe('building a city', () => {
 
   it('is refused without the cards or the pieces', () => {
     expectRejected(
-      settled({ grain: 2, ore: 2 }),
+      settled({ wheat: 2, ore: 2 }),
       { type: 'BUILD_CITY', vertex: corner(0, 0, 0) },
       CatanRuleCodes.CannotAfford,
     );

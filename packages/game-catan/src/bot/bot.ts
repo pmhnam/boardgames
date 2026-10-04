@@ -1,6 +1,6 @@
 import type { BotDecisionInput, BotStrategy, SeededRandom } from '@bgp/game-core';
 import type { CatanAction } from '../domain/actions.js';
-import { YEAR_OF_PLENTY_CARDS } from '../domain/config.js';
+import { INVENTION_CARDS } from '../domain/config.js';
 import {
   RESOURCES,
   addResources,
@@ -137,12 +137,12 @@ function chooseRoad(model: Model, aware: boolean, random: SeededRandom): string 
   return pickBest(model.view.legal.roadEdges, (edge) => evaluateRoad(model, edge, aware), random);
 }
 
-/** The two cards a Year of Plenty should take: what the plan lacks, then what produces least. */
-function choosePlentyPicks(model: Model, plan: Plan | null): Resource[] | null {
+/** The two cards an Invention should take: what the plan lacks, then what produces least. */
+function chooseInventionPicks(model: Model, plan: Plan | null): Resource[] | null {
   const supply = { ...model.view.supply };
   const shortfall = plan ? getShortfall(model.hand, plan.cost) : emptyResources();
   const picks: Resource[] = [];
-  while (picks.length < YEAR_OF_PLENTY_CARDS) {
+  while (picks.length < INVENTION_CARDS) {
     const available = RESOURCES.filter((resource) => supply[resource] > 0);
     if (available.length === 0) return null;
     const pick = [...available].sort(
@@ -161,9 +161,9 @@ function chooseCardPlay(model: Model, plan: Plan | null): CatanAction | null {
   const shortfall = plan ? getShortfall(model.hand, plan.cost) : emptyResources();
   const missing = plan?.missing ?? 0;
 
-  if (playable.includes('yearOfPlenty') && missing > 0 && missing <= YEAR_OF_PLENTY_CARDS) {
-    const picks = choosePlentyPicks(model, plan);
-    if (picks) return { type: 'PLAY_YEAR_OF_PLENTY', resources: picks };
+  if (playable.includes('invention') && missing > 0 && missing <= INVENTION_CARDS) {
+    const picks = chooseInventionPicks(model, plan);
+    if (picks) return { type: 'PLAY_INVENTION', resources: picks };
   }
   if (playable.includes('knight')) return { type: 'PLAY_KNIGHT' };
   if (playable.includes('roadBuilding')) return { type: 'PLAY_ROAD_BUILDING' };
@@ -176,9 +176,9 @@ function chooseCardPlay(model: Model, plan: Plan | null): CatanAction | null {
       return { type: 'PLAY_MONOPOLY', resource };
     }
   }
-  if (playable.includes('yearOfPlenty')) {
-    const picks = choosePlentyPicks(model, plan);
-    if (picks) return { type: 'PLAY_YEAR_OF_PLENTY', resources: picks };
+  if (playable.includes('invention')) {
+    const picks = chooseInventionPicks(model, plan);
+    if (picks) return { type: 'PLAY_INVENTION', resources: picks };
   }
   return null;
 }
@@ -331,7 +331,7 @@ function chooseAtRandom(model: Model, random: SeededRandom): CatanAction {
  * - easy: a random legal move, building when it can;
  * - normal: settles where the dice roll most, saves for the nearest thing it can build, and
  *   robs whoever holds most cards;
- * - hard: also counts harbors and the resources it lacks, trades with the supply towards its
+ * - hard: also counts ports and the resources it lacks, trades with the supply towards its
  *   plan, robs and refuses to trade with whoever is nearest to winning.
  *
  * None of them makes offers to the other players; all of them answer offers.

@@ -2,10 +2,11 @@ import { GameRuleError, type CreateInitialStateInput } from '@bgp/game-core';
 import { CATAN_ENGINE_VERSION, MAX_PLAYERS, MIN_PLAYERS } from '../domain/config.js';
 import type { Tile } from '../domain/default-board.js';
 import { resolveSetup, type CatanConfig, type CatanSettings } from '../domain/game-config.js';
-import { hexKey } from '../domain/hex.js';
-import { RESOURCES, emptyResources } from '../domain/resources.js';
-import type { CatanState, PlayerState } from '../domain/state.js';
+import { hexCorner, hexKey, hexSideEdge } from '../domain/hex.js';
+import { RESOURCES, addResources, emptyResources } from '../domain/resources.js';
+import type { Building, CatanState, PlayerState } from '../domain/state.js';
 import { randomizeSetup } from '../random/setup-randomizer.js';
+import { getOpeningYield } from '../rules/production.rules.js';
 
 export function createInitialState(
   input: CreateInitialStateInput<CatanConfig, CatanSettings>,
@@ -54,11 +55,11 @@ export function createInitialState(
     knightsPlayed: 0,
   });
 
-  return {
+  const opening: CatanState = {
     id: input.gameId,
     engineVersion: CATAN_ENGINE_VERSION,
     phase: 'PLAYING',
-    config: resolveSetup(config),
+    config: resolveSetup(config, setup.ports),
     turnOrder,
     turn: {
       number: 1,
@@ -78,9 +79,41 @@ export function createInitialState(
     supply,
     developmentDeck: [...setup.developmentDeck],
     players: Object.fromEntries(turnOrder.map((playerId) => [playerId, newPlayer()])),
-    longestRoadPlayerId: null,
+    longestRoutePlayerId: null,
     largestArmyPlayerId: null,
     random: { seed: input.seed, draws: 0 },
     winnerPlayerIds: [],
+  };
+  if (input.settings.boardSetup !== 'fixed') return opening;
+
+  // The fixed setup has no opening: every seat's pieces are already on the board, the second
+  // settlements have collected their cards, and the first player starts by rolling.
+  const buildings: Record<string, Building> = {};
+  const roads: Record<string, string> = {};
+  const players = { ...opening.players };
+  let remaining = supply;
+  seated.forEach((playerId, seat) => {
+    const pieces = config.fixedSetup.seats[seat];
+    if (!pieces) throw new Error(`The fixed setup has no pieces for seat ${seat + 1}`);
+    for (const placement of [pieces.first, pieces.second]) {
+      buildings[hexCorner(placement.settlement, placement.settlement.corner)] = {
+        playerId,
+        kind: 'settlement',
+      };
+      roads[hexSideEdge(placement.road, placement.road.side)] = playerId;
+    }
+    const second = hexCorner(pieces.second.settlement, pieces.second.settlement.corner);
+    const collected = getOpeningYield({ ...opening, supply: remaining }, second);
+    remaining = addResources(remaining, collected, -1);
+    players[playerId] = { ...newPlayer(), resources: collected };
+  });
+
+  return {
+    ...opening,
+    turn: { ...opening.turn, step: 'ROLL' },
+    buildings,
+    roads,
+    supply: remaining,
+    players,
   };
 }

@@ -1,5 +1,5 @@
 import type { GameValidationResult } from '@bgp/game-core';
-import { YEAR_OF_PLENTY_CARDS } from '../domain/config.js';
+import { INVENTION_CARDS } from '../domain/config.js';
 import type { PlayableCardType } from '../domain/development-cards.js';
 import { CatanRuleCodes, VALID, invalid } from '../domain/errors.js';
 import {
@@ -12,7 +12,7 @@ import type { CatanState } from '../domain/state.js';
 import { getPiecesLeft, listRoadSites } from './placement.rules.js';
 import { getPlayer, validateStep } from './turn.rules.js';
 
-const PLAYABLE_TYPES: PlayableCardType[] = ['knight', 'roadBuilding', 'yearOfPlenty', 'monopoly'];
+const PLAYABLE_TYPES: PlayableCardType[] = ['knight', 'roadBuilding', 'invention', 'monopoly'];
 
 /** A card bought on an earlier turn. One bought this turn has to wait. */
 function holdsPlayable(state: CatanState, playerId: string, type: PlayableCardType): boolean {
@@ -26,8 +26,8 @@ function hasEffect(state: CatanState, playerId: string, type: PlayableCardType):
   switch (type) {
     case 'roadBuilding':
       return getPiecesLeft(state, playerId).roads > 0 && listRoadSites(state, playerId).length > 0;
-    case 'yearOfPlenty':
-      return countResources(state.supply) >= YEAR_OF_PLENTY_CARDS;
+    case 'invention':
+      return countResources(state.supply) >= INVENTION_CARDS;
     default:
       return true;
   }
@@ -63,12 +63,12 @@ export function listPlayableCards(state: CatanState, playerId: string): Playable
   return PLAYABLE_TYPES.filter((type) => validatePlayCard(state, playerId, type).valid);
 }
 
-export function validateYearOfPlenty(
+export function validateInvention(
   state: CatanState,
   playerId: string,
   picks: readonly Resource[],
 ): GameValidationResult {
-  const playable = validatePlayCard(state, playerId, 'yearOfPlenty');
+  const playable = validatePlayCard(state, playerId, 'invention');
   if (!playable.valid) return playable;
 
   const wanted = emptyResources();

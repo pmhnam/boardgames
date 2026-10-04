@@ -50,6 +50,17 @@ function vertexId(q: number, r: number, corner: VertexCorner): string {
   return `${q},${r},${corner}`;
 }
 
+/** The id of the top or bottom corner of a hex. */
+export function hexCorner(hex: Hex, corner: VertexCorner): string {
+  return vertexId(hex.q, hex.r, corner);
+}
+
+export function hexDistance(a: Hex, b: Hex): number {
+  const dq = a.q - b.q;
+  const dr = a.r - b.r;
+  return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+}
+
 export function parseVertexId(id: string): { hex: Hex; corner: VertexCorner } | null {
   const [q, r, corner] = id.split(',');
   if (q === undefined || r === undefined || (corner !== 'N' && corner !== 'S')) return null;

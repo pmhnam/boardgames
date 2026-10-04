@@ -8,7 +8,7 @@ export function PlayerPanel({
   mine,
   active,
   winner,
-  longestRoad,
+  longestRoute,
   largestArmy,
   owes,
   response,
@@ -21,7 +21,7 @@ export function PlayerPanel({
   mine: boolean;
   active: boolean;
   winner: boolean;
-  longestRoad: boolean;
+  longestRoute: boolean;
   largestArmy: boolean;
   /** Cards this player still has to discard to a 7. */
   owes: number;
@@ -69,12 +69,12 @@ export function PlayerPanel({
           <dd>{player.knightsPlayed}</dd>
         </div>
         <div>
-          <dt>Road</dt>
-          <dd>{player.roadLength}</dd>
+          <dt>Route</dt>
+          <dd>{player.routeLength}</dd>
         </div>
       </dl>
       <p className="catan-badges">
-        {longestRoad && <span className="catan-badge">Longest Road +2</span>}
+        {longestRoute && <span className="catan-badge">Longest Route +2</span>}
         {largestArmy && <span className="catan-badge">Largest Army +2</span>}
         {owes > 0 && <span className="catan-badge warn">Discarding {owes}</span>}
         {response && (

@@ -1,4 +1,4 @@
-export const RESOURCES = ['brick', 'wood', 'wool', 'grain', 'ore'] as const;
+export const RESOURCES = ['brick', 'wood', 'wool', 'wheat', 'ore'] as const;
 export type Resource = (typeof RESOURCES)[number];
 export type ResourceCounts = Record<Resource, number>;
 
@@ -10,7 +10,7 @@ export const TERRAIN_RESOURCE: Record<Terrain, Resource | null> = {
   hills: 'brick',
   forest: 'wood',
   pasture: 'wool',
-  fields: 'grain',
+  fields: 'wheat',
   mountains: 'ore',
   desert: null,
 };
@@ -24,7 +24,7 @@ export function isTerrain(value: unknown): value is Terrain {
 }
 
 export function emptyResources(): ResourceCounts {
-  return { brick: 0, wood: 0, wool: 0, grain: 0, ore: 0 };
+  return { brick: 0, wood: 0, wool: 0, wheat: 0, ore: 0 };
 }
 
 /** `base` plus (or, with sign -1, minus) `delta`. */

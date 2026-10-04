@@ -1,4 +1,4 @@
-import type { HarborType } from '../domain/default-board.js';
+import type { PortType } from '../domain/default-board.js';
 import type { Costs } from '../domain/game-config.js';
 import { hexKey } from '../domain/hex.js';
 import {
@@ -21,17 +21,17 @@ export interface Model {
   hand: ResourceCounts;
   topology: Topology;
   tiles: Record<string, HexView>;
-  /** The harbor a building on each corner would trade through. */
-  harbors: Record<string, HarborType>;
+  /** The port a building on each corner would trade through. */
+  ports: Record<string, PortType>;
 }
 
 export function readView(view: CatanView, playerId: string): Model {
   const me = view.players[playerId];
   if (!me) throw new Error(`CATAN bot is not seated as ${playerId}`);
   const topology = buildTopology(view.board.hexes);
-  const harbors: Record<string, HarborType> = {};
-  for (const harbor of view.board.harbors) {
-    for (const vertex of endsOf(topology, harbor.edge)) harbors[vertex] = harbor.type;
+  const ports: Record<string, PortType> = {};
+  for (const port of view.board.ports) {
+    for (const vertex of endsOf(topology, port.edge)) ports[vertex] = port.type;
   }
   return {
     view,
@@ -40,7 +40,7 @@ export function readView(view: CatanView, playerId: string): Model {
     hand: me.resources ?? emptyResources(),
     topology,
     tiles: Object.fromEntries(view.board.hexes.map((hex) => [hexKey(hex), hex])),
-    harbors,
+    ports,
   };
 }
 

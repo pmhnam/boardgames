@@ -1,5 +1,5 @@
 import type { CatanAction } from '../domain/actions.js';
-import { YEAR_OF_PLENTY_CARDS } from '../domain/config.js';
+import { INVENTION_CARDS } from '../domain/config.js';
 import type { PlayableCardType } from '../domain/development-cards.js';
 import {
   RESOURCES,
@@ -153,12 +153,12 @@ export function listDiscards(
   return walk(0, count);
 }
 
-/** Every pair of cards a Year of Plenty could take from the supply. */
-function listPlentyPicks(supply: Readonly<ResourceCounts>): Resource[][] {
+/** Every pair of cards an Invention could take from the supply. */
+function listInventionPicks(supply: Readonly<ResourceCounts>): Resource[][] {
   const picks: Resource[][] = [];
   RESOURCES.forEach((first, index) => {
     for (const second of RESOURCES.slice(index)) {
-      const needed = first === second ? YEAR_OF_PLENTY_CARDS : 1;
+      const needed = first === second ? INVENTION_CARDS : 1;
       if (supply[first] >= needed && supply[second] >= needed) picks.push([first, second]);
     }
   });
@@ -171,9 +171,9 @@ function listCardPlays(type: PlayableCardType, supply: Readonly<ResourceCounts>)
       return [{ type: 'PLAY_KNIGHT' }];
     case 'roadBuilding':
       return [{ type: 'PLAY_ROAD_BUILDING' }];
-    case 'yearOfPlenty':
-      return listPlentyPicks(supply).map((resources) => ({
-        type: 'PLAY_YEAR_OF_PLENTY',
+    case 'invention':
+      return listInventionPicks(supply).map((resources) => ({
+        type: 'PLAY_INVENTION',
         resources,
       }));
     case 'monopoly':
