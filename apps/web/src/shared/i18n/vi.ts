@@ -63,6 +63,34 @@ export const vi = {
   'joinCode.title': 'Vào phòng bằng mã',
   'joinCode.submit': 'Vào phòng',
 
+  'common.you': 'bạn',
+  'common.loading': 'Đang tải…',
+
+  'roomPage.loading': 'Đang tải phòng…',
+  'roomPage.title': 'Phòng {code}',
+  'roomPage.inviteLink': 'link mời:',
+  'roomPage.copy': 'Sao chép',
+  'roomPage.host': 'Chủ phòng',
+  'roomPage.computer': 'Máy ({level})',
+  'roomPage.ready': 'Sẵn sàng',
+  'roomPage.notReady': 'Chưa sẵn sàng',
+  'roomPage.removeBot': 'Xoá',
+  'roomPage.matchInProgress': 'Đang có một trận diễn ra.',
+  'roomPage.settingsHint': 'Đổi cài đặt sẽ yêu cầu mọi người xác nhận sẵn sàng lại.',
+  'roomPage.computerPlayer': 'Người chơi máy',
+  'roomPage.addBot': 'Thêm máy',
+  'roomPage.takeSeat': 'Ngồi vào',
+  'roomPage.imReady': 'Tôi sẵn sàng',
+  'roomPage.start': 'Bắt đầu trận',
+  'botLevel.easy': 'Dễ',
+  'botLevel.normal': 'Thường',
+  'botLevel.hard': 'Khó',
+
+  'history.empty': 'Chưa có trận nào.',
+  'history.wonBy': 'Thắng: {names}',
+  'history.abandoned': 'Bỏ dở',
+  'history.replay': 'Xem lại',
+
   'error.unknown': 'Đã có lỗi xảy ra.',
   'error.network': 'Không kết nối được tới máy chủ. Kiểm tra mạng rồi thử lại.',
   'error.unauthorized': 'Phiên đã hết hạn, hãy đăng nhập lại.',
@@ -72,6 +100,10 @@ export const vi = {
   'error.roomFull': 'Phòng đã đầy.',
   'error.roomNotOpen': 'Phòng này không còn nhận người.',
   'error.invalidRoomSettings': 'Cài đặt phòng không hợp lệ.',
+  'error.playersNotReady': 'Chưa phải ai cũng sẵn sàng.',
+  'error.notEnoughPlayers': 'Chưa đủ người để bắt đầu trận.',
+  'error.notRoomHost': 'Chỉ chủ phòng mới làm được việc này.',
+  'error.botsNotSupported': 'Game này không chơi được với máy.',
 };
 
 export type MessageKey = keyof typeof vi;

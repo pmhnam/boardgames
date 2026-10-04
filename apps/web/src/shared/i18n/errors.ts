@@ -12,6 +12,10 @@ const MESSAGE_FOR_CODE: Partial<Record<ErrorCode, MessageKey>> = {
   [ErrorCodes.RoomFull]: 'error.roomFull',
   [ErrorCodes.RoomNotOpen]: 'error.roomNotOpen',
   [ErrorCodes.InvalidRoomSettings]: 'error.invalidRoomSettings',
+  [ErrorCodes.PlayersNotReady]: 'error.playersNotReady',
+  [ErrorCodes.NotEnoughPlayers]: 'error.notEnoughPlayers',
+  [ErrorCodes.NotRoomHost]: 'error.notRoomHost',
+  [ErrorCodes.BotsNotSupported]: 'error.botsNotSupported',
 };
 
 /** Codes whose server message says which thing was wrong: it is shown after ours. */

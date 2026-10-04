@@ -15,14 +15,20 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
-import { api, errorMessage } from '../../shared/api/http';
+import { api } from '../../shared/api/http';
 import { PlayerList } from '../../shared/components/PlayerList';
-import { useLocale } from '../../shared/i18n/useT';
+import { errorText } from '../../shared/i18n/errors';
+import { useLocale, useT } from '../../shared/i18n/useT';
+import type { MessageKey } from '../../shared/i18n/vi';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
 
 const BOT_LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
-const BOT_LEVEL_LABELS: Record<BotLevel, string> = { easy: 'Dễ', normal: 'Thường', hard: 'Khó' };
+const BOT_LEVEL_KEYS: Record<BotLevel, MessageKey> = {
+  easy: 'botLevel.easy',
+  normal: 'botLevel.normal',
+  hard: 'botLevel.hard',
+};
 
 export function RoomPage() {
   const { roomId = '' } = useParams();
@@ -30,6 +36,7 @@ export function RoomPage() {
   const queryClient = useQueryClient();
   const socket = useSocket();
   const locale = useLocale();
+  const t = useT();
   const userId = useAuthStore((state) => state.session?.user.id);
   const queryKey = ['room', roomId];
 
@@ -105,8 +112,8 @@ export function RoomPage() {
     gameUi?.describeSettings !== undefined || gameUi?.SettingsForm !== undefined,
   );
 
-  if (room.isLoading) return <p className="muted">Loading room…</p>;
-  if (room.isError || !room.data) return <p className="error">{errorMessage(room.error)}</p>;
+  if (room.isLoading) return <p className="muted">{t('roomPage.loading')}</p>;
+  if (room.isError || !room.data) return <p className="error">{errorText(t, room.error)}</p>;
 
   const data = room.data;
   const me = data.members.find((member) => member.userId === userId);
@@ -135,16 +142,17 @@ export function RoomPage() {
 
   return (
     <div className="card">
-      <h1>Room {data.code}</h1>
+      <h1>{t('roomPage.title', { code: data.code })}</h1>
       <p className="muted">
-        {data.gameType}
-        {settingsSummary && ` · ${settingsSummary}`} · invite link: <code>{inviteLink}</code>{' '}
+        {game?.displayName ?? data.gameType}
+        {settingsSummary && ` · ${settingsSummary}`} · {t('roomPage.inviteLink')}{' '}
+        <code>{inviteLink}</code>{' '}
         <button
           type="button"
           className="link"
           onClick={() => void navigator.clipboard.writeText(inviteLink)}
         >
-          Copy
+          {t('roomPage.copy')}
         </button>
       </p>
 
@@ -155,9 +163,10 @@ export function RoomPage() {
           isYou: member.userId === userId,
           detail: (
             <span className="row">
-              {member.userId === data.hostUserId && 'Host · '}
-              {member.botLevel && `Computer (${BOT_LEVEL_LABELS[member.botLevel]}) · `}
-              {member.status === 'ready' ? 'Ready' : 'Not ready'}
+              {member.userId === data.hostUserId && `${t('roomPage.host')} · `}
+              {member.botLevel &&
+                `${t('roomPage.computer', { level: t(BOT_LEVEL_KEYS[member.botLevel]) })} · `}
+              {member.status === 'ready' ? t('roomPage.ready') : t('roomPage.notReady')}
               {member.botLevel && isHost && data.status === 'open' && (
                 <button
                   type="button"
@@ -165,7 +174,7 @@ export function RoomPage() {
                   disabled={removeBot.isPending}
                   onClick={() => removeBot.mutate(member.userId)}
                 >
-                  Remove
+                  {t('roomPage.removeBot')}
                 </button>
               )}
             </span>
@@ -175,7 +184,8 @@ export function RoomPage() {
 
       {data.status === 'in_match' && data.currentMatchId && (
         <p>
-          A match is in progress. <Link to={`/matches/${data.currentMatchId}`}>Open it</Link>
+          {t('roomPage.matchInProgress')}{' '}
+          <Link to={`/matches/${data.currentMatchId}`}>{t('continue.resume')}</Link>
         </p>
       )}
 
@@ -191,23 +201,21 @@ export function RoomPage() {
               changeSettings.mutate({ settings });
             }}
           />
-          <span className="muted hint">
-            Changing this asks everyone to confirm they are ready again.
-          </span>
+          <span className="muted hint">{t('roomPage.settingsHint')}</span>
         </div>
       )}
 
       {canAddBot && (
         <div className="row wrap">
           <label className="row">
-            <span>Computer player</span>
+            <span>{t('roomPage.computerPlayer')}</span>
             <select
               value={botLevel}
               onChange={(event) => setBotLevel(event.target.value as BotLevel)}
             >
               {BOT_LEVELS.map((level) => (
                 <option key={level} value={level}>
-                  {BOT_LEVEL_LABELS[level]}
+                  {t(BOT_LEVEL_KEYS[level])}
                 </option>
               ))}
             </select>
@@ -218,7 +226,7 @@ export function RoomPage() {
             disabled={addBot.isPending}
             onClick={() => addBot.mutate({ level: botLevel })}
           >
-            Add bot
+            {t('roomPage.addBot')}
           </button>
         </div>
       )}
@@ -227,7 +235,7 @@ export function RoomPage() {
         <div className="row">
           {!me && (
             <button type="button" onClick={() => join.mutate()}>
-              Take a seat
+              {t('roomPage.takeSeat')}
             </button>
           )}
           {me && (
@@ -236,7 +244,7 @@ export function RoomPage() {
               disabled={setReady.isPending}
               onClick={() => setReady.mutate({ ready: me.status !== 'ready' })}
             >
-              {me.status === 'ready' ? 'Not ready' : "I'm ready"}
+              {me.status === 'ready' ? t('roomPage.notReady') : t('roomPage.imReady')}
             </button>
           )}
           {isHost && (
@@ -245,18 +253,22 @@ export function RoomPage() {
               disabled={!everyoneReady || start.isPending}
               onClick={() => start.mutate()}
             >
-              Start match
+              {t('roomPage.start')}
             </button>
           )}
           {me && (
             <button type="button" className="secondary" onClick={() => leave.mutate()}>
-              Leave
+              {t('continue.leave')}
             </button>
           )}
         </div>
       )}
 
-      {error && <p className="error">{errorMessage(error)}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {errorText(t, error)}
+        </p>
+      )}
     </div>
   );
 }

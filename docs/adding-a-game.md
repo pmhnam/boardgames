@@ -145,6 +145,10 @@ Without one the lobby shows the game's initial on a neutral card.
 },
 ```
 
+A `SettingsForm` and its `describeSettings` word themselves in the viewer's language: the form
+reads it with `useLocale()`, the summary is passed it. Keep the strings beside the form, one set
+per language (see `games/splendor/SettingsForm.tsx`).
+
 A game where several players act at once also sets `resendOnConflict: true`: an action that
 lost a race to someone else's is then sent again on the fresh state, instead of being reported
 to the player as refused.
