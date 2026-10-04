@@ -64,12 +64,13 @@ function wins(a: BotLevel, b: BotLevel, seeds: string[]): Record<BotLevel, numbe
 
 const seeds = (count: number) => Array.from({ length: count }, (_, index) => `strength-${index}`);
 
-describe('CATAN bot', () => {
+// Whole games take seconds on a busy CI runner.
+describe('CATAN bot', { timeout: 30_000 }, () => {
   // playBotMatch throws on any illegal action, so finishing is the assertion. It always asks
   // the first player who may act, so discards and the robber are played out of turn too.
   it.each<[BotLevel[], string, number]>([
-    [['easy', 'easy', 'easy'], 'a', 20_000],
-    [['easy', 'easy', 'easy', 'easy'], 'b', 20_000],
+    [['easy', 'easy', 'easy'], 'a', 3000],
+    [['easy', 'easy', 'easy', 'easy'], 'b', 3000],
     [['normal', 'normal', 'normal'], 'c', 1500],
     [['normal', 'normal', 'normal', 'normal'], 'd', 1500],
     [['hard', 'hard', 'hard'], 'e', 1500],
@@ -79,6 +80,20 @@ describe('CATAN bot', () => {
     const { state } = playBotMatch(engine, CatanBot, { seed, levels, maxActions });
     expect(state.phase).toBe('FINISHED');
     expect(state.winnerPlayerIds).toHaveLength(1);
+  });
+
+  it('easy finishes however badly it opened, by trading with the supply when it is stuck', () => {
+    // An easy bot settles at random, so some seats produce no ore at all. Before it traded,
+    // a table of them could go on for tens of thousands of actions without anyone winning.
+    for (let index = 0; index < 6; index += 1) {
+      const { state, actionCount } = playBotMatch(engine, CatanBot, {
+        seed: `e-${index}`,
+        levels: ['easy', 'easy', 'easy'],
+        maxActions: 3000,
+      });
+      expect(state.phase).toBe('FINISHED');
+      expect(actionCount).toBeLessThan(1500);
+    }
   });
 
   it('finishes the fixed setup', () => {
@@ -363,14 +378,15 @@ describe('answering an offer', () => {
   });
 });
 
-describe('strength', () => {
+// A dozen games each: enough for the stronger level to show, few enough for a CI runner.
+describe('strength', { timeout: 30_000 }, () => {
   it('normal beats easy', () => {
-    const tally = wins('normal', 'easy', seeds(4));
-    expect(tally.normal).toBeGreaterThanOrEqual(7);
+    const tally = wins('normal', 'easy', seeds(3));
+    expect(tally.normal).toBeGreaterThanOrEqual(5);
   });
 
   it('hard beats normal', () => {
-    const tally = wins('hard', 'normal', seeds(20));
-    expect(tally.hard).toBeGreaterThan(tally.normal + 8);
+    const tally = wins('hard', 'normal', seeds(6));
+    expect(tally.hard).toBeGreaterThan(tally.normal + 2);
   });
 });

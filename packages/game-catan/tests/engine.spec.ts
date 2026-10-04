@@ -285,17 +285,31 @@ function expectLegalMatchesValidator(state: CatanState): void {
   }
 }
 
+// Seeds whose games are a few hundred actions long: the CI runner is many times slower than
+// a desk, and every one of these is played out in full.
 const GAMES = [
   { seed: 'alpha', players: 3 },
+  { seed: 'bravo', players: 3 },
+  { seed: 'india', players: 4 },
   { seed: 'bravo', players: 4 },
-  { seed: 'charlie', players: 3 },
-  { seed: 'delta', players: 4 },
 ];
 
-describe('whole games', () => {
+/** Each game is written once and read by every test that needs it. */
+const scripts = new Map<string, ReturnType<typeof scriptFullGame>>();
+function scriptOf(seed: string, players: number, onState?: (state: CatanState) => void) {
+  const key = `${seed}/${players}`;
+  const known = scripts.get(key);
+  if (known && !onState) return known;
+  const script = scriptFullGame(seed, players, engine.defaultConfig, undefined, onState);
+  scripts.set(key, script);
+  return script;
+}
+
+// Whole games take seconds on a busy CI runner.
+describe('whole games', { timeout: 30_000 }, () => {
   it.each(GAMES)('$players players, seed $seed: sound after every action', ({ seed, players }) => {
     let steps = 0;
-    const script = scriptFullGame(seed, players, engine.defaultConfig, undefined, (state) => {
+    const script = scriptOf(seed, players, (state) => {
       expectSound(state);
       if (steps % 7 === 0) expectLegalMatchesValidator(state);
       steps += 1;
@@ -304,7 +318,7 @@ describe('whole games', () => {
   });
 
   it.each(GAMES)('$players players, seed $seed: replays to the same end', ({ seed, players }) => {
-    const actions = scriptFullGame(seed, players);
+    const actions = scriptOf(seed, players);
     const input = { seed, players: seats(players), actions };
 
     const final = runMatch(engine, input);
@@ -330,10 +344,10 @@ describe('whole games', () => {
   });
 
   it('survives being saved and loaded in the middle, whatever order the keys come back in', () => {
-    const actions = scriptFullGame('foxtrot', 3);
+    const actions = scriptOf('alpha', 3);
     const half = Math.floor(actions.length / 2);
     const players = seats(3);
-    const midway = runMatch(engine, { seed: 'foxtrot', players, actions: actions.slice(0, half) });
+    const midway = runMatch(engine, { seed: 'alpha', players, actions: actions.slice(0, half) });
 
     // The database stores a state as jsonb, which hands objects back with their keys sorted
     // by length and then by bytes, not in the order they were written.
@@ -351,13 +365,13 @@ describe('whole games', () => {
     for (const step of actions.slice(half)) {
       state = engine.applyAction(state, step.action, context(step.playerId));
     }
-    expect(state).toEqual(runMatch(engine, { seed: 'foxtrot', players, actions }));
+    expect(state).toEqual(runMatch(engine, { seed: 'alpha', players, actions }));
   });
 
   it('plays offers, answers and discards out of turn', () => {
     const types = new Set<string>();
     for (const { seed, players } of GAMES) {
-      for (const step of scriptFullGame(seed, players)) types.add(step.action.type);
+      for (const step of scriptOf(seed, players)) types.add(step.action.type);
     }
     for (const type of [
       'PROPOSE_TRADE',

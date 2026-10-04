@@ -275,7 +275,7 @@ describe('parseSettings', () => {
   });
 });
 
-describe('a match from another config', () => {
+describe('a match from another config', { timeout: 30_000 }, () => {
   const custom = configWith((config) => {
     config.victoryPointsToWin = 5;
     config.resourcesPerType = 12;
