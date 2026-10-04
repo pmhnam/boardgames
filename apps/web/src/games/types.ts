@@ -1,5 +1,6 @@
 import type { GameStateMessage, MatchPlayerDto } from '@bgp/shared-types';
 import type { ComponentType } from 'react';
+import type { Locale } from '../shared/i18n/locales';
 
 export interface GameViewProps<TView = unknown, TAction = unknown> {
   /** The server's latest personalised view of the match. */
@@ -23,8 +24,22 @@ export interface SettingsFormProps<TConfig = unknown> {
   playerCount?: number;
 }
 
+/** How a game presents itself in the lobby, before anyone is playing it. */
+export interface GameCardMeta {
+  /** An emoji standing in for box art. */
+  icon: string;
+  /** Hue (0–360) the card is tinted with. The stylesheet picks the shades for light and dark. */
+  hue: number;
+  /** One line on what the game is. */
+  tagline: Record<Locale, string>;
+  /** Demo games are listed after the real ones. */
+  demo?: boolean;
+}
+
 export interface GameUiDefinition {
   gameType: string;
+  /** Left out, the lobby falls back to the game's initial on a neutral card. */
+  card?: GameCardMeta;
   /** Shown in the lobby before a room is created, for games with something to choose. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   SettingsForm?: ComponentType<SettingsFormProps<any>>;

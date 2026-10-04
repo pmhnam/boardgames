@@ -16,18 +16,42 @@ import { WerewolfSettingsForm, describeWerewolfSettings } from './werewolf/Setti
 const definitions: GameUiDefinition[] = [
   {
     gameType: 'harmonies',
+    card: {
+      icon: '🌿',
+      hue: 140,
+      tagline: {
+        vi: 'Xếp cảnh quan, tạo nơi ở cho muông thú.',
+        en: 'Build landscapes and give animals a home.',
+      },
+    },
     component: HarmoniesGameView,
     SettingsForm: HarmoniesSettingsForm,
     describeSettings: describeHarmoniesSettings,
   },
   {
     gameType: 'splendor',
+    card: {
+      icon: '💎',
+      hue: 265,
+      tagline: {
+        vi: 'Gom đá quý, mua thẻ, chiêu mộ quý tộc.',
+        en: 'Collect gems, buy cards, court the nobles.',
+      },
+    },
     component: SplendorGameView,
     SettingsForm: SplendorSettingsForm,
     describeSettings: describeSplendorSettings,
   },
   {
     gameType: 'werewolf',
+    card: {
+      icon: '🐺',
+      hue: 225,
+      tagline: {
+        vi: 'Dân làng tìm sói trước khi bị cắn hết.',
+        en: 'Villagers hunt the wolves before the wolves get them.',
+      },
+    },
     component: WerewolfGameView,
     SettingsForm: WerewolfSettingsForm,
     describeSettings: describeWerewolfSettings,
@@ -36,6 +60,14 @@ const definitions: GameUiDefinition[] = [
   },
   {
     gameType: 'avalon',
+    card: {
+      icon: '🗡️',
+      hue: 45,
+      tagline: {
+        vi: 'Phe thiện làm nhiệm vụ, phe ác ngầm phá hoại.',
+        en: 'The loyal run quests while hidden traitors sabotage them.',
+      },
+    },
     component: AvalonGameView,
     SettingsForm: AvalonSettingsForm,
     describeSettings: describeAvalonSettings,
@@ -44,14 +76,45 @@ const definitions: GameUiDefinition[] = [
   },
   {
     gameType: 'catan',
+    card: {
+      icon: '🌾',
+      hue: 28,
+      tagline: {
+        vi: 'Thu tài nguyên, xây đường và thành, giao thương.',
+        en: 'Gather resources, build roads and cities, and trade.',
+      },
+    },
     component: CatanGameView,
     SettingsForm: CatanSettingsForm,
     describeSettings: describeCatanSettings,
     // Hands are discarded to a 7, and a trade offer is answered, by several players at once.
     resendOnConflict: true,
   },
-  { gameType: 'bang', component: BangGameView },
-  { gameType: 'grid-claim', component: GridClaimGameView },
+  {
+    gameType: 'bang',
+    card: {
+      icon: '🤠',
+      hue: 8,
+      tagline: {
+        vi: 'Đấu súng miền Tây: ai là phó cảnh sát, ai ngoài vòng pháp luật?',
+        en: 'A Wild West shootout: who is a deputy, and who an outlaw?',
+      },
+    },
+    component: BangGameView,
+  },
+  {
+    gameType: 'grid-claim',
+    card: {
+      icon: '🔲',
+      hue: 200,
+      tagline: {
+        vi: 'Game mẫu nhỏ để thử nền tảng.',
+        en: 'A tiny sample game for trying the platform.',
+      },
+      demo: true,
+    },
+    component: GridClaimGameView,
+  },
 ];
 
 const gameUiRegistry = new Map(definitions.map((definition) => [definition.gameType, definition]));

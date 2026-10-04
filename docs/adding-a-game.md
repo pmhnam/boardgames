@@ -133,6 +133,18 @@ Keep game-specific components inside the game's folder.
 { gameType: 'new-game', component: NewGameView },
 ```
 
+Give it a `card` so the lobby can show it as more than a name: an emoji `icon`, a `hue` (0–360)
+the card is tinted with, and a one-line `tagline` in each language of `shared/i18n/locales.ts`.
+Without one the lobby shows the game's initial on a neutral card.
+
+```ts
+{
+  gameType: 'new-game',
+  card: { icon: '🎲', hue: 310, tagline: { vi: '…', en: '…' } },
+  component: NewGameView,
+},
+```
+
 A game where several players act at once also sets `resendOnConflict: true`: an action that
 lost a race to someone else's is then sent again on the fresh state, instead of being reported
 to the player as refused.
