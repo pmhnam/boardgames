@@ -55,6 +55,7 @@ packages/
   game-avalon/         Avalon: hidden roles, team votes, quests, the assassination
   game-harmonies/      Harmonies: hex boards, token stacking, animal cards
   game-splendor/       Splendor: gem tokens, development cards, nobles
+  game-catan/          CATAN: hex island, dice, robber, trading, development cards
   game-werewolf/       Ma Sói (Werewolf): secret roles, nights, votes
   game-demo/           Grid Claim: a tiny 5x5 game used to exercise the platform
   shared-types/        REST and WebSocket contracts shared by API and web
@@ -133,6 +134,26 @@ game, unless the Assassin then names Merlin.
 - Avalon is a commercial game. Its name belongs to its publisher; get a licence before shipping
   this beyond private use. No artwork from the game is used.
 
+**CATAN** (3–4 players) implements the base game: settle the corners of a hex island and
+collect what the dice produce, build roads, settlements and cities, buy development cards, and
+trade with the supply or with the other players. The first to 10 points on their own turn wins.
+
+- The room's host picks a random island or the fixed one for a first game. A random island
+  keeps the 6s and 8s off neighbouring hexes; that is a config switch.
+- A 7 makes every hand of more than seven cards discard half, at the same time: it is the one
+  game here where several players may have to act at once. A trade offer is answered out of
+  turn in the same way, and the player who made it picks whom to trade with or withdraws it.
+- Hands and development cards are hidden from the other players, and a Victory Point card
+  stays hidden until the game is over. Dice and robbery are drawn from the match's seed as they
+  happen, so a replay rolls the same dice.
+- The island, the harbors, the decks, the costs, the pieces and the thresholds for Longest
+  Road, Largest Army and discarding are config.
+- The fixed island and the harbor positions follow the widely published base-game layout and
+  have not been checked against the 6th edition rulebook. Both are config, so a correction is a
+  new config version, not a code change.
+- CATAN is a commercial game. Its name and rules belong to its publisher; get a licence before
+  shipping this beyond private use. No artwork from the game is used.
+
 **Grid Claim** (2 players) is an original, deliberately small game kept as a second
 implementation of the engine contract.
 
@@ -152,6 +173,12 @@ reserves the card an opponent is about to buy.
 In Ma Sói a bot cannot talk, so it is a seat-filler: **Dễ** plays any legal move, **Thường**
 spares its pack and its lover and votes for a werewolf its seer has found, and **Khó** also
 follows where the last vote leaned.
+
+In CATAN, **Dễ** plays a random legal move but builds whenever it can, **Thường** settles where
+the dice roll most and saves for the nearest thing it can build, and **Khó** also counts
+harbors and the resources it lacks, trades with the supply towards its plan, and robs and
+refuses to trade with whoever is nearest to winning. All three discard and answer trade offers
+out of turn; none makes offers of its own.
 
 Bots are algorithmic, not an LLM: they run inside the API, cost nothing and answer at once
 (`BOT_ACTION_DELAY_MS`, 700 by default, paces them so people can follow). A bot sees only what

@@ -35,6 +35,9 @@ importers:
       '@bgp/game-avalon':
         specifier: workspace:*
         version: link:../../packages/game-avalon
+      '@bgp/game-catan':
+        specifier: workspace:*
+        version: link:../../packages/game-catan
       '@bgp/game-core':
         specifier: workspace:*
         version: link:../../packages/game-core
@@ -129,6 +132,9 @@ importers:
       '@bgp/game-avalon':
         specifier: workspace:*
         version: link:../../packages/game-avalon
+      '@bgp/game-catan':
+        specifier: workspace:*
+        version: link:../../packages/game-catan
       '@bgp/game-demo':
         specifier: workspace:*
         version: link:../../packages/game-demo

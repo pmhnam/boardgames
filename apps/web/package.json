@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@bgp/game-avalon": "workspace:*",
+    "@bgp/game-catan": "workspace:*",
     "@bgp/game-demo": "workspace:*",
     "@bgp/game-harmonies": "workspace:*",
     "@bgp/game-splendor": "workspace:*",

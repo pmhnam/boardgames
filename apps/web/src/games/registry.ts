@@ -1,6 +1,8 @@
 import type { GameUiDefinition } from './types';
 import { AvalonGameView } from './avalon/GameView';
 import { AvalonSettingsForm, describeAvalonSettings } from './avalon/SettingsForm';
+import { CatanGameView } from './catan/GameView';
+import { CatanSettingsForm, describeCatanSettings } from './catan/SettingsForm';
 import { GridClaimGameView } from './grid-claim/GameView';
 import { HarmoniesGameView } from './harmonies/GameView';
 import { HarmoniesSettingsForm, describeHarmoniesSettings } from './harmonies/SettingsForm';
@@ -38,6 +40,12 @@ const definitions: GameUiDefinition[] = [
     describeSettings: describeAvalonSettings,
     // Everyone votes on a team, and plays quest cards, at once.
     resendOnConflict: true,
+  },
+  {
+    gameType: 'catan',
+    component: CatanGameView,
+    SettingsForm: CatanSettingsForm,
+    describeSettings: describeCatanSettings,
   },
   { gameType: 'grid-claim', component: GridClaimGameView },
 ];

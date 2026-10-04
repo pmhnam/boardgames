@@ -31,7 +31,8 @@ Config:               what an operator may change without a code change
 Copy the layout of `packages/game-demo` (small), `packages/game-harmonies` (realistic) or
 `packages/game-splendor` (realistic, with information hidden per player). `packages/game-werewolf`
 is the one to read for secret roles, players acting at the same time, and eliminations;
-`packages/game-avalon` for the same without bots, and sides that win together.
+`packages/game-avalon` for the same without bots, and sides that win together;
+`packages/game-catan` for dice rolled during the match and answers given out of turn.
 
 ```text
 packages/game-<name>/src/
@@ -49,6 +50,11 @@ Rules for engine code:
 - No I/O, no clock, no `Math.random`. Randomness comes from `createSeededRandom(seed)`; time
   comes from `context.now`.
 - `applyAction` returns a new state and never mutates its input.
+- The engine is handed the seed once, in `createInitialState`. Decide what you can up front
+  (shuffles, the starting player). For randomness during the match, such as dice, keep the seed
+  and a count of the draws made in the state and take each draw from
+  `createSeededRandom` keyed on both, as `packages/game-catan/src/random/draw.ts` does. A
+  replay then draws the same things. Never put either in the view.
 - Do not store what you can compute (scores, legal moves).
 - `parseAction` copies only the fields it knows.
 - `getPublicView` builds the view field by field. Never spread the state into it.
@@ -69,6 +75,9 @@ Rules for engine code:
   the platform can report it as such.
 - Several players may owe an action at once: `getCurrentPlayerIds` returns all of them, and
   must drop each one as soon as they have acted (bots are driven from it).
+- The platform does not check whose turn it is: `validateAction` does. A player who must answer
+  out of turn (a discard, a reply to an offer) is accepted there, listed in
+  `getCurrentPlayerIds`, and given their own `legal` in the view, not only the active player.
 - Never iterate a record keyed by player: the database stores state as `jsonb`, which does not
   keep key order, so a state loaded back would be walked differently. Walk the seat order.
 

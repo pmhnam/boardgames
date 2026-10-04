@@ -137,7 +137,12 @@ describe('what a player sees', () => {
     expect(view.supply).toEqual(cards({ brick: 19, wood: 19, wool: 19, grain: 19, ore: 19 }));
     expect(view.developmentDeckCount).toBe(25);
     expect(view.costs.city).toEqual(cards({ grain: 2, ore: 3 }));
-    expect(view.victoryPointsToWin).toBe(10);
+    expect(view).toMatchObject({
+      victoryPointsToWin: 10,
+      longestRoadMinimum: 5,
+      largestArmyMinimum: 3,
+      discardLimit: 7,
+    });
   });
 
   it('shows what follows from the board: road length, pieces left and trade rates', () => {

@@ -81,6 +81,11 @@ export interface CatanView {
   longestRoadPlayerId: string | null;
   largestArmyPlayerId: string | null;
   victoryPointsToWin: number;
+  /** The shortest road that can hold Longest Road, and the fewest knights for Largest Army. */
+  longestRoadMinimum: number;
+  largestArmyMinimum: number;
+  /** A hand larger than this loses half to a 7. */
+  discardLimit: number;
   costs: Costs;
   winnerPlayerIds: string[];
   /** What the viewer may do right now. Empty for anyone not seated. */
@@ -186,6 +191,9 @@ export function getPublicView(state: CatanState, viewer: GameViewer): CatanView 
     longestRoadPlayerId: state.longestRoadPlayerId,
     largestArmyPlayerId: state.largestArmyPlayerId,
     victoryPointsToWin: state.config.victoryPointsToWin,
+    longestRoadMinimum: state.config.longestRoadMinimum,
+    largestArmyMinimum: state.config.largestArmyMinimum,
+    discardLimit: state.config.discardLimit,
     costs: copyCosts(state.config.costs),
     winnerPlayerIds: [...state.winnerPlayerIds],
     legal: viewerId === null ? NO_LEGAL_MOVES : getLegalMoves(state, viewerId),

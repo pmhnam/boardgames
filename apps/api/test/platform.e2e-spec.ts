@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { AvalonAction, AvalonView } from '@bgp/game-avalon';
+import type { CatanView } from '@bgp/game-catan';
 import type { GridClaimView } from '@bgp/game-demo';
 import type { HarmoniesConfig, HarmoniesView } from '@bgp/game-harmonies';
 import type { SplendorView } from '@bgp/game-splendor';
@@ -855,6 +856,113 @@ describe('platform MVP flow', () => {
     expect(new Set(replay.frames.map((frame) => frame.action?.actionType))).toEqual(
       new Set([undefined, 'PROPOSE_TEAM', 'VOTE', 'PLAY_QUEST_CARD', 'USE_LADY', 'ASSASSINATE']),
     );
+  });
+
+  it('plays CATAN against computer players, each hand kept to its owner', async () => {
+    const host = await createClient('Host');
+    const watcher = await createClient('Watcher');
+
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'catan',
+      settings: { boardSetup: 'beginner' },
+    });
+    expect(room.settings).toEqual({ boardSetup: 'beginner' });
+    // Three seats at least: one person cannot start alone, or with one computer player.
+    await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+    await host.api('POST', `/rooms/${room.id}/bots`, { level: 'normal' });
+    const tooFew = await host.api<{ error: { code: string } }>('POST', `/rooms/${room.id}/start`);
+    expect(tooFew.body.error.code).toBe(ErrorCodes.NotEnoughPlayers);
+    await host.api('POST', `/rooms/${room.id}/bots`, { level: 'hard' });
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    const gameId = started.matchId;
+
+    type CatanState = GameStateMessage<CatanView>;
+    const sync = async (client: Client): Promise<CatanState> => {
+      const ack = await client.emit<CatanState>(ClientEvents.GameSync, { gameId });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+    const act = (state: CatanState, action: unknown) =>
+      host.emit<GameActionAccepted>(ClientEvents.GameAction, {
+        gameId,
+        requestId: randomUUID(),
+        expectedVersion: state.version,
+        action,
+      });
+    /** Waits out the computer players until the host has something to do. */
+    const myMove = async (can: (view: CatanView) => boolean): Promise<CatanState> => {
+      for (let attempt = 0; attempt < 400; attempt++) {
+        const latest = await sync(host);
+        if (can(latest.state)) return latest;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      throw new Error('Timed out waiting for the host to be asked to move');
+    };
+
+    // The opening: the host places twice, the computer players in between and around.
+    for (let placed = 0; placed < 2; placed++) {
+      const settling = await myMove((view) => view.legal.settlementVertices.length > 0);
+      expect(settling.state.turn.step).toBe('SETUP_SETTLEMENT');
+      const settled = await act(settling, {
+        type: 'PLACE_SETUP_SETTLEMENT',
+        vertex: settling.state.legal.settlementVertices[0],
+      });
+      expect(settled.ok).toBe(true);
+      const paving = await myMove((view) => view.legal.roadEdges.length > 0);
+      const paved = await act(paving, {
+        type: 'PLACE_SETUP_ROAD',
+        edge: paving.state.legal.roadEdges[0],
+      });
+      expect(paved.ok).toBe(true);
+    }
+
+    // The computer players finish the opening and play until the host is to roll.
+    const rolling = await myMove((view) => view.legal.canRoll);
+    const me = rolling.viewerPlayerId as string;
+    expect(Object.keys(rolling.state.buildings)).toHaveLength(6);
+    expect(Object.keys(rolling.state.roads).length).toBeGreaterThanOrEqual(6);
+    expect(rolling.state.board.hexes[9]).toEqual({ q: 0, r: 0, terrain: 'desert', number: null });
+
+    // The host sees their own hand; of the others, only how many cards they hold.
+    const mine = rolling.state.players[me];
+    expect(mine?.resources).not.toBeNull();
+    expect(mine?.resourceCount).toBeGreaterThan(0);
+    for (const [playerId, seat] of Object.entries(rolling.state.players)) {
+      if (playerId === me) continue;
+      expect(seat.resources).toBeNull();
+      expect(seat.developmentCards).toBeNull();
+      expect(seat.resourceCount).toBeGreaterThanOrEqual(0);
+    }
+    // A spectator sees no hand at all, and nobody is sent the seed or the deck.
+    const watched = await sync(watcher);
+    expect(watched.viewerPlayerId).toBeNull();
+    for (const seat of Object.values(watched.state.players)) expect(seat.resources).toBeNull();
+    for (const view of [rolling, watched]) {
+      expect(view.state).not.toHaveProperty('random');
+      expect(view.state).not.toHaveProperty('developmentDeck');
+      expect(view.state).not.toHaveProperty('config');
+      expect(view.state.developmentDeckCount).toBeLessThanOrEqual(25);
+    }
+
+    // A move the rules refuse comes back with the rule's own code; the roll goes through.
+    const early = await act(rolling, { type: 'END_TURN' });
+    expect(early).toMatchObject({
+      ok: false,
+      error: { code: ErrorCodes.InvalidAction, details: { rule: 'WRONG_STEP' } },
+    });
+    const peeking = await watcher.emit(ClientEvents.GameAction, {
+      gameId,
+      requestId: randomUUID(),
+      expectedVersion: rolling.version,
+      action: { type: 'ROLL_DICE' },
+    });
+    expect(peeking).toMatchObject({ ok: false, error: { code: ErrorCodes.Forbidden } });
+    const rolled = await act(rolling, { type: 'ROLL_DICE', roll: [6, 6] });
+    expect(rolled.ok).toBe(true);
+    const after = await sync(host);
+    const [first, second] = after.state.turn.roll ?? [0, 0];
+    expect(first).toBeGreaterThanOrEqual(1);
+    expect(second).toBeLessThanOrEqual(6);
   });
 
   it('lets the host choose a map, and plays the match on it', async () => {
