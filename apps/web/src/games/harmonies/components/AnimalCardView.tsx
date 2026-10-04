@@ -106,6 +106,8 @@ interface AnimalCardViewProps {
   selected?: boolean;
   /** A smaller card, for other players' boards. */
   compact?: boolean;
+  /** Lying down, the habitat beside the rest: for a column of cards, where height is short. */
+  landscape?: boolean;
   action?: ReactNode;
 }
 
@@ -114,9 +116,15 @@ export function AnimalCardView({
   cubesPlaced,
   selected,
   compact,
+  landscape,
   action,
 }: AnimalCardViewProps) {
-  const classes = ['animal-card', selected && 'selected', compact && 'compact']
+  const classes = [
+    'animal-card',
+    selected && 'selected',
+    compact && 'compact',
+    landscape && 'landscape',
+  ]
     .filter(Boolean)
     .join(' ');
   return (

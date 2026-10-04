@@ -142,120 +142,123 @@ export function HarmoniesGameView({
         </p>
       </header>
 
+      {/* Laid out so a turn needs no scrolling: the cards on offer down the left, the tokens
+          above the viewer's own board in the middle, everyone else on the right. */}
       <div className={myBoard ? 'harmonies-table' : 'harmonies-table watching'}>
-        <div className="harmonies-main">
-          {/* Everything a turn takes from, in one place: the tokens, then the cards under them. */}
-          <section className="card harmonies-supply">
-            <div className="harmonies-supply-group">
-              <h2>Central board</h2>
-              <div className="harmonies-spaces">
-                {view.centralSpaces.map((space, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className="central-space"
-                    disabled={!isMyTurn || !legal.canTakeTokens || space.length === 0}
-                    aria-label={`Take ${space.map((color) => TOKEN_LABEL[color]).join(', ') || 'nothing'}`}
-                    onClick={() => sendAction({ type: 'TAKE_TOKENS', spaceIndex: index })}
-                  >
-                    {space.map((color, tokenIndex) => (
-                      <TokenChip key={tokenIndex} color={color} />
-                    ))}
-                  </button>
+        <section className="card harmonies-supply">
+          <h2>Central board</h2>
+          <div className="harmonies-spaces">
+            {view.centralSpaces.map((space, index) => (
+              <button
+                key={index}
+                type="button"
+                className="central-space"
+                disabled={!isMyTurn || !legal.canTakeTokens || space.length === 0}
+                aria-label={`Take ${space.map((color) => TOKEN_LABEL[color]).join(', ') || 'nothing'}`}
+                onClick={() => sendAction({ type: 'TAKE_TOKENS', spaceIndex: index })}
+              >
+                {space.map((color, tokenIndex) => (
+                  <TokenChip key={tokenIndex} color={color} />
                 ))}
-              </div>
-            </div>
-            <div className="harmonies-supply-group">
-              <h2>
-                Animal cards <span className="muted">({view.cardDeckCount} in the deck)</span>
-              </h2>
-              <div className="harmonies-cards">
-                {view.cardRiver.map((card) => (
-                  <AnimalCardView
-                    key={card.id}
-                    card={card}
-                    action={
-                      myBoard && playing ? (
-                        <button
-                          type="button"
-                          disabled={!isMyTurn || !legal.canTakeCard}
-                          onClick={() => sendAction({ type: 'TAKE_CARD', cardId: card.id })}
-                        >
-                          Take
-                        </button>
-                      ) : undefined
-                    }
-                  />
-                ))}
-              </div>
-              <p className="muted hint">
-                Each card shows the exact stacks its animal needs; the number is the stack&apos;s
-                height. A building is a red token on top of a grey, brown or red one.
-              </p>
-            </div>
-            {!myBoard && statusBar}
-          </section>
+              </button>
+            ))}
+          </div>
+          {!myBoard && statusBar}
+        </section>
 
-          {myBoard && me !== null && (
-            <section className={mine ? 'card harmonies-mine active' : 'card harmonies-mine'}>
-              <h2 className="harmonies-player-name">
-                <span>
-                  Your board
-                  {view.winnerPlayerIds.includes(me) && ' 🏆'}
-                </span>
-                <span className="harmonies-score">
-                  {view.scores[me]?.total ?? 0} <span className="muted">pts</span>
-                </span>
-              </h2>
-              {statusBar}
-              <div className="harmonies-mine-body">
-                <HexBoard
-                  cells={view.boardCells}
-                  board={myBoard}
-                  label="Your board"
-                  targets={isMyTurn ? targets : undefined}
-                  onSelect={placeAt}
-                />
-                <div className="harmonies-mine-side">
-                  {myBoard.cards.length === 0 && (
-                    <p className="muted hint">
-                      You have no animal cards yet. Take one from the row above.
-                    </p>
-                  )}
-                  {inProgress.length > 0 && (
-                    <div className="harmonies-cards">
-                      {inProgress.map(({ card, cubesPlaced }) => {
-                        const selected = selection?.kind === 'card' && selection.cardId === card.id;
-                        const canPlace = isMyTurn && (legal.cubeCells[card.id]?.length ?? 0) > 0;
-                        return (
-                          <AnimalCardView
-                            key={card.id}
-                            card={card}
-                            cubesPlaced={cubesPlaced}
-                            selected={selected}
-                            action={
-                              <button
-                                type="button"
-                                disabled={!canPlace}
-                                aria-pressed={selected}
-                                onClick={() =>
-                                  setSelection(selected ? null : { kind: 'card', cardId: card.id })
-                                }
-                              >
-                                {selected ? 'Cancel' : 'Place animal'}
-                              </button>
-                            }
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-                  <CompletedCards cards={myBoard.cards.filter((entry) => entry.complete)} />
-                </div>
+        <section className="card harmonies-river">
+          <h2>
+            Animal cards <span className="muted">({view.cardDeckCount} in the deck)</span>
+          </h2>
+          <div className="harmonies-card-list">
+            {view.cardRiver.map((card) => (
+              <AnimalCardView
+                key={card.id}
+                card={card}
+                landscape
+                action={
+                  myBoard && playing ? (
+                    <button
+                      type="button"
+                      disabled={!isMyTurn || !legal.canTakeCard}
+                      onClick={() => sendAction({ type: 'TAKE_CARD', cardId: card.id })}
+                    >
+                      Take
+                    </button>
+                  ) : undefined
+                }
+              />
+            ))}
+          </div>
+          <details className="harmonies-card-help">
+            <summary>How to read a card</summary>
+            <p className="muted hint">
+              Each card shows the exact stacks its animal needs; the number is the stack&apos;s
+              height. A building is a red token on top of a grey, brown or red one.
+            </p>
+          </details>
+        </section>
+
+        {myBoard && me !== null && (
+          <section className={mine ? 'card harmonies-mine active' : 'card harmonies-mine'}>
+            <h2 className="harmonies-player-name">
+              <span>
+                Your board
+                {view.winnerPlayerIds.includes(me) && ' 🏆'}
+              </span>
+              <span className="harmonies-score">
+                {view.scores[me]?.total ?? 0} <span className="muted">pts</span>
+              </span>
+            </h2>
+            {statusBar}
+            <div className="harmonies-mine-body">
+              <HexBoard
+                cells={view.boardCells}
+                board={myBoard}
+                label="Your board"
+                targets={isMyTurn ? targets : undefined}
+                onSelect={placeAt}
+              />
+              <div className="harmonies-mine-side">
+                {myBoard.cards.length === 0 && (
+                  <p className="muted hint">
+                    You have no animal cards yet. Take one from the animal cards on offer.
+                  </p>
+                )}
+                {inProgress.length > 0 && (
+                  <div className="harmonies-card-list">
+                    {inProgress.map(({ card, cubesPlaced }) => {
+                      const selected = selection?.kind === 'card' && selection.cardId === card.id;
+                      const canPlace = isMyTurn && (legal.cubeCells[card.id]?.length ?? 0) > 0;
+                      return (
+                        <AnimalCardView
+                          key={card.id}
+                          card={card}
+                          cubesPlaced={cubesPlaced}
+                          selected={selected}
+                          landscape
+                          action={
+                            <button
+                              type="button"
+                              disabled={!canPlace}
+                              aria-pressed={selected}
+                              onClick={() =>
+                                setSelection(selected ? null : { kind: 'card', cardId: card.id })
+                              }
+                            >
+                              {selected ? 'Cancel' : 'Place animal'}
+                            </button>
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+                <CompletedCards cards={myBoard.cards.filter((entry) => entry.complete)} />
               </div>
-            </section>
-          )}
-        </div>
+            </div>
+          </section>
+        )}
 
         <div className="harmonies-side">
           {others.map((playerId) => {
