@@ -320,6 +320,25 @@ code {
   color: var(--danger);
 }
 
+@media (max-width: 40rem) {
+  .app-header-tools {
+    font-size: var(--text-sm);
+  }
+
+  /* On a phone the dot says it. Trouble connecting is still spelled out. */
+  .status.online .status-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .status.online::before {
+    margin-right: 0;
+  }
+}
+
 .game-list,
 .player-list {
   margin: 0;
@@ -939,32 +958,6 @@ td {
 .guide-table {
   flex: 1 1 20rem;
   min-width: 0;
-}
-
-/* Lobby */
-
-.game-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.room-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--border);
-}
-
-.room-list li {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.25rem;
-  border-bottom: 1px solid var(--border);
 }
 
 input[type='checkbox'] {

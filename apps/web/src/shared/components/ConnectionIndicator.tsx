@@ -6,7 +6,9 @@ export function ConnectionIndicator() {
   const connected = useIsConnected();
   return (
     <span className={connected ? 'status online' : 'status offline'} role="status">
-      {connected ? t('connection.online') : t('connection.reconnecting')}
+      <span className="status-label">
+        {connected ? t('connection.online') : t('connection.reconnecting')}
+      </span>
     </span>
   );
 }

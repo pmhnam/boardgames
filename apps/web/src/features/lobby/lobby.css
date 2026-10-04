@@ -1,0 +1,430 @@
+/* The lobby, the page at "/". Loaded after styles.css, which it builds on. */
+
+.lobby {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.lobby h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  line-height: 1.2;
+}
+
+.lobby h2 {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xl);
+}
+
+.lobby h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.lobby p {
+  margin: 0;
+}
+
+/* Greeting and the room-code box */
+
+.lobby-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.lobby-hero-text {
+  display: flex;
+  flex: 1 1 18rem;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.join-code {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.join-code label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.join-code input {
+  width: 9rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.15em;
+}
+
+.join-code .error {
+  max-width: 17rem;
+  font-size: var(--text-sm);
+}
+
+/* Problems and nothing-here-yet */
+
+.lobby-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+}
+
+.lobby-empty {
+  padding: var(--space-5) var(--space-4);
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* A game's emoji on its own colour */
+
+.game-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--ground);
+  border-radius: var(--radius-md);
+}
+
+.game-icon.tinted {
+  background: hsl(var(--game-hue) 65% 88%);
+}
+
+/* Games */
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--space-4);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.game-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.game-card:hover {
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+}
+
+.game-card.tinted:hover {
+  border-color: hsl(var(--game-hue) 45% 55%);
+}
+
+.game-card-art {
+  display: grid;
+  place-items: center;
+  height: 5rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--ground);
+}
+
+.game-card.tinted .game-card-art {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--game-hue) 70% 88%),
+    hsl(calc(var(--game-hue) + 35) 70% 80%)
+  );
+}
+
+.game-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.game-card-tagline {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.game-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  /* Room above the button even on the tallest card of a row, where the auto margin is nothing. */
+  padding: 0 0 var(--space-2);
+  margin: 0;
+  list-style: none;
+}
+
+/* Pushed to the bottom, so the buttons of a row of cards line up. */
+.game-card-body button {
+  margin-top: auto;
+}
+
+.game-card.placeholder {
+  height: 13.5rem;
+  border-color: transparent;
+}
+
+/* Rooms: the open ones, and the ones you are in */
+
+.room-rows {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.room-rows.mine {
+  border-color: var(--accent);
+}
+
+.room-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+}
+
+.room-row + .room-row {
+  border-top: 1px solid var(--border);
+}
+
+.room-row-main {
+  display: flex;
+  flex: 1 1 10rem;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.room-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+}
+
+.room-row-meta {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.room-row-main .error {
+  font-size: var(--text-sm);
+}
+
+.room-row-action {
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  margin-left: auto;
+}
+
+.skeleton-line {
+  width: 14rem;
+  max-width: 100%;
+  height: 0.9rem;
+}
+
+.skeleton-line.short {
+  width: 8rem;
+}
+
+/* Creating a room */
+
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+.create-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  /* None, so that a click that lands on the dialog itself can only be on the backdrop. */
+  padding: 0;
+  overflow: auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 30%);
+}
+
+.create-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.create-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.create-dialog-header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.create-dialog h2 {
+  margin: 0;
+}
+
+.create-visibility {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.create-visibility legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+}
+
+.create-visibility label {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.create-visibility label:has(input:checked) {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: var(--accent);
+}
+
+.create-visibility input {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  margin-top: 0.25rem;
+}
+
+.create-visibility-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.create-dialog-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+@media (prefers-color-scheme: dark) {
+  .game-icon.tinted {
+    background: hsl(var(--game-hue) 35% 26%);
+  }
+
+  .game-card.tinted .game-card-art {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--game-hue) 42% 27%),
+      hsl(calc(var(--game-hue) + 35) 45% 19%)
+    );
+  }
+
+  .game-card:hover {
+    box-shadow: 0 4px 14px rgb(0 0 0 / 40%);
+  }
+}
+
+@media (max-width: 40rem) {
+  .lobby {
+    gap: var(--space-5);
+  }
+
+  .lobby h1 {
+    font-size: var(--text-xl);
+  }
+
+  .lobby h2 {
+    font-size: var(--text-lg);
+  }
+
+  .join-code {
+    width: 100%;
+  }
+
+  .join-code input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .join-code .error {
+    max-width: none;
+  }
+
+  .game-grid {
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: var(--space-3);
+  }
+
+  .game-card-art {
+    height: 4rem;
+    font-size: 2rem;
+  }
+
+  .game-card-body {
+    padding: var(--space-3);
+  }
+
+  .room-row {
+    flex-wrap: wrap;
+    padding: var(--space-3);
+  }
+
+  .create-dialog-body {
+    padding: var(--space-4);
+  }
+}
