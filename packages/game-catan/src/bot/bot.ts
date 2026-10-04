@@ -311,7 +311,9 @@ const WORTH_POINTS = ['BUILD_CITY', 'BUILD_SETTLEMENT', 'BUY_DEVELOPMENT_CARD'];
 
 /**
  * easy: any legal move, read straight off `legal`. It takes whatever is worth points when it
- * can, so its games still end. This is also what the platform falls back on, so it must
+ * can, and before passing it trades spare cards with the supply towards the nearest thing it
+ * could build: without that a seat that produces no ore would never build a city, and a table
+ * of such seats would never finish. This is also what the platform falls back on, so it must
  * handle every step.
  */
 function chooseAtRandom(model: Model, random: SeededRandom): CatanAction {
@@ -331,11 +333,12 @@ function chooseAtRandom(model: Model, random: SeededRandom): CatanAction {
   if (busy.length > 0 && (!legal.canEndTurn || random.next() < EASY_BUSY_CHANCE)) {
     return random.pick(busy);
   }
-  return legal.canEndTurn ? { type: 'END_TURN' } : random.pick(options);
+  if (!legal.canEndTurn) return random.pick(options);
+  return chooseSupplyTrade(model, choosePlan(model), true) ?? { type: 'END_TURN' };
 }
 
 /**
- * - easy: a random legal move, building when it can;
+ * - easy: a random legal move, building when it can and trading with the supply when it cannot;
  * - normal: settles where the dice roll most, saves for the nearest thing it can build, and
  *   robs whoever holds most cards;
  * - hard: also counts ports and the resources it lacks, trades with the supply towards its

@@ -192,11 +192,11 @@ In Ma Sói a bot cannot talk, so it is a seat-filler: **Dễ** plays any legal m
 spares its pack and its lover and votes for a werewolf its seer has found, and **Khó** also
 follows where the last vote leaned.
 
-In CATAN, **Dễ** plays a random legal move but builds whenever it can, **Thường** settles where
-the dice roll most and saves for the nearest thing it can build, and **Khó** also counts
-ports and the resources it lacks, trades with the supply towards its plan, and robs and
-refuses to trade with whoever is nearest to winning. All three discard and answer trade offers
-out of turn; none makes offers of its own.
+In CATAN, **Dễ** plays a random legal move but builds whenever it can and trades with the
+supply when it cannot, **Thường** settles where the dice roll most and saves for the nearest
+thing it can build, and **Khó** also counts ports and the resources it lacks, trades with the
+supply towards its plan, and robs and refuses to trade with whoever is nearest to winning. All
+three discard and answer trade offers out of turn; none makes offers of its own.
 
 In BANG!, **Dễ** plays any legal card, **Thường** plays its role against whoever has gone after
 the sheriff, and **Khó** also counts the roles still hidden to tell how likely a stranger is
