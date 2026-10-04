@@ -178,50 +178,56 @@ describe('full matches', () => {
     expect(final.winner).not.toBeNull();
   });
 
-  it.each(games)('keeps %s (%i players) consistent after every action', (seed, players) => {
-    const actions = scriptFullGame(seed, players);
-    let state = start(players, seed);
-    const cast = countRoles(state);
-    // Spelled out once: the comparison below runs for every player at every step.
-    const universe = listEveryAction(state.seatOrder).map((action) => ({
-      action,
-      key: JSON.stringify(action),
-    }));
+  it.each(games)(
+    'keeps %s (%i players) consistent after every action',
+    (seed, players) => {
+      const actions = scriptFullGame(seed, players);
+      let state = start(players, seed);
+      const cast = countRoles(state);
+      // Spelled out once: the comparison below runs for every player at every step.
+      const universe = listEveryAction(state.seatOrder).map((action) => ({
+        action,
+        key: JSON.stringify(action),
+      }));
 
-    for (const step of actions) {
-      const before = state;
-      // The match is never stuck: while it is on, it is waiting on somebody.
-      const owing = engine.getCurrentPlayerIds(before);
-      expect(owing.length).toBeGreaterThan(0);
+      for (const step of actions) {
+        const before = state;
+        // The match is never stuck: while it is on, it is waiting on somebody.
+        const owing = engine.getCurrentPlayerIds(before);
+        expect(owing.length).toBeGreaterThan(0);
 
-      // What each view calls legal is exactly what the validator accepts from that player.
-      for (const playerId of before.seatOrder) {
-        const me = engine.getPublicView(before, asPlayer(playerId)).me;
-        const listed = listLegalActions(me!.legal).map((action) => JSON.stringify(action));
-        const accepted = universe
-          .filter(({ action }) => validate(before, action, playerId).valid)
-          .map(({ key }) => key);
-        expect(accepted.sort()).toEqual(listed.sort());
-        expect(listed.length > 0).toBe(owing.includes(playerId));
+        // What each view calls legal is exactly what the validator accepts from that player.
+        for (const playerId of before.seatOrder) {
+          const me = engine.getPublicView(before, asPlayer(playerId)).me;
+          const listed = listLegalActions(me!.legal).map((action) => JSON.stringify(action));
+          const accepted = universe
+            .filter(({ action }) => validate(before, action, playerId).valid)
+            .map(({ key }) => key);
+          expect(accepted.sort()).toEqual(listed.sort());
+          expect(listed.length > 0).toBe(owing.includes(playerId));
+        }
+
+        state = apply(before, step.action, step.playerId);
+
+        // Nobody changes role or comes back from the dead, and rounds only go forward.
+        expect(countRoles(state)).toEqual(cast);
+        for (const playerId of state.seatOrder) {
+          expect(state.players[playerId]?.role).toBe(before.players[playerId]?.role);
+          if (!before.players[playerId]?.alive) expect(state.players[playerId]?.alive).toBe(false);
+        }
+        expect(state.round).toBeGreaterThanOrEqual(before.round);
+        expect(state.log.length).toBeGreaterThanOrEqual(before.log.length);
+        // The state is plain data: it survives the database round trip.
+        expect(JSON.parse(JSON.stringify(state))).toEqual(state);
       }
 
-      state = apply(before, step.action, step.playerId);
-
-      // Nobody changes role or comes back from the dead, and rounds only go forward.
-      expect(countRoles(state)).toEqual(cast);
-      for (const playerId of state.seatOrder) {
-        expect(state.players[playerId]?.role).toBe(before.players[playerId]?.role);
-        if (!before.players[playerId]?.alive) expect(state.players[playerId]?.alive).toBe(false);
-      }
-      expect(state.round).toBeGreaterThanOrEqual(before.round);
-      expect(state.log.length).toBeGreaterThanOrEqual(before.log.length);
-      // The state is plain data: it survives the database round trip.
-      expect(JSON.parse(JSON.stringify(state))).toEqual(state);
-    }
-
-    expect(state.phase).toBe('FINISHED');
-    expect(engine.getResult(state)?.winnerPlayerIds).toEqual(state.winnerPlayerIds);
-  });
+      expect(state.phase).toBe('FINISHED');
+      expect(engine.getResult(state)?.winnerPlayerIds).toEqual(state.winnerPlayerIds);
+      // Checks every seat against every action at every step: a table of sixteen takes seconds
+      // on a CI runner that is also testing the other games.
+    },
+    20_000,
+  );
 
   it('plays by a config other than the default', () => {
     const config = configWith({
