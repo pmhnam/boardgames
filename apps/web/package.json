@@ -13,6 +13,7 @@
     "@bgp/game-demo": "workspace:*",
     "@bgp/game-harmonies": "workspace:*",
     "@bgp/game-splendor": "workspace:*",
+    "@bgp/game-werewolf": "workspace:*",
     "@bgp/shared-types": "workspace:*",
     "@tanstack/react-query": "^5.104.0",
     "react": "^19.3.0",

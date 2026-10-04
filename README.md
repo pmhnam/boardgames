@@ -54,6 +54,7 @@ packages/
   game-core/           Engine contract, seeded PRNG, test helpers
   game-harmonies/      Harmonies: hex boards, token stacking, animal cards
   game-splendor/       Splendor: gem tokens, development cards, nobles
+  game-werewolf/       Ma Sói (Werewolf): secret roles, nights, votes
   game-demo/           Grid Claim: a tiny 5x5 game used to exercise the platform
   shared-types/        REST and WebSocket contracts shared by API and web
 deploy/                Dockerfile, production compose, nginx config, server script
@@ -98,6 +99,21 @@ the game once the round is complete.
 - Splendor is a commercial game. Its name and card set belong to its publisher; get a licence
   before shipping this beyond private use. No artwork from the game is used.
 
+**Ma Sói** (Werewolf, 5–16 players) is played with the app as the moderator and the talking
+done out loud, around a table or on a call. Ten roles: villager, werewolf, alpha werewolf, seer,
+bodyguard, witch, hunter, cupid, elder and idiot.
+
+- The room's host picks the cast: the config's suggestion for however many are seated, or a
+  count for each special role, with villagers taking the seats that are left. A cast that does
+  not fit the table (too many roles, a pack of half the players) is refused when the host starts.
+- At night every living player sends one action, the ones with nothing to do included, so
+  that tapping a phone gives no role away. The witch is woken after the pack has chosen.
+- By day the vote opens once more than half of the living say they are done talking. Votes
+  stay secret until all are in; a tie executes nobody.
+- A role leaves the server only for its owner, a werewolf's packmates, or once it is revealed
+  to the table. Anyone watching, and the replay, see no roles until the match is over.
+- There are no timers: a phase ends when everyone it waits for has acted.
+
 **Grid Claim** (2 players) is an original, deliberately small game kept as a second
 implementation of the engine contract.
 
@@ -113,6 +129,10 @@ A room's host can fill empty seats with computer players, at three levels. In Ha
 In Splendor, **Dễ** plays a random legal move but buys whenever it can, **Thường** makes the
 move that leaves its own position best, and **Khó** plans three turns ahead and takes or
 reserves the card an opponent is about to buy.
+
+In Ma Sói a bot cannot talk, so it is a seat-filler: **Dễ** plays any legal move, **Thường**
+spares its pack and its lover and votes for a werewolf its seer has found, and **Khó** also
+follows where the last vote leaned.
 
 Bots are algorithmic, not an LLM: they run inside the API, cost nothing and answer at once
 (`BOT_ACTION_DELAY_MS`, 700 by default, paces them so people can follow). A bot sees only what

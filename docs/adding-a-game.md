@@ -29,7 +29,8 @@ Config:               what an operator may change without a code change
 ## 2. Create the package
 
 Copy the layout of `packages/game-demo` (small), `packages/game-harmonies` (realistic) or
-`packages/game-splendor` (realistic, with information hidden per player).
+`packages/game-splendor` (realistic, with information hidden per player). `packages/game-werewolf`
+is the one to read for secret roles, players acting at the same time, and eliminations.
 
 ```text
 packages/game-<name>/src/
@@ -57,9 +58,16 @@ Rules for engine code:
 - What a host should be able to choose per room (a map, a variant) is a setting.
   `parseSettings(raw, config)` validates it against the config and must return defaults for
   `undefined`. To let hosts pick it in the lobby, register a `SettingsForm` with the game's UI.
+- Settings that only suit some table sizes (a cast of roles) cannot be judged by
+  `parseSettings`: nobody is seated yet. Implement the optional `validateSetup`, which the
+  platform calls with the player count when the host starts the match; a refusal reaches the
+  host as `INVALID_ROOM_SETTINGS` with your code. Export the check as a pure function so the
+  `SettingsForm`, which is given `playerCount` once the room exists, can show the same answer.
 - Bump `engineVersion` whenever the shape or meaning of the state changes.
 - Illegal moves return a stable code. Use `CommonRuleCodes.NotYourTurn` for out-of-turn moves so
   the platform can report it as such.
+- Several players may owe an action at once: `getCurrentPlayerIds` returns all of them, and
+  must drop each one as soon as they have acted (bots are driven from it).
 
 ## 3. Test it
 
@@ -110,5 +118,9 @@ Keep game-specific components inside the game's folder.
 ```ts
 { gameType: 'new-game', component: NewGameView },
 ```
+
+A game where several players act at once also sets `resendOnConflict: true`: an action that
+lost a race to someone else's is then sent again on the fresh state, instead of being reported
+to the player as refused.
 
 The lobby, room, match page, reconnect and replay now work for the new game.

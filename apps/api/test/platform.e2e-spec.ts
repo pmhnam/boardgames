@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 import type { GridClaimView } from '@bgp/game-demo';
 import type { HarmoniesConfig, HarmoniesView } from '@bgp/game-harmonies';
 import type { SplendorView } from '@bgp/game-splendor';
+import type { WerewolfView } from '@bgp/game-werewolf';
 import {
   ClientEvents,
   ErrorCodes,
@@ -495,6 +496,152 @@ describe('platform MVP flow', () => {
     });
     if (real.ok || invented.ok) throw new Error('A guess was accepted');
     expect(real.error.message).toBe(invented.error.message);
+  });
+
+  it('plays a game of hidden roles, on a cast the host fits to the table', async () => {
+    const host = await createClient('Host');
+    const guest = await createClient('Guest');
+    const watcher = await createClient('Watcher');
+    type ErrorBody = { error: { code: string; details?: { rule?: string } } };
+
+    // The cast is picked before anyone knows how many will sit down, so it is only checked
+    // against the game's limits here.
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'werewolf',
+      settings: {
+        preset: 'custom',
+        roles: { werewolf: 2, seer: 1, witch: 1, bodyguard: 1, hunter: 1 },
+      },
+    });
+    expect(room.settings).toMatchObject({ preset: 'custom', roles: { werewolf: 2, cupid: 0 } });
+    const noWolf = await host.api<ErrorBody>('PUT', `/rooms/${room.id}/settings`, {
+      settings: { preset: 'custom', roles: { seer: 1 } },
+    });
+    expect(noWolf.body.error.code).toBe(ErrorCodes.InvalidRoomSettings);
+
+    await guest.api('POST', `/rooms/${room.id}/join`);
+    for (let bot = 0; bot < 3; bot++) {
+      await host.api('POST', `/rooms/${room.id}/bots`, { level: 'normal' });
+    }
+    const everyoneReady = async () => {
+      await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+      await guest.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+    };
+
+    // Five sat down for six roles: the match does not start, and the host is told why.
+    await everyoneReady();
+    const tooMany = await host.api<ErrorBody>('POST', `/rooms/${room.id}/start`);
+    expect(tooMany.status).toBe(409);
+    expect(tooMany.body.error).toMatchObject({
+      code: ErrorCodes.InvalidRoomSettings,
+      details: { rule: 'TOO_MANY_ROLES' },
+    });
+    const { body: stillOpen } = await host.api<RoomDto>('GET', `/rooms/${room.id}`);
+    expect(stillOpen).toMatchObject({ status: 'open', currentMatchId: null });
+
+    // A smaller cast fits; the two villagers it leaves room for are not named.
+    await host.api('PUT', `/rooms/${room.id}/settings`, {
+      settings: { preset: 'custom', roles: { werewolf: 1, seer: 1, hunter: 1 } },
+    });
+    await everyoneReady();
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    const gameId = started.matchId;
+
+    type WerewolfState = GameStateMessage<WerewolfView>;
+    const sync = async (client: Client): Promise<WerewolfState> => {
+      const ack = await client.emit<WerewolfState>(ClientEvents.GameSync, { gameId });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+    const knownRoles = (view: WerewolfState) =>
+      view.state.players.filter((player) => player.role !== null).map((player) => player.playerId);
+
+    // Everyone is told the cast, their own role, and nobody else's.
+    for (const client of [host, guest]) {
+      const view = await sync(client);
+      expect(view.state).not.toHaveProperty('seatOrder');
+      expect(view.state).not.toHaveProperty('night');
+      expect(view.state.roleCounts).toMatchObject({ villager: 2, werewolf: 1, seer: 1, hunter: 1 });
+      expect(knownRoles(view)).toEqual([view.viewerPlayerId]);
+      expect(view.state.me?.role).toBeDefined();
+    }
+    const watching = await sync(watcher);
+    expect(watching.state.me).toBeNull();
+    expect(knownRoles(watching)).toEqual([]);
+    const spectatorMove = await watcher.emit(ClientEvents.GameAction, {
+      gameId,
+      requestId: randomUUID(),
+      expectedVersion: watching.version,
+      action: { type: 'SLEEP' },
+    });
+    expect(spectatorMove).toMatchObject({ ok: false, error: { code: ErrorCodes.Forbidden } });
+
+    // A role's action from someone who does not hold it gives nothing away.
+    const first = await sync(host);
+    const notMine = first.state.me?.role === 'werewolf' ? 'SEER_INSPECT' : 'WOLF_VOTE';
+    const other = first.state.players.find((player) => player.playerId !== first.viewerPlayerId);
+    const pretend = await host.emit(ClientEvents.GameAction, {
+      gameId,
+      requestId: randomUUID(),
+      expectedVersion: first.version,
+      action: { type: notMine, targetId: other?.playerId },
+    });
+    if (pretend.ok) throw new Error('A role was played by someone who does not hold it');
+    expect([ErrorCodes.InvalidAction, ErrorCodes.GameVersionConflict]).toContain(
+      pretend.error.code,
+    );
+
+    // Both people play at once, alongside three bots: at night and in a vote everyone acts
+    // on the same version, so losing a race is normal and just means looking again.
+    let conflicts = 0;
+    const play = async (client: Client): Promise<WerewolfState> => {
+      for (let step = 0; step < 3000; step++) {
+        const view = await sync(client);
+        if (view.status !== 'playing') return view;
+        const legal = view.state.me?.legal;
+        if (!legal || legal.action === null) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          continue;
+        }
+        const targetId = legal.targets[0] ?? null;
+        const actions: Record<string, unknown> = {
+          WITCH_DECIDE: { type: 'WITCH_DECIDE', heal: false, poisonTargetId: null },
+          CUPID_LINK: { type: 'CUPID_LINK', firstId: targetId, secondId: legal.targets[1] },
+        };
+        const ack = await client.emit(ClientEvents.GameAction, {
+          gameId,
+          requestId: randomUUID(),
+          expectedVersion: view.version,
+          action: actions[legal.action] ?? { type: legal.action, targetId },
+        });
+        if (ack.ok) continue;
+        expect(ack.error.code).toBe(ErrorCodes.GameVersionConflict);
+        conflicts += 1;
+      }
+      throw new Error(`The match did not end (${conflicts} conflicts)`);
+    };
+    const [final] = await Promise.all([play(host), play(guest)]);
+
+    // The end shows everything, to everyone, and the winners are one whole side.
+    expect(final.status).toBe('finished');
+    const shown = await sync(watcher);
+    const roleOf = new Map(shown.state.players.map((player) => [player.playerId, player.role]));
+    expect([...roleOf.values()].sort()).toEqual(
+      ['hunter', 'seer', 'villager', 'villager', 'werewolf'].sort(),
+    );
+    const { body: match } = await host.api<MatchDto>('GET', `/matches/${gameId}`);
+    const winners = match.result?.winnerPlayerIds ?? [];
+    expect(winners).toEqual(shown.state.winnerPlayerIds);
+    expect(shown.state.winner === 'werewolves' ? ['werewolf'] : ['village']).toEqual([
+      ...new Set(winners.map((id) => (roleOf.get(id) === 'werewolf' ? 'werewolf' : 'village'))),
+    ]);
+
+    // The replay is what a spectator saw: no roles until the last frame.
+    const { body: replay } = await host.api<MatchReplayDto>('GET', `/matches/${gameId}/replay`);
+    expect(replay.frames.length).toBe(match.version + 1);
+    const opening = replay.frames[0]?.state as WerewolfView;
+    expect(opening.players.every((player) => player.role === null)).toBe(true);
+    expect(opening.me).toBeNull();
   });
 
   it('lets the host choose a map, and plays the match on it', async () => {

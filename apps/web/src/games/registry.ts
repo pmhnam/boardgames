@@ -4,6 +4,8 @@ import { HarmoniesGameView } from './harmonies/GameView';
 import { HarmoniesSettingsForm, describeHarmoniesSettings } from './harmonies/SettingsForm';
 import { SplendorGameView } from './splendor/GameView';
 import { SplendorSettingsForm, describeSplendorSettings } from './splendor/SettingsForm';
+import { WerewolfGameView } from './werewolf/GameView';
+import { WerewolfSettingsForm, describeWerewolfSettings } from './werewolf/SettingsForm';
 
 /** The one place the web app learns which games it can render. Add new game UIs here. */
 const definitions: GameUiDefinition[] = [
@@ -18,6 +20,14 @@ const definitions: GameUiDefinition[] = [
     component: SplendorGameView,
     SettingsForm: SplendorSettingsForm,
     describeSettings: describeSplendorSettings,
+  },
+  {
+    gameType: 'werewolf',
+    component: WerewolfGameView,
+    SettingsForm: WerewolfSettingsForm,
+    describeSettings: describeWerewolfSettings,
+    // Nights and votes are everyone acting at once.
+    resendOnConflict: true,
   },
   { gameType: 'grid-claim', component: GridClaimGameView },
 ];
