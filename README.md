@@ -57,6 +57,7 @@ packages/
   game-splendor/       Splendor: gem tokens, development cards, nobles
   game-catan/          CATAN: hex island, dice, robber, trading, development cards
   game-werewolf/       Ma Sói (Werewolf): secret roles, nights, votes
+  game-bang/           BANG!: secret roles, hidden hands, cards that ask for an answer
   game-demo/           Grid Claim: a tiny 5x5 game used to exercise the platform
   shared-types/        REST and WebSocket contracts shared by API and web
 deploy/                Dockerfile, production compose, nginx config, server script
@@ -157,6 +158,20 @@ to 10 points on their own turn wins.
 - CATAN is a commercial game. Its name and rules belong to its publisher; get a licence before
   shipping this beyond private use. No artwork from the game is used.
 
+**BANG!** (4–7 players) is the base game: sheriff, deputies, outlaws and a renegade, the 80
+playing cards and the 16 characters. No expansions, and no three-player variant.
+
+- One player is asked at a time. A card that needs an answer (a BANG!, a duel, the Indians, a
+  general store) puts the match on hold for whoever owes it, round the table in turn order.
+- What has only one sensible answer is done without asking: a barrel is tried, a beer is drunk
+  by a player who would otherwise be eliminated, the two cards of a turn are drawn. Characters
+  with a real choice (Jesse Jones, Pedro Ramirez, Kit Carlson, Sid Ketchum) are asked.
+- A role leaves the server only for its owner, for the sheriff, or once its player is
+  eliminated; a hand only for its owner, as a count for everyone else. A card taken from a
+  hand is named to the two players involved and to nobody else.
+- BANG! is a commercial game. Its name, cards and characters belong to its publisher; get a
+  licence before shipping this beyond private use. No artwork from the game is used.
+
 **Grid Claim** (2 players) is an original, deliberately small game kept as a second
 implementation of the engine contract.
 
@@ -182,6 +197,10 @@ the dice roll most and saves for the nearest thing it can build, and **Khó** al
 ports and the resources it lacks, trades with the supply towards its plan, and robs and
 refuses to trade with whoever is nearest to winning. All three discard and answer trade offers
 out of turn; none makes offers of its own.
+
+In BANG!, **Dễ** plays any legal card, **Thường** plays its role against whoever has gone after
+the sheriff, and **Khó** also counts the roles still hidden to tell how likely a stranger is
+to be on its side, and goes for whoever is closest to elimination.
 
 Bots are algorithmic, not an LLM: they run inside the API, cost nothing and answer at once
 (`BOT_ACTION_DELAY_MS`, 700 by default, paces them so people can follow). A bot sees only what

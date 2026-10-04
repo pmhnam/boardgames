@@ -10,6 +10,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/game-avalon/package.json packages/game-avalon/
 COPY packages/game-catan/package.json packages/game-catan/
+COPY packages/game-bang/package.json packages/game-bang/
 COPY packages/game-core/package.json packages/game-core/
 COPY packages/game-demo/package.json packages/game-demo/
 COPY packages/game-harmonies/package.json packages/game-harmonies/

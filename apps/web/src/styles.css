@@ -2446,3 +2446,229 @@ button.avalon-seat-body {
     font-size: 0.65rem;
   }
 }
+
+/* BANG! */
+
+.bang-banner {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.bang-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 56rem) {
+  .bang-table {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.bang-seats,
+.bang-cast,
+.bang-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* As many seats per row as fit, in equal columns, from four at the table to seven. */
+.bang-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.5rem;
+}
+
+.bang-seat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.bang-seat.mine {
+  background: var(--ground);
+}
+
+.bang-seat.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg));
+}
+
+.bang-seat.dead {
+  opacity: 0.6;
+}
+
+.bang-seat.dead .bang-name {
+  text-decoration: line-through;
+}
+
+.bang-seat-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+}
+
+/* A seat that can be chosen is marked on the seat, not on the button inside it. */
+.bang-seat:has(> button.bang-seat-head) {
+  border-color: var(--accent);
+}
+
+.bang-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bang-star {
+  font-weight: 600;
+  color: #b7791f;
+}
+
+.bang-stats,
+.bang-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.6rem;
+}
+
+.bang-marks {
+  color: var(--accent);
+}
+
+.bang-life {
+  color: var(--danger);
+  letter-spacing: 0.05em;
+}
+
+.bang-life .lost {
+  opacity: 0.25;
+}
+
+.bang-in-play,
+.bang-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* A card is told apart by its edge: brown is played and gone, blue stays on the table. */
+.bang-card {
+  --edge: #8a5a2b;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 5.5rem;
+  min-height: 4.6rem;
+  padding: 0.35rem 0.45rem;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--edge);
+  border-radius: 6px;
+}
+
+.bang-card.blue {
+  --edge: #2f6fde;
+}
+
+.bang-card.small {
+  flex-direction: row;
+  gap: 0.35rem;
+  align-items: baseline;
+  width: auto;
+  min-height: 0;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
+  border-top-width: 1px;
+  border-left: 3px solid var(--edge);
+}
+
+button.bang-card {
+  border-color: var(--edge);
+}
+
+.bang-card.dimmed {
+  opacity: 0.55;
+}
+
+.bang-card.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
+.bang-pip {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.bang-pip.red {
+  color: var(--danger);
+}
+
+.bang-card-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bang-action {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.bang-action button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.bang-cast li {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bang-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 26rem;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+.bang-log .turn {
+  margin-top: 0.3rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bang-log .death {
+  color: var(--danger);
+}

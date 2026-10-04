@@ -32,7 +32,9 @@ Copy the layout of `packages/game-demo` (small), `packages/game-harmonies` (real
 `packages/game-splendor` (realistic, with information hidden per player). `packages/game-werewolf`
 is the one to read for secret roles, players acting at the same time, and eliminations;
 `packages/game-avalon` for the same without bots, and sides that win together;
-`packages/game-catan` for dice rolled during the match and answers given out of turn.
+`packages/game-catan` for dice rolled during the match and answers given out of turn;
+`packages/game-bang` for hands of cards, and actions that put the turn on hold until another
+player has answered.
 
 ```text
 packages/game-<name>/src/

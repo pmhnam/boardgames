@@ -3,6 +3,7 @@ import { AvalonGameView } from './avalon/GameView';
 import { AvalonSettingsForm, describeAvalonSettings } from './avalon/SettingsForm';
 import { CatanGameView } from './catan/GameView';
 import { CatanSettingsForm, describeCatanSettings } from './catan/SettingsForm';
+import { BangGameView } from './bang/GameView';
 import { GridClaimGameView } from './grid-claim/GameView';
 import { HarmoniesGameView } from './harmonies/GameView';
 import { HarmoniesSettingsForm, describeHarmoniesSettings } from './harmonies/SettingsForm';
@@ -49,6 +50,7 @@ const definitions: GameUiDefinition[] = [
     // Hands are discarded to a 7, and a trade offer is answered, by several players at once.
     resendOnConflict: true,
   },
+  { gameType: 'bang', component: BangGameView },
   { gameType: 'grid-claim', component: GridClaimGameView },
 ];
 

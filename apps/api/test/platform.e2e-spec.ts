@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { AvalonAction, AvalonView } from '@bgp/game-avalon';
+import type { BangView } from '@bgp/game-bang';
 import type { CatanView } from '@bgp/game-catan';
 import type { GridClaimView } from '@bgp/game-demo';
 import type { HarmoniesConfig, HarmoniesView } from '@bgp/game-harmonies';
@@ -982,6 +983,133 @@ describe('platform MVP flow', () => {
     expect(Object.keys(ack.data.state.buildings)).toHaveLength(6);
     expect(ack.data.state.board.hexes[0]).toEqual({ q: 0, r: -2, terrain: 'desert', number: null });
     expect(ack.data.state.turn.step).not.toBe('SETUP_SETTLEMENT');
+  });
+
+  it('plays a game of hidden hands, where a card asks an answer of another player', async () => {
+    const host = await createClient('Host');
+    const watcher = await createClient('Watcher');
+
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', { gameType: 'bang' });
+    expect(room.settings).toEqual({});
+    for (let bot = 0; bot < 3; bot++) {
+      await host.api('POST', `/rooms/${room.id}/bots`, { level: bot === 0 ? 'hard' : 'normal' });
+    }
+    await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    const gameId = started.matchId;
+
+    type BangState = GameStateMessage<BangView>;
+    const sync = async (client: Client): Promise<BangState> => {
+      const ack = await client.emit<BangState>(ClientEvents.GameSync, { gameId });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+    const send = (client: Client, view: BangState, action: unknown) =>
+      client.emit(ClientEvents.GameAction, {
+        gameId,
+        requestId: randomUUID(),
+        expectedVersion: view.version,
+        action,
+      });
+
+    // A player is shown their own role and hand, the sheriff's role, and of everyone else's
+    // cards only how many there are. Nothing of the deck but its size leaves the server.
+    const mine = await sync(host);
+    for (const view of [mine, await sync(watcher)]) {
+      for (const hidden of ['deck', 'discard', 'seed', 'cards', 'seatOrder']) {
+        expect(view.state).not.toHaveProperty(hidden);
+      }
+      expect(view.state.players).toHaveLength(4);
+      expect(view.state.players.every((player) => !('hand' in player))).toBe(true);
+      expect(view.state.roleCounts).toEqual({ sheriff: 1, deputy: 0, outlaw: 2, renegade: 1 });
+      const known = view.state.players.filter((player) => player.role !== null);
+      const expected = new Set(['sheriff', view.state.me?.role ?? 'sheriff']);
+      expect(new Set(known.map((player) => player.role))).toEqual(expected);
+    }
+    const self = mine.state.players.find((player) => player.playerId === mine.viewerPlayerId);
+    expect(mine.state.me?.hand).toHaveLength(self?.handCount ?? -1);
+    expect((await sync(watcher)).state.me).toBeNull();
+
+    // Naming a card one does not hold is refused the same way whether or not it exists.
+    const held = new Set(mine.state.me?.hand.map((card) => card.id));
+    const foreign = ['c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6'].find((id) => !held.has(id));
+    const [real, invented] = [
+      await send(host, mine, { type: 'PLAY_CARD', cardId: foreign, targetId: null }),
+      await send(host, mine, { type: 'PLAY_CARD', cardId: 'no-such-card', targetId: null }),
+    ];
+    if (real.ok || invented.ok) throw new Error('A card not in hand was played');
+    expect(real.error.message).toBe(invented.error.message);
+    const spectatorMove = await send(watcher, mine, { type: 'END_TURN', discardIds: [] });
+    expect(spectatorMove).toMatchObject({ ok: false, error: { code: ErrorCodes.Forbidden } });
+
+    // The host plays the first card on offer each turn and answers what it can; the bots do
+    // the rest. One player at a time is asked, so nothing is lost to a race but a stale view.
+    let asked = 0;
+    const play = async (): Promise<BangState> => {
+      for (let step = 0; step < 4000; step++) {
+        const view = await sync(host);
+        if (view.status !== 'playing') return view;
+        const me = view.state.me;
+        const legal = me?.legal;
+        if (!me || !legal || legal.prompt === null) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          continue;
+        }
+        asked += 1;
+        const option = legal.plays[0];
+        const target = view.state.players.find(
+          (player) => player.playerId === option?.targets?.[0],
+        );
+        let action: unknown = { type: 'RESPOND', cardId: legal.responses[0] ?? null };
+        if (legal.prompt === 'PLAY' && option) {
+          action = {
+            type: 'PLAY_CARD',
+            cardId: option.cardId,
+            targetId: target?.playerId ?? null,
+            // A Panic! or a Cat Balou on a player with no hand has to name a card on the table.
+            targetCardId: target && target.handCount === 0 ? (target.inPlay[0]?.id ?? null) : null,
+          };
+        } else if (legal.prompt === 'PLAY') {
+          const over = me.hand.slice(0, legal.discardCount).map((card) => card.id);
+          action = { type: 'END_TURN', discardIds: over };
+        } else if (legal.pickCount > 0) {
+          action = { type: 'PICK_CARDS', cardIds: legal.picks.slice(0, legal.pickCount) };
+        } else if (legal.prompt === 'DRAW') {
+          action = { type: 'DRAW', source: 'deck' };
+        }
+        const ack = await send(host, view, action);
+        if (ack.ok) continue;
+        // A turn can be many cards in quick succession: more than a socket is allowed at once.
+        expect([ErrorCodes.GameVersionConflict, ErrorCodes.RateLimited]).toContain(ack.error.code);
+        if (ack.error.code === ErrorCodes.RateLimited) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+      throw new Error('The match did not end');
+    };
+    const final = await play();
+    expect(asked).toBeGreaterThan(0);
+
+    // The end shows every role, and the winners are one whole side.
+    expect(final.status).toBe('finished');
+    const shown = await sync(watcher);
+    const roleOf = new Map(shown.state.players.map((player) => [player.playerId, player.role]));
+    expect([...roleOf.values()].sort()).toEqual(['outlaw', 'outlaw', 'renegade', 'sheriff']);
+    const { body: match } = await host.api<MatchDto>('GET', `/matches/${gameId}`);
+    const winners = match.result?.winnerPlayerIds ?? [];
+    expect(winners).toEqual(shown.state.winnerPlayerIds);
+    const side = { law: 'sheriff', outlaws: 'outlaw', renegade: 'renegade' } as const;
+    expect(shown.state.winner).not.toBeNull();
+    expect(new Set(winners.map((id) => roleOf.get(id)))).toEqual(
+      new Set([side[shown.state.winner ?? 'law']]),
+    );
+
+    // The replay is what a spectator saw: no hands, and no role but the sheriff's at the start.
+    const { body: replay } = await host.api<MatchReplayDto>('GET', `/matches/${gameId}/replay`);
+    expect(replay.frames.length).toBe(match.version + 1);
+    const opening = replay.frames[0]?.state as BangView;
+    expect(opening.me).toBeNull();
+    expect(opening.players.map((player) => player.role).filter(Boolean)).toEqual(['sheriff']);
   });
 
   it('lets the host choose a map, and plays the match on it', async () => {

@@ -14,6 +14,7 @@
   "dependencies": {
     "@bgp/game-avalon": "workspace:*",
     "@bgp/game-catan": "workspace:*",
+    "@bgp/game-bang": "workspace:*",
     "@bgp/game-core": "workspace:*",
     "@bgp/game-demo": "workspace:*",
     "@bgp/game-harmonies": "workspace:*",
