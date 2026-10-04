@@ -52,6 +52,7 @@ apps/
   web/                 React: lobby, room, match, replay, per-game renderers
 packages/
   game-core/           Engine contract, seeded PRNG, test helpers
+  game-avalon/         Avalon: hidden roles, team votes, quests, the assassination
   game-harmonies/      Harmonies: hex boards, token stacking, animal cards
   game-splendor/       Splendor: gem tokens, development cards, nobles
   game-werewolf/       Ma Sói (Werewolf): secret roles, nights, votes
@@ -113,6 +114,24 @@ bodyguard, witch, hunter, cupid, elder and idiot.
 - A role leaves the server only for its owner, a werewolf's packmates, or once it is revealed
   to the table. Anyone watching, and the replay, see no roles until the match is over.
 - There are no timers: a phase ends when everyone it waits for has acted.
+
+**Avalon** (5–10 players) implements The Resistance: Avalon: a leader proposes a team, everyone
+votes on it, the team plays Success or Fail in secret, and the side with three quests takes the
+game, unless the Assassin then names Merlin.
+
+- Every player is dealt a role only they can see. Merlin and the Assassin are always in play; the
+  room's host may add Percival, Morgana, Mordred and Oberon, and the Lady of the Lake. Roles take
+  seats on their side, so some choices need a larger table: the room says so, and a match that
+  cannot seat them does not start.
+- Team sizes, the number of evil players, the quests that need two Fails and the five-rejection
+  limit follow the published tables for each player count. They are part of the game's config.
+- Votes and quest cards are cast by everyone at once. A vote is shown once all are in; of the
+  quest cards only the number of Fails is ever announced. Roles, cards and what the Lady showed
+  are revealed to all when the game ends; the replay shows what a watcher saw.
+- There are no computer players for Avalon, and no chat: the talking happens wherever the group
+  already talks.
+- Avalon is a commercial game. Its name belongs to its publisher; get a licence before shipping
+  this beyond private use. No artwork from the game is used.
 
 **Grid Claim** (2 players) is an original, deliberately small game kept as a second
 implementation of the engine contract.

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@bgp/game-avalon": "workspace:*",
     "@bgp/game-demo": "workspace:*",
     "@bgp/game-harmonies": "workspace:*",
     "@bgp/game-splendor": "workspace:*",

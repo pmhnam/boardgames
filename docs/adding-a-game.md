@@ -30,7 +30,8 @@ Config:               what an operator may change without a code change
 
 Copy the layout of `packages/game-demo` (small), `packages/game-harmonies` (realistic) or
 `packages/game-splendor` (realistic, with information hidden per player). `packages/game-werewolf`
-is the one to read for secret roles, players acting at the same time, and eliminations.
+is the one to read for secret roles, players acting at the same time, and eliminations;
+`packages/game-avalon` for the same without bots, and sides that win together.
 
 ```text
 packages/game-<name>/src/
@@ -68,6 +69,8 @@ Rules for engine code:
   the platform can report it as such.
 - Several players may owe an action at once: `getCurrentPlayerIds` returns all of them, and
   must drop each one as soon as they have acted (bots are driven from it).
+- Never iterate a record keyed by player: the database stores state as `jsonb`, which does not
+  keep key order, so a state loaded back would be walked differently. Walk the seat order.
 
 ## 3. Test it
 

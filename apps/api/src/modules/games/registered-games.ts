@@ -1,4 +1,5 @@
 import type { GameModule } from '@bgp/game-core';
+import { AvalonGame } from '@bgp/game-avalon';
 import { GridClaimGame } from '@bgp/game-demo';
 import { HarmoniesGame } from '@bgp/game-harmonies';
 import { SplendorGame } from '@bgp/game-splendor';
@@ -9,5 +10,6 @@ export const registeredGames: GameModule[] = [
   HarmoniesGame,
   SplendorGame,
   WerewolfGame,
+  AvalonGame,
   GridClaimGame,
 ];

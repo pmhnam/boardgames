@@ -32,6 +32,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@bgp/game-avalon':
+        specifier: workspace:*
+        version: link:../../packages/game-avalon
       '@bgp/game-core':
         specifier: workspace:*
         version: link:../../packages/game-core
@@ -123,6 +126,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@bgp/game-avalon':
+        specifier: workspace:*
+        version: link:../../packages/game-avalon
       '@bgp/game-demo':
         specifier: workspace:*
         version: link:../../packages/game-demo

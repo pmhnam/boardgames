@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import type { AvalonAction, AvalonView } from '@bgp/game-avalon';
 import type { GridClaimView } from '@bgp/game-demo';
 import type { HarmoniesConfig, HarmoniesView } from '@bgp/game-harmonies';
 import type { SplendorView } from '@bgp/game-splendor';
@@ -642,6 +643,218 @@ describe('platform MVP flow', () => {
     const opening = replay.frames[0]?.state as WerewolfView;
     expect(opening.players.every((player) => player.role === null)).toBe(true);
     expect(opening.me).toBeNull();
+  });
+
+  it('plays Avalon: a role per seat, votes cast together, and roles that fit the table', async () => {
+    const names = ['Arthur', 'Bors', 'Cai', 'Dagonet', 'Ector'];
+    const seated: Client[] = [];
+    for (const name of names) seated.push(await createClient(name));
+    const [host, ...guests] = seated as [Client, ...Client[]];
+    const watcher = await createClient('Watcher');
+    type ErrorBody = { error: { code: string; message: string; details?: { rule?: string } } };
+
+    // The host may pick any roles the game offers; whether they fit is only known at the start.
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'avalon',
+      settings: { roles: ['MORDRED', 'MORGANA'], ladyOfTheLake: true, seed: 'mine' },
+    });
+    expect(room.settings).toEqual({ roles: ['MORGANA', 'MORDRED'], ladyOfTheLake: true });
+    for (const guest of guests) await guest.api('POST', `/rooms/${room.id}/join`);
+    const everyoneReady = async () => {
+      for (const client of seated) {
+        await client.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+      }
+    };
+
+    // Five players have two evil seats: the Assassin and one more. The game says so, and the
+    // room stays open for the host to put it right.
+    await everyoneReady();
+    const tooMany = await host.api<ErrorBody>('POST', `/rooms/${room.id}/start`);
+    expect(tooMany.status).toBe(409);
+    expect(tooMany.body.error).toMatchObject({
+      code: ErrorCodes.InvalidRoomSettings,
+      message: expect.stringContaining('at least 7 players'),
+      details: { rule: 'ROLES_DO_NOT_FIT' },
+    });
+    const { body: stillOpen } = await host.api<RoomDto>('GET', `/rooms/${room.id}`);
+    expect(stillOpen).toMatchObject({ status: 'open', currentMatchId: null });
+
+    await host.api('PUT', `/rooms/${room.id}/settings`, {
+      settings: { roles: ['MORGANA'], ladyOfTheLake: true },
+    });
+    await everyoneReady();
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    const gameId = started.matchId;
+
+    type AvalonState = GameStateMessage<AvalonView>;
+    const sync = async (client: Client): Promise<AvalonState> => {
+      const ack = await client.emit<AvalonState>(ClientEvents.GameSync, { gameId });
+      if (!ack.ok) throw new Error(ack.error.code);
+      return ack.data;
+    };
+    const send = (
+      client: Client,
+      action: AvalonAction,
+      expectedVersion: number,
+      requestId: string,
+    ) =>
+      client.emit<GameActionAccepted>(ClientEvents.GameAction, {
+        gameId,
+        requestId,
+        expectedVersion,
+        action,
+      });
+    /** As the web client does for this game: on a conflict, fetch the state and send again. */
+    const sendUntilItLands = async (client: Client, action: AvalonAction): Promise<number> => {
+      const requestId = randomUUID();
+      for (let resends = 0; resends <= 10; resends += 1) {
+        const ack = await send(client, action, (await sync(client)).version, requestId);
+        if (ack.ok) return resends;
+        if (ack.error.code !== ErrorCodes.GameVersionConflict) throw new Error(ack.error.code);
+      }
+      throw new Error('The action never landed');
+    };
+
+    // Each seat gets its own role and nothing of anyone else's; the raw state never leaves.
+    const dealt = await Promise.all(seated.map(sync));
+    const watching = await sync(watcher);
+    for (const view of [...dealt, watching]) {
+      expect(view.state.roles).toBeNull();
+      expect(view.state).not.toHaveProperty('current');
+      expect(view.state).not.toHaveProperty('firstLeaderIndex');
+      expect(view.state.rolesInPlay).toEqual([
+        'MERLIN',
+        'LOYAL_SERVANT',
+        'LOYAL_SERVANT',
+        'ASSASSIN',
+        'MORGANA',
+      ]);
+      expect(view.state.lady?.inspections).toEqual([]);
+    }
+    expect(watching.viewerPlayerId).toBeNull();
+    expect(watching.state.you).toBeNull();
+    expect(dealt.map((view) => view.state.you?.role).sort()).toEqual(
+      [...dealt[0]!.state.rolesInPlay].sort(),
+    );
+
+    const playerIdOf = (view: AvalonState) => view.viewerPlayerId as string;
+    const evilIds = dealt.filter((view) => view.state.you?.alignment === 'EVIL').map(playerIdOf);
+    for (const view of dealt) {
+      const knows = view.state.you?.knowledge.map((seen) => seen.playerId);
+      const role = view.state.you?.role;
+      if (role === 'MERLIN') expect(knows?.sort()).toEqual([...evilIds].sort());
+      else if (role === 'LOYAL_SERVANT') expect(knows).toEqual([]);
+      else expect(knows).toEqual(evilIds.filter((id) => id !== playerIdOf(view)));
+    }
+
+    // The leader proposes; then everyone votes at once, against the same version.
+    const leaderIndex = dealt.findIndex((view) => view.state.legal.propose !== null);
+    const team = dealt[0]!.state.seatOrder.slice(0, 2);
+    const proposed = await send(
+      seated[leaderIndex] as Client,
+      { type: 'PROPOSE_TEAM', team },
+      0,
+      randomUUID(),
+    );
+    expect(proposed.ok).toBe(true);
+
+    const approve: AvalonAction = { type: 'VOTE', proposal: 0, approve: true };
+    const requestIds = seated.map(() => randomUUID());
+    const together = await Promise.all(
+      seated.map((client, index) => send(client, approve, 1, requestIds[index] as string)),
+    );
+    expect(together.filter((ack) => ack.ok)).toHaveLength(1);
+    for (const ack of together) {
+      if (!ack.ok) expect(ack.error.code).toBe(ErrorCodes.GameVersionConflict);
+    }
+
+    // One vote is in: everyone can see whose, nobody how, and the match log stays closed.
+    const oneIn = await sync(watcher);
+    expect(oneIn.version).toBe(2);
+    expect(oneIn.state.voted).toHaveLength(1);
+    expect(oneIn.state.proposals).toEqual([]);
+    const liveHistory = await host.api<ErrorBody>('GET', `/matches/${gameId}/history`);
+    expect(liveHistory.body.error.code).toBe(ErrorCodes.MatchNotFinished);
+
+    // The four who lost the race send again, all at once, until every vote has landed.
+    const losers = seated.filter((_, index) => !together[index]?.ok);
+    const resends = await Promise.all(losers.map((client) => sendUntilItLands(client, approve)));
+    expect(resends.every((count) => count <= 4)).toBe(true);
+    const voted = await sync(watcher);
+    expect(voted.version).toBe(6);
+    expect(voted.state.phase).toBe('QUEST');
+    expect(voted.state.proposals).toHaveLength(1);
+    expect(Object.values(voted.state.proposals[0]!.votes)).toEqual([true, true, true, true, true]);
+
+    // A vote that arrives after its proposal is settled is refused, not counted for the next.
+    const late = await send(host, approve, 6, randomUUID());
+    expect(late).toMatchObject({ ok: false, error: { code: ErrorCodes.InvalidAction } });
+
+    // Play it out: everyone approves and plays Success, so good takes three quests and the
+    // Assassin gets a guess. Those with something to do act together each round.
+    const choose = (view: AvalonView): AvalonAction | null => {
+      const { legal } = view;
+      if (legal.propose) {
+        return { type: 'PROPOSE_TEAM', team: view.seatOrder.slice(0, legal.propose.teamSize) };
+      }
+      if (legal.vote) return { type: 'VOTE', proposal: legal.vote.proposal, approve: true };
+      if (legal.quest) return { type: 'PLAY_QUEST_CARD', quest: legal.quest.quest, success: true };
+      if (legal.ladyTargets[0]) return { type: 'USE_LADY', targetId: legal.ladyTargets[0] };
+      if (legal.assassinTargets[0]) {
+        return { type: 'ASSASSINATE', targetId: legal.assassinTargets[0] };
+      }
+      return null;
+    };
+    const phases = new Set<string>();
+    let inspectorIndex = -1;
+    for (let round = 0; round < 50; round += 1) {
+      const views = await Promise.all(seated.map(sync));
+      if (views[0]!.status !== 'playing') break;
+      phases.add(views[0]!.state.phase);
+      await Promise.all(
+        views.map((view, index) => {
+          const action = choose(view.state);
+          if (action?.type === 'USE_LADY') inspectorIndex = index;
+          return action ? sendUntilItLands(seated[index] as Client, action) : null;
+        }),
+      );
+
+      // Only the player who used the Lady learns what she showed.
+      if (inspectorIndex !== -1 && phases.has('LADY') && !phases.has('ASSASSINATION')) {
+        const shown = await Promise.all([...seated, watcher].map(sync));
+        shown.forEach((view, index) => {
+          const alignment = view.state.lady?.inspections[0]?.alignment;
+          expect(alignment === null).toBe(index !== inspectorIndex);
+        });
+      }
+    }
+    expect([...phases].sort()).toEqual(
+      ['ASSASSINATION', 'LADY', 'QUEST', 'TEAM_PROPOSAL', 'TEAM_VOTE'].sort(),
+    );
+
+    // Over: everything is shown to everyone, and each side wins or loses together.
+    const final = await sync(watcher);
+    expect(final.status).toBe('finished');
+    expect(final.state.quests.filter((quest) => quest.result?.success)).toHaveLength(3);
+    expect(Object.keys(final.state.roles ?? {})).toHaveLength(5);
+    const goodIds = dealt.map(playerIdOf).filter((id) => !evilIds.includes(id));
+    const winners = final.state.outcome?.winner === 'EVIL' ? evilIds : goodIds;
+    const { body: match } = await host.api<MatchDto>('GET', `/matches/${gameId}`);
+    expect(match.result?.winnerPlayerIds.sort()).toEqual([...winners].sort());
+    expect(match.result).not.toHaveProperty('scores');
+
+    // The replay is what a watcher saw: no roles until the last frame, and no vote or card in
+    // an action's name.
+    const { body: replay } = await host.api<MatchReplayDto>('GET', `/matches/${gameId}/replay`);
+    expect(replay.frames).toHaveLength(final.version + 1);
+    const frames = replay.frames.map((frame) => frame.state as AvalonView);
+    expect(frames.slice(0, -1).every((view) => view.roles === null && view.you === null)).toBe(
+      true,
+    );
+    expect(frames.at(-1)?.roles).toEqual(final.state.roles);
+    expect(new Set(replay.frames.map((frame) => frame.action?.actionType))).toEqual(
+      new Set([undefined, 'PROPOSE_TEAM', 'VOTE', 'PLAY_QUEST_CARD', 'USE_LADY', 'ASSASSINATE']),
+    );
   });
 
   it('lets the host choose a map, and plays the match on it', async () => {
