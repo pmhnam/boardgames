@@ -11,6 +11,7 @@ export type {
   ParseConfigResult,
   ParseSettingsResult,
   PlayerSeat,
+  ValidateSetupInput,
 } from './contracts/engine.js';
 export type {
   AnyBotStrategy,

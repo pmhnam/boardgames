@@ -43,6 +43,14 @@ export class MatchesService {
     const { engine } = this.registry.get(input.gameType);
     const current = await this.configs.getCurrentForPlay(input.gameType);
     const settings = this.parseSettings(engine, input.settings, current.config);
+    const setup = engine.validateSetup?.({
+      config: current.config,
+      settings,
+      playerCount: input.members.length,
+    });
+    if (setup && !setup.valid) {
+      throw new AppError(ErrorCodes.InvalidRoomSettings, setup.message, 409, { rule: setup.code });
+    }
     const matchId = randomUUID();
     const seed = randomUUID();
     const now = new Date();

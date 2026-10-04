@@ -105,7 +105,7 @@ function GameSection({
             const host = room.members.find((member) => member.userId === room.hostUserId);
             const summary =
               ui?.describeSettings && config.data
-                ? ui.describeSettings(room.settings, config.data.config)
+                ? ui.describeSettings(room.settings, config.data.config, room.members.length)
                 : null;
             return (
               <li key={room.id}>

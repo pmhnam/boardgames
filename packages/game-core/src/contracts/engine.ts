@@ -58,6 +58,12 @@ export interface GameResult {
   scores?: Record<PlayerId, number>;
 }
 
+export interface ValidateSetupInput<TConfig = unknown, TSettings = unknown> {
+  config: TConfig;
+  settings: TSettings;
+  playerCount: number;
+}
+
 /**
  * A game's rules. Implementations must be pure and deterministic:
  * same initial input + same actions => same state. No I/O, no clock, no Math.random.
@@ -86,6 +92,13 @@ export interface GameEngine<
    * `undefined` must yield the defaults, so a room created without settings is always playable.
    */
   parseSettings(raw: unknown, config: TConfig): ParseSettingsResult<TSettings>;
+
+  /**
+   * For games whose settings only make sense for some table sizes (a cast of roles, say).
+   * Called when a match is about to start, with the number of seated players; a refusal is
+   * reported to the host instead of starting. Games that play any settings at any size omit it.
+   */
+  validateSetup?(input: ValidateSetupInput<TConfig, TSettings>): GameValidationResult;
 
   createInitialState(input: CreateInitialStateInput<TConfig, TSettings, TPlayerConfig>): TState;
 

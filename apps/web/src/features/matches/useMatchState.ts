@@ -7,6 +7,7 @@ import {
   type GameStateMessage,
 } from '@bgp/shared-types';
 import { useCallback, useEffect, useState } from 'react';
+import { getGameUi } from '../../games/registry';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useGameAction } from '../../shared/websocket/useGameAction';
 
@@ -19,6 +20,9 @@ export interface MatchState {
   pending: boolean;
   sendAction(action: unknown): void;
 }
+
+/** How often an action is sent again before the player is told it did not go through. */
+const MAX_RESENDS = 3;
 
 /**
  * The client's copy of a match: whatever the server last said. It is fetched on every
@@ -36,15 +40,16 @@ export function useMatchState(gameId: string): MatchState {
     setMessage((current) => (current && current.version > incoming.version ? current : incoming));
   }, []);
 
-  const sync = useCallback(async () => {
-    if (!socket) return;
+  const sync = useCallback(async (): Promise<GameStateMessage | null> => {
+    if (!socket) return null;
     const ack: Ack<GameStateMessage> = await socket.emitWithAck(ClientEvents.GameSync, { gameId });
     if (ack.ok) {
       setLoadError(null);
       accept(ack.data);
-    } else {
-      setLoadError(ack.error);
+      return ack.data;
     }
+    setLoadError(ack.error);
+    return null;
   }, [socket, gameId, accept]);
 
   useEffect(() => {
@@ -66,13 +71,21 @@ export function useMatchState(gameId: string): MatchState {
     (action: unknown) => {
       if (!message || pending) return;
       setPending(true);
-      void send({ gameId, expectedVersion: message.version, action })
-        .then((ack) => {
+      const resendOnConflict = getGameUi(message.gameType)?.resendOnConflict === true;
+      const attempt = async (expectedVersion: number, resendsLeft: number): Promise<void> => {
+        const ack = await send({ gameId, expectedVersion, action });
+        if (ack.ok || ack.error.code !== ErrorCodes.GameVersionConflict) {
           setActionError(ack.ok ? null : ack.error);
-          // Our copy was stale: fetch the authoritative state instead of guessing.
-          if (!ack.ok && ack.error.code === ErrorCodes.GameVersionConflict) return sync();
-        })
-        .finally(() => setPending(false));
+          return;
+        }
+        // Our copy was stale: fetch the authoritative state instead of guessing.
+        const fresh = await sync();
+        if (resendOnConflict && fresh && resendsLeft > 0) {
+          return attempt(fresh.version, resendsLeft - 1);
+        }
+        setActionError(ack.error);
+      };
+      void attempt(message.version, MAX_RESENDS).finally(() => setPending(false));
     },
     [message, pending, send, gameId, sync],
   );

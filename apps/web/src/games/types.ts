@@ -19,6 +19,8 @@ export interface SettingsFormProps<TConfig = unknown> {
   /** What the host has picked so far. Empty means the game's defaults. */
   value: RoomSettings;
   onChange(value: RoomSettings): void;
+  /** How many are seated in the room. Absent in the lobby, before the room exists. */
+  playerCount?: number;
 }
 
 export interface GameUiDefinition {
@@ -28,7 +30,12 @@ export interface GameUiDefinition {
   SettingsForm?: ComponentType<SettingsFormProps<any>>;
   /** One line describing a room's settings, e.g. the chosen map. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  describeSettings?(settings: RoomSettings, config: any): string | null;
+  describeSettings?(settings: RoomSettings, config: any, playerCount?: number): string | null;
+  /**
+   * For games where several players act at once: an action refused only because someone else
+   * got in first is sent again on the fresh state. The server still judges whether it is legal.
+   */
+  resendOnConflict?: boolean;
   // Each game narrows the view/action types itself; the platform passes them through untyped.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<GameViewProps<any, any>>;

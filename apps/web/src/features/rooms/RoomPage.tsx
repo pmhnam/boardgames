@@ -112,7 +112,7 @@ export function RoomPage() {
   const everyoneReady = data.members.every((member) => member.status === 'ready');
   const settingsSummary =
     gameUi?.describeSettings && gameConfig.data
-      ? gameUi.describeSettings(data.settings, gameConfig.data.config)
+      ? gameUi.describeSettings(data.settings, gameConfig.data.config, data.members.length)
       : null;
   const inviteLink = `${window.location.origin}/join/${data.code}`;
   const SettingsForm = gameUi?.SettingsForm;
@@ -182,6 +182,7 @@ export function RoomPage() {
           <SettingsForm
             config={gameConfig.data.config}
             value={data.settings}
+            playerCount={data.members.length}
             onChange={(settings) => changeSettings.mutate({ settings })}
           />
           <span className="muted hint">
