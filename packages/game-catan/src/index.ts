@@ -1,4 +1,5 @@
 import type { GameDefinition, GameModule } from '@bgp/game-core';
+import { CatanBot } from './bot/bot.js';
 import { CATAN_GAME_TYPE, MAX_PLAYERS, MIN_PLAYERS } from './domain/config.js';
 import { CatanEngine } from './engine/engine.js';
 
@@ -7,16 +8,17 @@ export const CatanDefinition: GameDefinition = {
   displayName: 'CATAN',
   minPlayers: MIN_PLAYERS,
   maxPlayers: MAX_PLAYERS,
-  supportsBots: false,
+  supportsBots: true,
   supportsSpectators: true,
 };
 
 export const CatanGame: GameModule<CatanEngine> = {
   definition: CatanDefinition,
   engine: new CatanEngine(),
+  bot: CatanBot,
 };
 
-export { CatanEngine };
+export { CatanBot, CatanEngine };
 export { CATAN_GAME_TYPE } from './domain/config.js';
 export { CatanRuleCodes } from './domain/errors.js';
 export { BOARD_SETUPS, DEFAULT_CATAN_CONFIG } from './domain/game-config.js';
