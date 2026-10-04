@@ -88,11 +88,49 @@ h2 {
   background: var(--surface);
 }
 
+.app-header-tools,
 .app-header nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--space-2) var(--space-3);
   align-items: center;
+}
+
+.app-header nav a[aria-current='page'] {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.language-switcher {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.language-switcher button {
+  padding: 0.15rem 0.45rem;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  /* Inside the border, where the clipping does not reach it. */
+  outline-offset: -2px;
+}
+
+.language-switcher button:hover {
+  background: var(--surface-hover);
+}
+
+.language-switcher button[aria-pressed='true'] {
+  color: var(--accent-text);
+  background: var(--accent);
+}
+
+.login-intro {
+  margin: 0;
 }
 
 .brand {
@@ -262,6 +300,16 @@ a.button.secondary:hover {
 
 code {
   overflow-wrap: anywhere;
+}
+
+.status::before {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.35rem;
+  content: '';
+  background: currentColor;
+  border-radius: 50%;
 }
 
 .status.online {

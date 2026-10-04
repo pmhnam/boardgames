@@ -1,8 +1,11 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../features/auth/auth.store';
 import { ConnectionIndicator } from '../shared/components/ConnectionIndicator';
+import { LanguageSwitcher } from '../shared/i18n/LanguageSwitcher';
+import { useT } from '../shared/i18n/useT';
 
 export function AppLayout() {
+  const t = useT();
   const session = useAuthStore((state) => state.session);
   const signOut = useAuthStore((state) => state.signOut);
 
@@ -10,18 +13,25 @@ export function AppLayout() {
     <div className="app">
       <header className="app-header">
         <Link to="/" className="brand">
-          Board Game Platform
+          {t('app.name')}
         </Link>
-        {session && (
-          <nav>
-            <Link to="/history">My matches</Link>
-            <ConnectionIndicator />
-            <span className="muted">{session.user.displayName}</span>
-            <button type="button" className="link" onClick={signOut}>
-              Sign out
-            </button>
-          </nav>
-        )}
+        <div className="app-header-tools">
+          {session && (
+            <nav aria-label={t('nav.label')}>
+              <NavLink to="/history">{t('nav.history')}</NavLink>
+            </nav>
+          )}
+          <LanguageSwitcher />
+          {session && (
+            <>
+              <ConnectionIndicator />
+              <span className="muted">{session.user.displayName}</span>
+              <button type="button" className="link" onClick={signOut}>
+                {t('nav.signOut')}
+              </button>
+            </>
+          )}
+        </div>
       </header>
       <main>
         <Outlet />

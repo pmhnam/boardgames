@@ -1,10 +1,13 @@
 import type { AuthSessionDto, GuestLoginRequest } from '@bgp/shared-types';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { api, errorMessage } from '../../shared/api/http';
+import { api } from '../../shared/api/http';
+import { errorText } from '../../shared/i18n/errors';
+import { useT } from '../../shared/i18n/useT';
 import { useAuthStore } from './auth.store';
 
 export function GuestLoginForm() {
+  const t = useT();
   const [displayName, setDisplayName] = useState('');
   const setSession = useAuthStore((state) => state.setSession);
 
@@ -20,8 +23,9 @@ export function GuestLoginForm() {
 
   return (
     <form className="card narrow" onSubmit={submit}>
-      <h1>Play as guest</h1>
-      <label htmlFor="display-name">Display name</label>
+      <h1>{t('login.title')}</h1>
+      <p className="muted login-intro">{t('login.intro')}</p>
+      <label htmlFor="display-name">{t('login.displayName')}</label>
       <input
         id="display-name"
         value={displayName}
@@ -30,9 +34,13 @@ export function GuestLoginForm() {
         onChange={(event) => setDisplayName(event.target.value)}
       />
       <button type="submit" disabled={!displayName.trim() || login.isPending}>
-        Continue
+        {t('login.submit')}
       </button>
-      {login.isError && <p className="error">{errorMessage(login.error)}</p>}
+      {login.isError && (
+        <p className="error" role="alert">
+          {errorText(t, login.error)}
+        </p>
+      )}
     </form>
   );
 }

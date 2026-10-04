@@ -5,16 +5,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import type { RoomSettings } from '../../games/types';
 import { useGameConfig } from '../../games/useGameConfig';
-import { api, errorMessage } from '../../shared/api/http';
+import { api } from '../../shared/api/http';
+import { errorText } from '../../shared/i18n/errors';
+import { useT, type Translate } from '../../shared/i18n/useT';
 import { useAuthStore } from '../auth/auth.store';
 
 /** How often the room list is refreshed while the lobby is open. */
 const ROOM_LIST_REFRESH_MS = 5000;
 
-function playerRange(game: GameDefinitionDto): string {
+function playerRange(t: Translate, game: GameDefinitionDto): string {
   return game.minPlayers === game.maxPlayers
-    ? `${game.minPlayers} players`
-    : `${game.minPlayers}–${game.maxPlayers} players`;
+    ? t('players.exact', { count: game.minPlayers })
+    : t('players.range', { min: game.minPlayers, max: game.maxPlayers });
 }
 
 /** What someone looking at the lobby can do with a room. */
@@ -27,20 +29,21 @@ function RoomAction({
   game: GameDefinitionDto;
   userId: string | undefined;
 }) {
+  const t = useT();
   if (room.members.some((member) => member.userId === userId)) {
-    return <Link to={`/rooms/${room.id}`}>Open</Link>;
+    return <Link to={`/rooms/${room.id}`}>{t('room.open')}</Link>;
   }
   if (room.status === 'open') {
     return room.members.length < game.maxPlayers ? (
-      <Link to={`/join/${room.code}`}>Join</Link>
+      <Link to={`/join/${room.code}`}>{t('room.join')}</Link>
     ) : (
-      <span className="muted">Full</span>
+      <span className="muted">{t('room.full')}</span>
     );
   }
   return room.currentMatchId && game.supportsSpectators ? (
-    <Link to={`/matches/${room.currentMatchId}`}>Watch</Link>
+    <Link to={`/matches/${room.currentMatchId}`}>{t('room.watch')}</Link>
   ) : (
-    <span className="muted">Playing</span>
+    <span className="muted">{t('room.playing')}</span>
   );
 }
 
@@ -56,6 +59,7 @@ function GameSection({
   disabled: boolean;
   onCreate(request: Omit<CreateRoomRequest, 'gameType'>): void;
 }) {
+  const t = useT();
   const userId = useAuthStore((state) => state.session?.user.id);
   const ui = getGameUi(game.gameType);
   const SettingsForm = ui?.SettingsForm;
@@ -68,7 +72,7 @@ function GameSection({
       <div className="game-header">
         <div className="stack-small">
           <h2>
-            {game.displayName} <span className="muted">· {playerRange(game)}</span>
+            {game.displayName} <span className="muted">· {playerRange(t, game)}</span>
           </h2>
           {SettingsForm && config.data && (
             <SettingsForm config={config.data.config} value={settings} onChange={setSettings} />
@@ -79,7 +83,7 @@ function GameSection({
               checked={isPrivate}
               onChange={(event) => setIsPrivate(event.target.checked)}
             />
-            <span>Private (invite link only)</span>
+            <span>{t('create.private')}</span>
           </label>
         </div>
         <button
@@ -93,12 +97,12 @@ function GameSection({
             })
           }
         >
-          Create room
+          {t('create.submit')}
         </button>
       </div>
 
       {rooms.length === 0 ? (
-        <p className="muted">No rooms yet.</p>
+        <p className="muted">{t('lobby.noRooms')}</p>
       ) : (
         <ul className="room-list">
           {rooms.map((room) => {
@@ -112,12 +116,17 @@ function GameSection({
                 <div className="stack-small">
                   <span>
                     <strong>{room.code}</strong>
-                    <span className="muted"> · {host?.displayName ?? 'Unknown'}’s room</span>
-                    {room.visibility === 'private' && <span className="muted"> · private</span>}
+                    <span className="muted">
+                      {' · '}
+                      {t('room.hostedBy', { name: host?.displayName ?? t('room.unknownHost') })}
+                    </span>
+                    {room.visibility === 'private' && (
+                      <span className="muted"> · {t('room.private')}</span>
+                    )}
                   </span>
                   <span className="muted">
-                    {room.members.length}/{game.maxPlayers} players
-                    {room.status === 'in_match' && ' · playing'}
+                    {t('room.seats', { count: room.members.length, max: game.maxPlayers })}
+                    {room.status === 'in_match' && ` · ${t('room.playing')}`}
                     {summary && ` · ${summary}`}
                   </span>
                 </div>
@@ -132,6 +141,7 @@ function GameSection({
 }
 
 export function LobbyPage() {
+  const t = useT();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
 
@@ -157,11 +167,11 @@ export function LobbyPage() {
 
   return (
     <div className="stack">
-      <h1>Games and rooms</h1>
-      {games.isLoading && <p className="muted">Loading games…</p>}
-      {games.isError && <p className="error">{errorMessage(games.error)}</p>}
-      {rooms.isError && <p className="error">{errorMessage(rooms.error)}</p>}
-      {createRoom.isError && <p className="error">{errorMessage(createRoom.error)}</p>}
+      <h1>{t('lobby.title')}</h1>
+      {games.isLoading && <p className="muted">{t('lobby.loadingGames')}</p>}
+      {games.isError && <p className="error">{errorText(t, games.error)}</p>}
+      {rooms.isError && <p className="error">{errorText(t, rooms.error)}</p>}
+      {createRoom.isError && <p className="error">{errorText(t, createRoom.error)}</p>}
 
       {games.data?.map((game) => (
         <GameSection
@@ -174,17 +184,17 @@ export function LobbyPage() {
       ))}
 
       <form className="card" onSubmit={join}>
-        <h2>Join with a code</h2>
+        <h2>{t('joinCode.title')}</h2>
         <div className="row">
           <input
-            aria-label="Room code"
+            aria-label={t('joinCode.label')}
             placeholder="ABC123"
             value={code}
             maxLength={6}
             onChange={(event) => setCode(event.target.value)}
           />
           <button type="submit" disabled={!code.trim()}>
-            Join
+            {t('joinCode.submit')}
           </button>
         </div>
       </form>
