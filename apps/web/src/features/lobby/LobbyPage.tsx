@@ -9,6 +9,7 @@ import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useT, type Translate } from '../../shared/i18n/useT';
 import { useAuthStore } from '../auth/auth.store';
+import { classifyRoom } from './rooms';
 
 /** How often the room list is refreshed while the lobby is open. */
 const ROOM_LIST_REFRESH_MS = 5000;
@@ -30,21 +31,18 @@ function RoomAction({
   userId: string | undefined;
 }) {
   const t = useT();
-  if (room.members.some((member) => member.userId === userId)) {
-    return <Link to={`/rooms/${room.id}`}>{t('room.open')}</Link>;
+  switch (classifyRoom(room, game, userId)) {
+    case 'mine':
+      return <Link to={`/rooms/${room.id}`}>{t('room.open')}</Link>;
+    case 'joinable':
+      return <Link to={`/join/${room.code}`}>{t('room.join')}</Link>;
+    case 'full':
+      return <span className="muted">{t('room.full')}</span>;
+    case 'watchable':
+      return <Link to={`/matches/${room.currentMatchId}`}>{t('room.watch')}</Link>;
+    case 'playing':
+      return <span className="muted">{t('room.playing')}</span>;
   }
-  if (room.status === 'open') {
-    return room.members.length < game.maxPlayers ? (
-      <Link to={`/join/${room.code}`}>{t('room.join')}</Link>
-    ) : (
-      <span className="muted">{t('room.full')}</span>
-    );
-  }
-  return room.currentMatchId && game.supportsSpectators ? (
-    <Link to={`/matches/${room.currentMatchId}`}>{t('room.watch')}</Link>
-  ) : (
-    <span className="muted">{t('room.playing')}</span>
-  );
 }
 
 /** One game: start a room for it, and the rooms already there. */
