@@ -46,6 +46,8 @@ const definitions: GameUiDefinition[] = [
     component: CatanGameView,
     SettingsForm: CatanSettingsForm,
     describeSettings: describeCatanSettings,
+    // Hands are discarded to a 7, and a trade offer is answered, by several players at once.
+    resendOnConflict: true,
   },
   { gameType: 'grid-claim', component: GridClaimGameView },
 ];

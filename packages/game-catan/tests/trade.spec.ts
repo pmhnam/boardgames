@@ -114,6 +114,7 @@ describe('trading with the other players', () => {
     const next = apply(state, OFFER);
 
     expect(next.turn.offer).toEqual({
+      id: 1,
       give: cards({ wood: 2 }),
       receive: cards({ ore: 1 }),
       responses: {},
@@ -166,11 +167,11 @@ describe('trading with the other players', () => {
     const { state, me, second, third } = table();
     const offered = apply(state, OFFER);
 
-    const declined = apply(offered, { type: 'RESPOND_TRADE', accept: false }, third);
+    const declined = apply(offered, { type: 'RESPOND_TRADE', offerId: 1, accept: false }, third);
     expect(declined.turn.offer?.responses).toEqual({ [third]: 'declined' });
     expect(engine.getCurrentPlayerIds(declined)).toEqual([second, me]);
 
-    const accepted = apply(declined, { type: 'RESPOND_TRADE', accept: true }, second);
+    const accepted = apply(declined, { type: 'RESPOND_TRADE', offerId: 1, accept: true }, second);
     expect(accepted.turn.offer?.responses).toEqual({ [third]: 'declined', [second]: 'accepted' });
     expect(engine.getCurrentPlayerIds(accepted)).toEqual([me]);
   });
@@ -180,38 +181,65 @@ describe('trading with the other players', () => {
     const offered = apply(state, OFFER);
     expectRejected(
       offered,
-      { type: 'RESPOND_TRADE', accept: true },
+      { type: 'RESPOND_TRADE', offerId: 1, accept: true },
       CatanRuleCodes.CannotAfford,
       third,
     );
     expect(
-      apply(offered, { type: 'RESPOND_TRADE', accept: false }, third).turn.offer,
+      apply(offered, { type: 'RESPOND_TRADE', offerId: 1, accept: false }, third).turn.offer,
     ).not.toBeNull();
   });
 
   it('refuses a second answer, an answer to nothing, and an answer to one own offer', () => {
     const { state, me, second } = table();
     const offered = apply(state, OFFER);
-    const answered = apply(offered, { type: 'RESPOND_TRADE', accept: true }, second);
+    const answered = apply(offered, { type: 'RESPOND_TRADE', offerId: 1, accept: true }, second);
 
     expectRejected(
       answered,
-      { type: 'RESPOND_TRADE', accept: false },
+      { type: 'RESPOND_TRADE', offerId: 1, accept: false },
       CatanRuleCodes.AlreadyResponded,
       second,
     );
-    expectRejected(state, { type: 'RESPOND_TRADE', accept: false }, CatanRuleCodes.NoOffer, second);
+    expectRejected(
+      state,
+      { type: 'RESPOND_TRADE', offerId: 1, accept: false },
+      CatanRuleCodes.NoOffer,
+      second,
+    );
     expectRejected(
       offered,
-      { type: 'RESPOND_TRADE', accept: true },
+      { type: 'RESPOND_TRADE', offerId: 1, accept: true },
       CatanRuleCodes.InvalidTrade,
       me,
     );
   });
 
+  it('only counts an answer for the offer it names', () => {
+    const { state, second } = table();
+    const first = apply(state, OFFER);
+    const again = apply(apply(first, { type: 'CANCEL_TRADE' }), OFFER);
+    expect(again.turn.offer?.id).toBe(2);
+
+    // An answer to the withdrawn offer, arriving late, is not taken for the new one.
+    expectRejected(
+      again,
+      { type: 'RESPOND_TRADE', offerId: 1, accept: true },
+      CatanRuleCodes.NoOffer,
+      second,
+    );
+    const answered = apply(again, { type: 'RESPOND_TRADE', offerId: 2, accept: true }, second);
+    expect(answered.turn.offer?.responses).toEqual({ [second]: 'accepted' });
+    expect(engine.parseAction({ type: 'RESPOND_TRADE', accept: true }).ok).toBe(false);
+  });
+
   it('swaps the cards with the player the proposer picks', () => {
     const { state, me, second } = table();
-    const accepted = apply(apply(state, OFFER), { type: 'RESPOND_TRADE', accept: true }, second);
+    const accepted = apply(
+      apply(state, OFFER),
+      { type: 'RESPOND_TRADE', offerId: 1, accept: true },
+      second,
+    );
 
     const next = apply(accepted, { type: 'CONFIRM_TRADE', playerId: second });
 
@@ -230,7 +258,7 @@ describe('trading with the other players', () => {
       { type: 'CONFIRM_TRADE', playerId: second },
       CatanRuleCodes.OfferNotAccepted,
     );
-    const declined = apply(offered, { type: 'RESPOND_TRADE', accept: false }, third);
+    const declined = apply(offered, { type: 'RESPOND_TRADE', offerId: 1, accept: false }, third);
     expectRejected(
       declined,
       { type: 'CONFIRM_TRADE', playerId: third },
@@ -250,7 +278,7 @@ describe('trading with the other players', () => {
     const offered = apply(state, OFFER);
     expect(apply(offered, { type: 'CANCEL_TRADE' }).turn.offer).toBeNull();
 
-    const accepted = apply(offered, { type: 'RESPOND_TRADE', accept: true }, second);
+    const accepted = apply(offered, { type: 'RESPOND_TRADE', offerId: 1, accept: true }, second);
     const withdrawn = apply(accepted, { type: 'CANCEL_TRADE' });
     expect(withdrawn.turn.offer).toBeNull();
     expect(withdrawn.players).toEqual(state.players);

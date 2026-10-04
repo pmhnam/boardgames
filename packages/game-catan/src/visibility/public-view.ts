@@ -46,6 +46,8 @@ export interface PlayerView {
 }
 
 export interface OfferView {
+  /** What an answer to this offer must name. */
+  id: number;
   give: ResourceCounts;
   receive: ResourceCounts;
   responses: Record<string, TradeResponse>;
@@ -158,6 +160,7 @@ export function getPublicView(state: CatanState, viewer: GameViewer): CatanView 
       pendingDiscards: { ...turn.pendingDiscards },
       offer: turn.offer
         ? {
+            id: turn.offer.id,
             give: { ...turn.offer.give },
             receive: { ...turn.offer.receive },
             responses: { ...turn.offer.responses },

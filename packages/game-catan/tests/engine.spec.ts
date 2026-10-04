@@ -159,7 +159,7 @@ describe('winning', () => {
     expectRejected(state, { type: 'END_TURN' }, CatanRuleCodes.GameNotPlaying);
     expectRejected(
       state,
-      { type: 'RESPOND_TRADE', accept: false },
+      { type: 'RESPOND_TRADE', offerId: 1, accept: false },
       CatanRuleCodes.GameNotPlaying,
       others(state)[0],
     );
@@ -181,7 +181,7 @@ describe('untrusted actions', () => {
       { type: 'MOVE_ROBBER', hex: '1,0', victimId: 3 },
       { type: 'SUPPLY_TRADE', give: 'wood', receive: 'gold' },
       { type: 'PROPOSE_TRADE', give: { wood: 1 } },
-      { type: 'RESPOND_TRADE', accept: 'yes' },
+      { type: 'RESPOND_TRADE', offerId: 1, accept: 'yes' },
       { type: 'CONFIRM_TRADE' },
     ]) {
       expect(engine.parseAction(raw).ok).toBe(false);
@@ -260,8 +260,8 @@ function universe(state: CatanState): CatanAction[] {
     ...RESOURCES.flatMap((give) =>
       RESOURCES.map((receive): CatanAction => ({ type: 'SUPPLY_TRADE', give, receive })),
     ),
-    { type: 'RESPOND_TRADE', accept: true },
-    { type: 'RESPOND_TRADE', accept: false },
+    { type: 'RESPOND_TRADE', offerId: state.turn.offer?.id ?? 0, accept: true },
+    { type: 'RESPOND_TRADE', offerId: state.turn.offer?.id ?? 0, accept: false },
     ...state.turnOrder.map((playerId): CatanAction => ({ type: 'CONFIRM_TRADE', playerId })),
     { type: 'CANCEL_TRADE' },
     { type: 'END_TURN' },
@@ -329,13 +329,24 @@ describe('whole games', () => {
     expect(final.tiles['0,-2']).toEqual({ terrain: 'desert', number: null });
   });
 
-  it('survives being saved and loaded in the middle', () => {
+  it('survives being saved and loaded in the middle, whatever order the keys come back in', () => {
     const actions = scriptFullGame('foxtrot', 3);
     const half = Math.floor(actions.length / 2);
     const players = seats(3);
     const midway = runMatch(engine, { seed: 'foxtrot', players, actions: actions.slice(0, half) });
 
-    let state = JSON.parse(JSON.stringify(midway)) as CatanState;
+    // The database stores a state as jsonb, which hands objects back with their keys sorted
+    // by length and then by bytes, not in the order they were written.
+    const asStored = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(asStored);
+      if (typeof value !== 'object' || value === null) return value;
+      const record = value as Record<string, unknown>;
+      const keys = Object.keys(record).sort(
+        (x, y) => x.length - y.length || (x < y ? -1 : x > y ? 1 : 0),
+      );
+      return Object.fromEntries(keys.map((key) => [key, asStored(record[key])]));
+    };
+    let state = asStored(JSON.parse(JSON.stringify(midway))) as CatanState;
     expect(state).toEqual(midway);
     for (const step of actions.slice(half)) {
       state = engine.applyAction(state, step.action, context(step.playerId));

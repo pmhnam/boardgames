@@ -81,6 +81,7 @@ export function createInitialState(
     players: Object.fromEntries(turnOrder.map((playerId) => [playerId, newPlayer()])),
     longestRoutePlayerId: null,
     largestArmyPlayerId: null,
+    offersMade: 0,
     random: { seed: input.seed, draws: 0 },
     winnerPlayerIds: [],
   };

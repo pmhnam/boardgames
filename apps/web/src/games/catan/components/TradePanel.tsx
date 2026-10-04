@@ -93,7 +93,9 @@ export function TradePanel({
               <button
                 type="button"
                 disabled={disabled || !legal.canAccept}
-                onClick={() => sendAction({ type: 'RESPOND_TRADE', accept: true })}
+                onClick={() =>
+                  sendAction({ type: 'RESPOND_TRADE', offerId: offer.id, accept: true })
+                }
               >
                 Accept
               </button>
@@ -101,7 +103,9 @@ export function TradePanel({
                 type="button"
                 className="secondary"
                 disabled={disabled}
-                onClick={() => sendAction({ type: 'RESPOND_TRADE', accept: false })}
+                onClick={() =>
+                  sendAction({ type: 'RESPOND_TRADE', offerId: offer.id, accept: false })
+                }
               >
                 Decline
               </button>

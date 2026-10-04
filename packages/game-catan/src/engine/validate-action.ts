@@ -69,7 +69,9 @@ export function validateAction(
 
   // The two things a player does out of turn.
   if (action.type === 'DISCARD') return validateDiscard(state, playerId, action.resources);
-  if (action.type === 'RESPOND_TRADE') return validateRespondTrade(state, playerId, action.accept);
+  if (action.type === 'RESPOND_TRADE') {
+    return validateRespondTrade(state, playerId, action.offerId, action.accept);
+  }
 
   const active = validateIsActive(state, playerId);
   if (!active.valid) return active;

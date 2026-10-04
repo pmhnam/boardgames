@@ -21,6 +21,7 @@ export function listOptions(view: CatanView, playerId: string): CatanAction[] {
   if (!seat?.resources) throw new Error(`No hand in the view of ${playerId}`);
   return listLegalActions(view.legal, {
     step: view.turn.step,
+    offerId: view.turn.offer?.id ?? null,
     resources: seat.resources,
     supplyRates: seat.supplyRates,
     supply: view.supply,

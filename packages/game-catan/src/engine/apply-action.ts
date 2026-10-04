@@ -318,9 +318,17 @@ function reduce(state: CatanState, action: CatanAction, playerId: string): Catan
     case 'SUPPLY_TRADE':
       return applySupplyTrade(state, playerId, action.give, action.receive);
     case 'PROPOSE_TRADE':
-      return withTurn(state, {
-        offer: { give: resources(action.give), receive: resources(action.receive), responses: {} },
-      });
+      return withTurn(
+        { ...state, offersMade: state.offersMade + 1 },
+        {
+          offer: {
+            id: state.offersMade + 1,
+            give: resources(action.give),
+            receive: resources(action.receive),
+            responses: {},
+          },
+        },
+      );
     case 'RESPOND_TRADE':
       if (!state.turn.offer) throw new Error('No offer to answer');
       return withTurn(state, {

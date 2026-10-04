@@ -302,8 +302,12 @@ describe('answering an offer', () => {
   it('says yes to a card its plan lacks for a card it does not need', () => {
     const { state, you } = offered({ ore: 1 }, { wood: 1 });
     expect(chooseResponse(modelOf(state, you), false)).toBe(true);
-    expect(choose(state, 'normal', you)).toEqual({ type: 'RESPOND_TRADE', accept: true });
-    expect(choose(state, 'hard', you)).toEqual({ type: 'RESPOND_TRADE', accept: true });
+    expect(choose(state, 'normal', you)).toEqual({
+      type: 'RESPOND_TRADE',
+      offerId: 1,
+      accept: true,
+    });
+    expect(choose(state, 'hard', you)).toEqual({ type: 'RESPOND_TRADE', offerId: 1, accept: true });
   });
 
   it('says no when the offer brings nothing its plan lacks', () => {
@@ -334,7 +338,11 @@ describe('answering an offer', () => {
   it('says no when it does not hold the cards asked for', () => {
     const { state, you } = offered({ ore: 1 }, { wool: 1 });
     for (const level of BOT_LEVELS) {
-      expect(choose(state, level, you)).toEqual({ type: 'RESPOND_TRADE', accept: false });
+      expect(choose(state, level, you)).toEqual({
+        type: 'RESPOND_TRADE',
+        offerId: 1,
+        accept: false,
+      });
     }
   });
 

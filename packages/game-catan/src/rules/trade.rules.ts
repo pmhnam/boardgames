@@ -85,10 +85,13 @@ export function validateProposeTrade(
 export function validateRespondTrade(
   state: CatanState,
   playerId: string,
+  offerId: number,
   accept: boolean,
 ): GameValidationResult {
   const { offer, activePlayerId } = state.turn;
-  if (!offer) return invalid(CatanRuleCodes.NoOffer, 'There is no offer to answer.');
+  if (!offer || offer.id !== offerId) {
+    return invalid(CatanRuleCodes.NoOffer, 'That offer is no longer on the table.');
+  }
   if (playerId === activePlayerId) {
     return invalid(CatanRuleCodes.InvalidTrade, 'You cannot answer your own offer.');
   }

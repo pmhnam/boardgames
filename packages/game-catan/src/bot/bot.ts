@@ -62,6 +62,7 @@ function pickBest<T>(options: readonly T[], value: (option: T) => number, random
 function listOptions(model: Model): CatanAction[] {
   return listLegalActions(model.view.legal, {
     step: model.view.turn.step,
+    offerId: model.view.turn.offer?.id ?? null,
     resources: model.hand,
     supplyRates: model.me.supplyRates,
     supply: model.view.supply,
@@ -270,7 +271,13 @@ function choosePlanned(model: Model, aware: boolean, random: SeededRandom): Cata
   if (legal.mustDiscard > 0) {
     return { type: 'DISCARD', resources: chooseDiscard(model, legal.mustDiscard) };
   }
-  if (legal.canRespond) return { type: 'RESPOND_TRADE', accept: chooseResponse(model, aware) };
+  if (legal.canRespond && view.turn.offer) {
+    return {
+      type: 'RESPOND_TRADE',
+      offerId: view.turn.offer.id,
+      accept: chooseResponse(model, aware),
+    };
+  }
   // The bots make no offers of their own, but one could be handed a seat with one open.
   if (legal.canCancelTrade) {
     const [partner] = legal.accepters;

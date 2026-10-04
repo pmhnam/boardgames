@@ -82,9 +82,13 @@ export interface ProposeTradeAction {
   receive: Partial<ResourceCounts>;
 }
 
-/** Answer the open offer. Sent by the other players, out of turn. */
+/**
+ * Answer the open offer. Sent by the other players, out of turn. It names the offer, so an
+ * answer that arrives after the offer was withdrawn is not counted for the next one.
+ */
 export interface RespondTradeAction {
   type: 'RESPOND_TRADE';
+  offerId: number;
   accept: boolean;
 }
 

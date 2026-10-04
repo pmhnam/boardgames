@@ -16,6 +16,8 @@ export type TradeResponse = 'accepted' | 'declined';
 
 /** What the active player offers the table. One offer is open at a time. */
 export interface TradeOffer {
+  /** Counts the offers of the match. An answer names the offer it is for. */
+  id: number;
   give: ResourceCounts;
   receive: ResourceCounts;
   /** Only players who have answered appear here. */
@@ -92,6 +94,8 @@ export interface CatanState {
   /** Stored because a tie leaves the card with whoever held it first. */
   longestRoutePlayerId: string | null;
   largestArmyPlayerId: string | null;
+  /** How many trade offers have been made, so each one gets its own id. */
+  offersMade: number;
   random: RandomState;
   winnerPlayerIds: string[];
 }

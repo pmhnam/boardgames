@@ -4,8 +4,7 @@ import { NO_RESOURCES, ResourcePicker, compact, totalOf } from './ResourcePicker
 
 /**
  * Picks the cards to give up to a 7. Several players may be discarding at once, and each
- * discard changes the match; the selection is kept through that, so a player whose discard
- * was beaten to it only has to press the button again.
+ * discard changes the match; the selection is kept through that.
  */
 export function DiscardPrompt({
   hand,

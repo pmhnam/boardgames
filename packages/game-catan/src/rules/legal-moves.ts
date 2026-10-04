@@ -197,6 +197,8 @@ export function listSupplyTrades(
 /** What `listLegalActions` needs besides `legal`: all of it is in the view a seat is given. */
 export interface SeatContext {
   step: TurnStep;
+  /** The open trade offer, if there is one. */
+  offerId: number | null;
   resources: Readonly<ResourceCounts>;
   supplyRates: Readonly<Record<Resource, number>>;
   supply: Readonly<ResourceCounts>;
@@ -213,10 +215,11 @@ export function listLegalActions(legal: LegalMoves, seat: SeatContext): CatanAct
       resources,
     }));
   }
-  if (legal.canRespond) {
+  if (legal.canRespond && seat.offerId !== null) {
+    const offerId = seat.offerId;
     return [
-      ...(legal.canAccept ? [{ type: 'RESPOND_TRADE', accept: true } as const] : []),
-      { type: 'RESPOND_TRADE', accept: false },
+      ...(legal.canAccept ? [{ type: 'RESPOND_TRADE', offerId, accept: true } as const] : []),
+      { type: 'RESPOND_TRADE', offerId, accept: false },
     ];
   }
   if (legal.canCancelTrade) {

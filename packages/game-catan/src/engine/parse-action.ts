@@ -98,9 +98,13 @@ export function parseAction(raw: unknown): ParseActionResult<CatanAction> {
     }
 
     case 'RESPOND_TRADE':
+      if (!Number.isInteger(raw.offerId)) return fail('RESPOND_TRADE needs the offerId.');
       if (typeof raw.accept !== 'boolean')
         return fail('RESPOND_TRADE needs accept: true or false.');
-      return { ok: true, action: { type: 'RESPOND_TRADE', accept: raw.accept } };
+      return {
+        ok: true,
+        action: { type: 'RESPOND_TRADE', offerId: raw.offerId as number, accept: raw.accept },
+      };
 
     case 'CONFIRM_TRADE':
       if (!isId(raw.playerId)) return fail('CONFIRM_TRADE needs a playerId.');

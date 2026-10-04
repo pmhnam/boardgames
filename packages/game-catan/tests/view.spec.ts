@@ -248,7 +248,7 @@ describe('what a player may do', () => {
     expect(viewOf(state, third).legal).toEqual({ ...NO_LEGAL_MOVES, canRespond: true });
     expect(viewOf(state, me).legal).toEqual({ ...NO_LEGAL_MOVES, canCancelTrade: true });
 
-    const answered = apply(state, { type: 'RESPOND_TRADE', accept: true }, second);
+    const answered = apply(state, { type: 'RESPOND_TRADE', offerId: 1, accept: true }, second);
     expect(viewOf(answered, second).legal).toEqual(NO_LEGAL_MOVES);
     expect(viewOf(answered, me).legal.accepters).toEqual([second]);
     expect(viewOf(answered, third).turn.offer?.responses).toEqual({ [second]: 'accepted' });
