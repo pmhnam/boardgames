@@ -182,7 +182,11 @@ describe('full matches', () => {
     const actions = scriptFullGame(seed, players);
     let state = start(players, seed);
     const cast = countRoles(state);
-    const universe = listEveryAction(state.seatOrder);
+    // Spelled out once: the comparison below runs for every player at every step.
+    const universe = listEveryAction(state.seatOrder).map((action) => ({
+      action,
+      key: JSON.stringify(action),
+    }));
 
     for (const step of actions) {
       const before = state;
@@ -193,11 +197,12 @@ describe('full matches', () => {
       // What each view calls legal is exactly what the validator accepts from that player.
       for (const playerId of before.seatOrder) {
         const me = engine.getPublicView(before, asPlayer(playerId)).me;
-        const listed = new Set(listLegalActions(me!.legal).map((action) => JSON.stringify(action)));
-        expect(listed.size > 0).toBe(owing.includes(playerId));
-        for (const action of universe) {
-          expect(validate(before, action, playerId).valid).toBe(listed.has(JSON.stringify(action)));
-        }
+        const listed = listLegalActions(me!.legal).map((action) => JSON.stringify(action));
+        const accepted = universe
+          .filter(({ action }) => validate(before, action, playerId).valid)
+          .map(({ key }) => key);
+        expect(accepted.sort()).toEqual(listed.sort());
+        expect(listed.length > 0).toBe(owing.includes(playerId));
       }
 
       state = apply(before, step.action, step.playerId);
