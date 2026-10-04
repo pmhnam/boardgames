@@ -71,7 +71,8 @@ describe('roles', () => {
   });
 });
 
-describe('cards', () => {
+// One of these plays a whole match, which is many times slower on the CI runner.
+describe('cards', { timeout: 30_000 }, () => {
   const state = table(
     [
       { hand: ['bang', 'beer'], inPlay: ['barrel'] },

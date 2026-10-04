@@ -26,7 +26,8 @@ function choose(state: BangState, playerId: string, level: BotLevel, seed = 'r')
 
 const seeds = (count: number) => Array.from({ length: count }, (_, index) => `seed-${index}`);
 
-describe('BANG! bot', () => {
+// Whole matches: quick here, many times slower on the CI runner.
+describe('BANG! bot', { timeout: 30_000 }, () => {
   // playBotMatch throws on any illegal action, so finishing is the assertion. The ceiling is
   // far below the default: a table that never comes to blows would hit it.
   it.each([
