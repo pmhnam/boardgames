@@ -21,8 +21,15 @@ export interface MatchState {
   sendAction(action: unknown): void;
 }
 
-/** How often an action is sent again before the player is told it did not go through. */
-const MAX_RESENDS = 3;
+/**
+ * How often an action is sent again before the player is told it did not go through. A player
+ * racing N others loses at most N times, and the largest table seats sixteen.
+ */
+const MAX_RESENDS = 15;
+/** Those who lost the same race spread out over this long before trying again. */
+const RESEND_SPREAD_MS = 100;
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * The client's copy of a match: whatever the server last said. It is fetched on every
@@ -78,11 +85,13 @@ export function useMatchState(gameId: string): MatchState {
           setActionError(ack.ok ? null : ack.error);
           return;
         }
+        const resend = resendOnConflict && resendsLeft > 0;
+        // Everyone who lost this race is about to do the same: waiting a moment each lets most
+        // of them fetch a state the others have already moved past.
+        if (resend) await pause(Math.random() * RESEND_SPREAD_MS);
         // Our copy was stale: fetch the authoritative state instead of guessing.
         const fresh = await sync();
-        if (resendOnConflict && fresh && resendsLeft > 0) {
-          return attempt(fresh.version, resendsLeft - 1);
-        }
+        if (resend && fresh?.status === 'playing') return attempt(fresh.version, resendsLeft - 1);
         setActionError(ack.error);
       };
       void attempt(message.version, MAX_RESENDS).finally(() => setPending(false));

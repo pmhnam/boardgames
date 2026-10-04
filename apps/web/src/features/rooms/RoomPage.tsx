@@ -183,7 +183,11 @@ export function RoomPage() {
             config={gameConfig.data.config}
             value={data.settings}
             playerCount={data.members.length}
-            onChange={(settings) => changeSettings.mutate({ settings })}
+            onChange={(settings) => {
+              // A start refused over the settings is answered by changing them.
+              start.reset();
+              changeSettings.mutate({ settings });
+            }}
           />
           <span className="muted hint">
             Changing this asks everyone to confirm they are ready again.
