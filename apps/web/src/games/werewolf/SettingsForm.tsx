@@ -11,8 +11,62 @@ import {
   type WerewolfConfig,
   type WerewolfSettings,
 } from '@bgp/game-werewolf';
+import type { Locale } from '../../shared/i18n/locales';
+import { useLocale } from '../../shared/i18n/useT';
 import type { RoomSettings, SettingsFormProps } from '../types';
 import { COMPOSITION_ERROR, ROLE_HINT, ROLE_LABEL, describeCast } from './labels';
+
+/** The form's own words. Role names and hints are the game's, and stay as `labels.ts` has them. */
+interface Text {
+  revealOnDeath: string;
+  lobbyNote: string;
+  castFor(players: number): string;
+  suggested: string;
+  custom: string;
+  needsPlayers(min: number, max: number, planned: number): string;
+  fewer(role: string): string;
+  more(role: string): string;
+  automatic: string;
+  useSuggestion(players: number): string;
+  summarySuggested: string;
+  summaryCustom(cast: string): string;
+  summaryMisfit(cast: string, players: number): string;
+}
+
+const TEXT: Record<Locale, Text> = {
+  vi: {
+    revealOnDeath: 'Lật vai khi chết',
+    lobbyNote: 'Bộ vai theo gợi ý; chủ phòng chỉnh được sau khi vào phòng.',
+    castFor: (players) => `Bộ vai cho ${players} người`,
+    suggested: 'Theo gợi ý',
+    custom: 'Tự chọn',
+    needsPlayers: (min, max, planned) =>
+      `Cần ${min}–${max} người để bắt đầu. Bộ vai dưới đây tính cho ${planned} người.`,
+    fewer: (role) => `Bớt ${role}`,
+    more: (role) => `Thêm ${role}`,
+    automatic: 'tự động',
+    useSuggestion: (players) => `Dùng gợi ý cho ${players} người`,
+    summarySuggested: 'Bộ vai theo gợi ý',
+    summaryCustom: (cast) => `Tự chọn: ${cast}`,
+    summaryMisfit: (cast, players) => `${cast} (chưa hợp với ${players} người)`,
+  },
+  en: {
+    revealOnDeath: 'Reveal roles on death',
+    lobbyNote: 'Suggested cast; the host can change it once in the room.',
+    castFor: (players) => `Cast for ${players} players`,
+    suggested: 'Suggested',
+    custom: 'Custom',
+    needsPlayers: (min, max, planned) =>
+      `Needs ${min}–${max} players to start. The cast below is for ${planned}.`,
+    fewer: (role) => `Fewer: ${role}`,
+    more: (role) => `More: ${role}`,
+    automatic: 'automatic',
+    useSuggestion: (players) => `Use the suggestion for ${players} players`,
+    summarySuggested: 'Suggested cast',
+    summaryCustom: (cast) => `Custom: ${cast}`,
+    summaryMisfit: (cast, players) => `${cast} (does not fit ${players} players)`,
+  },
+};
 
 /** The room's settings as the engine would read them; anything missing takes its default. */
 function readSettings(config: WerewolfConfig, value: RoomSettings): WerewolfSettings {
@@ -41,6 +95,7 @@ export function WerewolfSettingsForm({
   onChange,
   playerCount,
 }: SettingsFormProps<WerewolfConfig>) {
+  const text = TEXT[useLocale()];
   const settings = readSettings(config, value);
   const custom = settings.preset === 'custom';
   // Before the table is big enough, plan for the smallest one that can play.
@@ -62,7 +117,7 @@ export function WerewolfSettingsForm({
         checked={settings.revealRoleOnDeath}
         onChange={(event) => onChange({ ...value, revealRoleOnDeath: event.target.checked })}
       />
-      <span>Lật vai khi chết</span>
+      <span>{text.revealOnDeath}</span>
     </label>
   );
 
@@ -70,7 +125,7 @@ export function WerewolfSettingsForm({
   if (playerCount === undefined) {
     return (
       <div className="stack-small">
-        <span className="muted">Bộ vai theo gợi ý; chủ phòng chỉnh được sau khi vào phòng.</span>
+        <span className="muted">{text.lobbyNote}</span>
         {reveal}
       </div>
     );
@@ -79,7 +134,7 @@ export function WerewolfSettingsForm({
   return (
     <div className="stack-small werewolf-settings">
       <div className="row wrap">
-        <strong>Bộ vai cho {playerCount} người</strong>
+        <strong>{text.castFor(playerCount)}</strong>
         <button
           type="button"
           className={custom ? 'secondary' : undefined}
@@ -88,7 +143,7 @@ export function WerewolfSettingsForm({
             onChange({ preset: 'recommended', revealRoleOnDeath: settings.revealRoleOnDeath })
           }
         >
-          Theo gợi ý
+          {text.suggested}
         </button>
         <button
           type="button"
@@ -96,15 +151,12 @@ export function WerewolfSettingsForm({
           aria-pressed={custom}
           onClick={() => setRoles(roles)}
         >
-          Tự chọn
+          {text.custom}
         </button>
       </div>
 
       {!isSeated(playerCount) && (
-        <span className="muted">
-          Cần {MIN_PLAYERS}–{MAX_PLAYERS} người để bắt đầu. Bộ vai dưới đây tính cho {tableSize}{' '}
-          người.
-        </span>
+        <span className="muted">{text.needsPlayers(MIN_PLAYERS, MAX_PLAYERS, tableSize)}</span>
       )}
 
       {custom ? (
@@ -120,7 +172,7 @@ export function WerewolfSettingsForm({
                   <button
                     type="button"
                     className="secondary"
-                    aria-label={`Bớt ${ROLE_LABEL[role]}`}
+                    aria-label={text.fewer(ROLE_LABEL[role])}
                     disabled={!allowed(role, roles[role] - 1)}
                     onClick={() => setRoles({ ...roles, [role]: roles[role] - 1 })}
                   >
@@ -130,7 +182,7 @@ export function WerewolfSettingsForm({
                   <button
                     type="button"
                     className="secondary"
-                    aria-label={`Thêm ${ROLE_LABEL[role]}`}
+                    aria-label={text.more(ROLE_LABEL[role])}
                     disabled={!allowed(role, roles[role] + 1)}
                     onClick={() => setRoles({ ...roles, [role]: roles[role] + 1 })}
                   >
@@ -141,12 +193,14 @@ export function WerewolfSettingsForm({
             ))}
             <li>
               <span>{ROLE_LABEL.villager}</span>
-              <span className="muted">{cast.ok ? cast.roleCounts.villager : '—'} (tự động)</span>
+              <span className="muted">
+                {cast.ok ? cast.roleCounts.villager : '—'} ({text.automatic})
+              </span>
             </li>
           </ul>
           {!cast.ok && <span className="error">{COMPOSITION_ERROR[cast.code]}</span>}
           <button type="button" className="link" onClick={() => setRoles(suggested)}>
-            Dùng gợi ý cho {tableSize} người
+            {text.useSuggestion(tableSize)}
           </button>
         </>
       ) : (
@@ -161,15 +215,17 @@ export function WerewolfSettingsForm({
 export function describeWerewolfSettings(
   value: RoomSettings,
   config: WerewolfConfig,
-  playerCount?: number,
+  playerCount: number | undefined,
+  locale: Locale,
 ): string | null {
+  const text = TEXT[locale];
   const settings = readSettings(config, value);
   if (!isSeated(playerCount)) {
     return settings.preset === 'custom' && settings.roles
-      ? `Tự chọn: ${describeCast(settings.roles)}`
-      : 'Bộ vai theo gợi ý';
+      ? text.summaryCustom(describeCast(settings.roles))
+      : text.summarySuggested;
   }
   const cast = resolveRoles(settings, playerCount, config);
   if (cast.ok) return describeCast(cast.roleCounts);
-  return `${describeCast(settings.roles ?? {})} (chưa hợp với ${playerCount} người)`;
+  return text.summaryMisfit(describeCast(settings.roles ?? {}), playerCount);
 }

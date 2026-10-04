@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
 import { errorText } from '../../shared/i18n/errors';
-import { useT, type Translate } from '../../shared/i18n/useT';
+import { useLocale, useT, type Translate } from '../../shared/i18n/useT';
 import { joinRoom } from '../rooms/joinRoom';
 import { GameIcon } from './GameIcon';
 import { countBots, type ListedRoom } from './rooms';
@@ -12,12 +12,13 @@ import { countBots, type ListedRoom } from './rooms';
 /** The facts about a room that fit on one line: its code, who is seated, how it is set up. */
 export function RoomFacts({ room, game }: { room: RoomDto; game: GameDefinitionDto | undefined }) {
   const t = useT();
+  const locale = useLocale();
   const ui = getGameUi(room.gameType);
   // Only for a game with a room on show, and shared between its rooms by the query cache.
   const config = useGameConfig(room.gameType, ui?.describeSettings !== undefined);
   const summary =
     ui?.describeSettings && config.data
-      ? ui.describeSettings(room.settings, config.data.config, room.members.length)
+      ? ui.describeSettings(room.settings, config.data.config, room.members.length, locale)
       : null;
   const bots = countBots(room);
 

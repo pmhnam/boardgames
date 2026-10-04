@@ -17,6 +17,7 @@ import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
 import { api, errorMessage } from '../../shared/api/http';
 import { PlayerList } from '../../shared/components/PlayerList';
+import { useLocale } from '../../shared/i18n/useT';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
 
@@ -28,6 +29,7 @@ export function RoomPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const socket = useSocket();
+  const locale = useLocale();
   const userId = useAuthStore((state) => state.session?.user.id);
   const queryKey = ['room', roomId];
 
@@ -112,7 +114,7 @@ export function RoomPage() {
   const everyoneReady = data.members.every((member) => member.status === 'ready');
   const settingsSummary =
     gameUi?.describeSettings && gameConfig.data
-      ? gameUi.describeSettings(data.settings, gameConfig.data.config, data.members.length)
+      ? gameUi.describeSettings(data.settings, gameConfig.data.config, data.members.length, locale)
       : null;
   const inviteLink = `${window.location.origin}/join/${data.code}`;
   const SettingsForm = gameUi?.SettingsForm;

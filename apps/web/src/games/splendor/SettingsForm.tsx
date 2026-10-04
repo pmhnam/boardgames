@@ -1,5 +1,26 @@
 import type { SplendorConfig } from '@bgp/game-splendor';
+import type { Locale } from '../../shared/i18n/locales';
+import { useLocale } from '../../shared/i18n/useT';
 import type { RoomSettings, SettingsFormProps } from '../types';
+
+interface Text {
+  playTo: string;
+  points(target: number): string;
+  firstTo(target: number): string;
+}
+
+const TEXT: Record<Locale, Text> = {
+  vi: {
+    playTo: 'Chơi đến',
+    points: (target) => `${target} điểm`,
+    firstTo: (target) => `Thắng ở ${target} điểm`,
+  },
+  en: {
+    playTo: 'Play to',
+    points: (target) => `${target} points`,
+    firstTo: (target) => `First to ${target} points`,
+  },
+};
 
 function selectedTarget(config: SplendorConfig, settings: RoomSettings): number {
   const chosen = settings.targetScore;
@@ -14,16 +35,17 @@ export function SplendorSettingsForm({
   value,
   onChange,
 }: SettingsFormProps<SplendorConfig>) {
+  const text = TEXT[useLocale()];
   return (
     <label className="row wrap">
-      <span>Play to</span>
+      <span>{text.playTo}</span>
       <select
         value={selectedTarget(config, value)}
         onChange={(event) => onChange({ ...value, targetScore: Number(event.target.value) })}
       >
         {config.targetScoreOptions.map((target) => (
           <option key={target} value={target}>
-            {target} points
+            {text.points(target)}
           </option>
         ))}
       </select>
@@ -34,6 +56,8 @@ export function SplendorSettingsForm({
 export function describeSplendorSettings(
   settings: RoomSettings,
   config: SplendorConfig,
+  _playerCount: number | undefined,
+  locale: Locale,
 ): string | null {
-  return `First to ${selectedTarget(config, settings)} points`;
+  return TEXT[locale].firstTo(selectedTarget(config, settings));
 }

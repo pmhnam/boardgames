@@ -43,9 +43,14 @@ export interface GameUiDefinition {
   /** Shown in the lobby before a room is created, for games with something to choose. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   SettingsForm?: ComponentType<SettingsFormProps<any>>;
-  /** One line describing a room's settings, e.g. the chosen map. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  describeSettings?(settings: RoomSettings, config: any, playerCount?: number): string | null;
+  /** One line describing a room's settings, e.g. the chosen map, in the viewer's language. */
+  describeSettings?(
+    settings: RoomSettings,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    config: any,
+    playerCount: number | undefined,
+    locale: Locale,
+  ): string | null;
   /**
    * For games where several players act at once: an action refused only because someone else
    * got in first is sent again on the fresh state. The server still judges whether it is legal.
