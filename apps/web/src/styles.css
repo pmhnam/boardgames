@@ -368,6 +368,22 @@ td {
   vertical-align: middle;
 }
 
+/* Everything a turn takes from sits together: the tokens, then the cards right under them. */
+.harmonies-supply {
+  gap: 0.8rem;
+}
+
+.harmonies-supply-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.harmonies-supply-group h2 {
+  margin: 0;
+}
+
 .harmonies-spaces {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr));

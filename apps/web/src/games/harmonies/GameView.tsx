@@ -144,23 +144,54 @@ export function HarmoniesGameView({
 
       <div className={myBoard ? 'harmonies-table' : 'harmonies-table watching'}>
         <div className="harmonies-main">
-          <section className="card">
-            <h2>Central board</h2>
-            <div className="harmonies-spaces">
-              {view.centralSpaces.map((space, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className="central-space"
-                  disabled={!isMyTurn || !legal.canTakeTokens || space.length === 0}
-                  aria-label={`Take ${space.map((color) => TOKEN_LABEL[color]).join(', ') || 'nothing'}`}
-                  onClick={() => sendAction({ type: 'TAKE_TOKENS', spaceIndex: index })}
-                >
-                  {space.map((color, tokenIndex) => (
-                    <TokenChip key={tokenIndex} color={color} />
-                  ))}
-                </button>
-              ))}
+          {/* Everything a turn takes from, in one place: the tokens, then the cards under them. */}
+          <section className="card harmonies-supply">
+            <div className="harmonies-supply-group">
+              <h2>Central board</h2>
+              <div className="harmonies-spaces">
+                {view.centralSpaces.map((space, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className="central-space"
+                    disabled={!isMyTurn || !legal.canTakeTokens || space.length === 0}
+                    aria-label={`Take ${space.map((color) => TOKEN_LABEL[color]).join(', ') || 'nothing'}`}
+                    onClick={() => sendAction({ type: 'TAKE_TOKENS', spaceIndex: index })}
+                  >
+                    {space.map((color, tokenIndex) => (
+                      <TokenChip key={tokenIndex} color={color} />
+                    ))}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="harmonies-supply-group">
+              <h2>
+                Animal cards <span className="muted">({view.cardDeckCount} in the deck)</span>
+              </h2>
+              <div className="harmonies-cards">
+                {view.cardRiver.map((card) => (
+                  <AnimalCardView
+                    key={card.id}
+                    card={card}
+                    action={
+                      myBoard && playing ? (
+                        <button
+                          type="button"
+                          disabled={!isMyTurn || !legal.canTakeCard}
+                          onClick={() => sendAction({ type: 'TAKE_CARD', cardId: card.id })}
+                        >
+                          Take
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                ))}
+              </div>
+              <p className="muted hint">
+                Each card shows the exact stacks its animal needs; the number is the stack&apos;s
+                height. A building is a red token on top of a grey, brown or red one.
+              </p>
             </div>
             {!myBoard && statusBar}
           </section>
@@ -188,7 +219,7 @@ export function HarmoniesGameView({
                 <div className="harmonies-mine-side">
                   {myBoard.cards.length === 0 && (
                     <p className="muted hint">
-                      You have no animal cards yet. Take one from the row below.
+                      You have no animal cards yet. Take one from the row above.
                     </p>
                   )}
                   {inProgress.length > 0 && (
@@ -224,35 +255,6 @@ export function HarmoniesGameView({
               </div>
             </section>
           )}
-
-          <section className="card">
-            <h2>
-              Animal cards <span className="muted">({view.cardDeckCount} in the deck)</span>
-            </h2>
-            <div className="harmonies-cards">
-              {view.cardRiver.map((card) => (
-                <AnimalCardView
-                  key={card.id}
-                  card={card}
-                  action={
-                    myBoard && playing ? (
-                      <button
-                        type="button"
-                        disabled={!isMyTurn || !legal.canTakeCard}
-                        onClick={() => sendAction({ type: 'TAKE_CARD', cardId: card.id })}
-                      >
-                        Take
-                      </button>
-                    ) : undefined
-                  }
-                />
-              ))}
-            </div>
-            <p className="muted hint">
-              Each card shows the exact stacks its animal needs; the number is the stack&apos;s
-              height. A building is a red token on top of a grey, brown or red one.
-            </p>
-          </section>
         </div>
 
         <div className="harmonies-side">
