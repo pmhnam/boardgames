@@ -5,6 +5,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createSeededRandom } from '@bgp/game-core';
 import { HarmoniesBot, type HarmoniesAction, type HarmoniesView } from '@bgp/game-harmonies';
+import { SplendorBot, type SplendorView } from '@bgp/game-splendor';
 import {
   ClientEvents,
   ErrorCodes,
@@ -116,8 +117,14 @@ describe('human seat autoplay', () => {
         };
   }
 
-  async function sync(client: Client, gameId: string): Promise<State> {
-    const result: Ack<State> = await client.socket.emitWithAck(ClientEvents.GameSync, { gameId });
+  async function sync<TView = HarmoniesView>(
+    client: Client,
+    gameId: string,
+  ): Promise<GameStateMessage<TView>> {
+    const result: Ack<GameStateMessage<TView>> = await client.socket.emitWithAck(
+      ClientEvents.GameSync,
+      { gameId },
+    );
     if (!result.ok) throw new Error(result.error.code);
     return result.data;
   }
@@ -143,6 +150,63 @@ describe('human seat autoplay', () => {
     }
     throw new Error('Bot did not finish its turn');
   }
+
+  it('autoplays consecutive Splendor turns and hands control back for manual play', async () => {
+    const host = await client('Splendor autoplay host');
+    const guest = await client('Splendor autoplay guest');
+    const { body: room } = await call<RoomDto>(host, 'POST', '/rooms', { gameType: 'splendor' });
+    await call(guest, 'POST', `/rooms/${room.id}/join`);
+    await call(host, 'POST', `/rooms/${room.id}/ready`, { ready: true });
+    await call(guest, 'POST', `/rooms/${room.id}/ready`, { ready: true });
+    const { body: started } = await call<StartRoomResponse>(
+      host,
+      'POST',
+      `/rooms/${room.id}/start`,
+    );
+    const gameId = started.matchId;
+    const initial = await sync<SplendorView>(host, gameId);
+    const actor = initial.state.turn.activePlayerId === initial.viewerPlayerId ? host : guest;
+    const other = actor === host ? guest : host;
+    const actorId = (await sync<SplendorView>(actor, gameId)).viewerPlayerId!;
+    const otherId = (await sync<SplendorView>(other, gameId)).viewerPlayerId!;
+
+    const wait = async (playerId: string) => {
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const state = await sync<SplendorView>(other, gameId);
+        if (state.state.turn.activePlayerId === playerId) return state;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      throw new Error('Splendor bot did not finish its turn');
+    };
+    const move = async (who: Client) => {
+      const state = await sync<SplendorView>(who, gameId);
+      const result: Ack<unknown> = await who.socket.emitWithAck(ClientEvents.GameAction, {
+        gameId,
+        requestId: randomUUID(),
+        expectedVersion: state.version,
+        action: SplendorBot.chooseAction({
+          view: state.state,
+          playerId: state.viewerPlayerId!,
+          level: 'normal',
+          random: createSeededRandom(`splendor-${state.version}`),
+        }),
+      });
+      expect(result.ok).toBe(true);
+    };
+
+    expect((await autoplay(actor, gameId, true)).body.level).toBe('normal');
+    const first = await wait(otherId);
+    expect(first.version).toBeGreaterThan(initial.version);
+    await move(other);
+    const second = await wait(otherId);
+    expect(second.state.turn.number).toBeGreaterThan(first.state.turn.number);
+    expect(second.autoplay).toContainEqual({ playerId: actorId, level: 'normal', version: 1 });
+    expect((await autoplay(actor, gameId, false)).body.level).toBeNull();
+    await move(other);
+    await wait(actorId);
+    await move(actor);
+    expect((await sync<SplendorView>(actor, gameId)).state.turn.activePlayerId).toBe(otherId);
+  });
 
   it('toggles only the authenticated seat, is idempotent, and broadcasts without adding game actions', async () => {
     const { host, guest, gameId, hostId, guestId } = await start();

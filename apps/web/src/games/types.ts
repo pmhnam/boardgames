@@ -63,6 +63,8 @@ export interface GameUiDefinition {
    * got in first is sent again on the fresh state. The server still judges whether it is legal.
    */
   resendOnConflict?: boolean;
+  /** Lets a seated player hand control to the server's bot. */
+  supportsAutoplay?: boolean;
   // Each game narrows the view/action types itself; the platform passes them through untyped.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<GameViewProps<any, any>>;

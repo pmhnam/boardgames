@@ -5,8 +5,15 @@ export interface AlertTurn {
   mine: boolean;
 }
 
+export interface TurnAlertOptions {
+  preferenceKey: string;
+  title: string;
+  body: string;
+}
+
 /** Owns browser resources and remembers the last turn, independently of action pending state. */
 export class TurnAlerts {
+  constructor(private readonly options: TurnAlertOptions) {}
   private lastTurn: string | null = null;
   private notification: Notification | null = null;
   private audio: AudioContext | null = null;
@@ -66,9 +73,9 @@ export class TurnAlerts {
       Notification.permission === 'granted'
     ) {
       try {
-        const notification = new Notification('Harmonies — Đến lượt bạn', {
-          body: 'Quay lại game để chọn token và xây dựng môi trường sống của bạn.',
-          tag: `harmonies-turn-${turn.gameId}`,
+        const notification = new Notification(this.options.title, {
+          body: this.options.body,
+          tag: `${this.options.preferenceKey}-turn-${turn.gameId}`,
         });
         notification.onclick = () => {
           window.focus();

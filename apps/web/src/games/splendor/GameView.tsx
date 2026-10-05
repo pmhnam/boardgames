@@ -18,6 +18,13 @@ import { NobleTile } from './components/NobleTile';
 import { PlayerPanel } from './components/PlayerPanel';
 import { TIER_LABEL, TOKEN_LABEL } from './layout';
 import { useLastMove } from './useLastMove';
+import { useTurnAlerts } from '../shared/useTurnAlerts';
+
+const TURN_ALERTS = {
+  preferenceKey: 'splendor',
+  title: 'Splendor — Đến lượt bạn',
+  body: 'Quay lại game để gom đá quý, mua thẻ hoặc chiêu mộ quý tộc.',
+};
 
 /** The card or deck the player has picked and is about to buy or reserve. UI state only. */
 type Selection = { kind: 'card'; cardId: string } | { kind: 'deck'; tier: Tier } | null;
@@ -30,12 +37,23 @@ export function SplendorGameView({
   players,
   sendAction,
   disabled,
+  autoplay,
 }: GameViewProps<SplendorView, SplendorAction>) {
   const view = message.state;
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
   const playing = view.phase === 'PLAYING';
-  const isMyTurn = !disabled && playing && turn.activePlayerId === me;
+  const mineTurn = playing && me !== null && turn.activePlayerId === me;
+  const isMyTurn = !disabled && !autoplay?.enabled && !autoplay?.pending && mineTurn;
+  const alerts = useTurnAlerts(
+    {
+      gameId: message.gameId,
+      playerId: me,
+      number: turn.number,
+      mine: mineTurn && message.status === 'playing' && autoplay !== undefined && !autoplay.enabled,
+    },
+    TURN_ALERTS,
+  );
   const mine = me === null ? undefined : view.players[me];
   /** Seated in a game still going: the only viewer who gets controls. */
   const interactive = mine !== undefined && playing;
@@ -123,7 +141,7 @@ export function SplendorGameView({
         <p className="splendor-turn">
           {view.phase === 'FINISHED'
             ? 'Game over'
-            : isMyTurn
+            : mineTurn
               ? 'Your turn'
               : `${playerName(players, turn.activePlayerId)}’s turn`}
           {view.finalRound && playing && <span className="splendor-final">Final round</span>}
@@ -135,6 +153,40 @@ export function SplendorGameView({
           First to {view.targetScore} points · turn {turn.number}
         </p>
       </header>
+
+      {autoplay && me !== null && playing && message.status === 'playing' && (
+        <div className="stack">
+          <div className="row wrap" aria-label="Bot chơi giúp và âm báo tới lượt">
+            {autoplay && (
+              <button
+                type="button"
+                aria-pressed={autoplay.enabled}
+                disabled={autoplay.pending || (!autoplay.enabled && disabled)}
+                onClick={autoplay.toggle}
+              >
+                {autoplay.pending
+                  ? 'Đang chuyển quyền…'
+                  : autoplay.enabled
+                    ? 'Lấy lại quyền chơi'
+                    : '🤖 Bật bot chơi giùm'}
+              </button>
+            )}
+            <button type="button" aria-pressed={alerts.sound} onClick={alerts.toggleSound}>
+              {alerts.sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt'}
+            </button>
+          </div>
+          {autoplay?.enabled && (
+            <p className="muted hint" role="status">
+              Bot đang chơi giùm bạn (mức thường), liên tục đến khi bạn tắt.
+            </p>
+          )}
+          {autoplay?.error && (
+            <p className="error" role="alert">
+              {autoplay.error}
+            </p>
+          )}
+        </div>
+      )}
 
       {isMyTurn && mine && legal.mustReturn > 0 && (
         <section className="card splendor-prompt">

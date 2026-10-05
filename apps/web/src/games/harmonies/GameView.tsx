@@ -15,7 +15,13 @@ import { PlayerPanel } from './components/PlayerPanel';
 import { ScoringGuide } from './components/ScoringGuide';
 import { TokenChip } from './components/TokenChip';
 import { TOKEN_LABEL } from './layout';
-import { useTurnAlerts } from './useTurnAlerts';
+import { useTurnAlerts } from '../shared/useTurnAlerts';
+
+const TURN_ALERTS = {
+  preferenceKey: 'harmonies',
+  title: 'Harmonies — Đến lượt bạn',
+  body: 'Quay lại game để chọn token và xây dựng môi trường sống của bạn.',
+};
 
 /** What the player has picked up and is about to put on their board. UI state only. */
 type Selection = { kind: 'token'; color: TokenColor } | { kind: 'card'; cardId: string } | null;
@@ -41,17 +47,20 @@ export function HarmoniesGameView({
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
   const playing = view.phase === 'PLAYING';
-  const alerts = useTurnAlerts({
-    gameId: message.gameId,
-    playerId: me,
-    number: turn.number,
-    mine:
-      playing &&
-      message.status === 'playing' &&
-      me !== null &&
-      turn.activePlayerId === me &&
-      !autoplay?.enabled,
-  });
+  const alerts = useTurnAlerts(
+    {
+      gameId: message.gameId,
+      playerId: me,
+      number: turn.number,
+      mine:
+        playing &&
+        message.status === 'playing' &&
+        me !== null &&
+        turn.activePlayerId === me &&
+        !autoplay?.enabled,
+    },
+    TURN_ALERTS,
+  );
   const isMyTurn =
     !disabled && !autoplay?.enabled && !autoplay?.pending && playing && turn.activePlayerId === me;
   const myBoard = me === null ? undefined : view.boards[me];

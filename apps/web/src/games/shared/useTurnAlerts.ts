@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { TurnAlerts, type AlertTurn } from './turnAlerts';
-
-const SOUND_KEY = 'harmonies.turn-sound';
-const NOTIFICATIONS_KEY = 'harmonies.turn-notifications';
+import { TurnAlerts, type AlertTurn, type TurnAlertOptions } from './turnAlerts';
 
 function readPreference(key: string, fallback: boolean): boolean {
   try {
@@ -21,12 +18,12 @@ function savePreference(key: string, value: boolean) {
   }
 }
 
-export function useTurnAlerts(turn: AlertTurn) {
+export function useTurnAlerts(turn: AlertTurn, options: TurnAlertOptions) {
+  const soundKey = `${options.preferenceKey}.turn-sound`;
+  const notificationsKey = `${options.preferenceKey}.turn-notifications`;
   const alerts = useRef<TurnAlerts | null>(null);
-  const [sound, setSound] = useState(() => readPreference(SOUND_KEY, true));
-  const [notifications, setNotifications] = useState(() =>
-    readPreference(NOTIFICATIONS_KEY, false),
-  );
+  const [sound, setSound] = useState(() => readPreference(soundKey, true));
+  const [notifications, setNotifications] = useState(() => readPreference(notificationsKey, false));
   const supported = 'Notification' in window && window.isSecureContext;
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     supported ? Notification.permission : 'default',
@@ -35,14 +32,14 @@ export function useTurnAlerts(turn: AlertTurn) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const controller = new TurnAlerts();
+    const controller = new TurnAlerts(options);
     alerts.current = controller;
     controller.start();
     return () => {
       controller.dispose();
       alerts.current = null;
     };
-  }, []);
+  }, [options]);
 
   useEffect(() => {
     if (alerts.current) alerts.current.sound = sound;
@@ -67,7 +64,7 @@ export function useTurnAlerts(turn: AlertTurn) {
     const enabled = !sound;
     alerts.current?.setSound(enabled);
     setSound(enabled);
-    savePreference(SOUND_KEY, enabled);
+    savePreference(soundKey, enabled);
   };
 
   const toggleNotifications = async () => {
@@ -76,7 +73,7 @@ export function useTurnAlerts(turn: AlertTurn) {
     if (notifications && permission === 'granted') {
       alerts.current?.setNotifications(false);
       setNotifications(false);
-      savePreference(NOTIFICATIONS_KEY, false);
+      savePreference(notificationsKey, false);
       return;
     }
     setRequesting(true);
@@ -85,7 +82,7 @@ export function useTurnAlerts(turn: AlertTurn) {
       const enabled = result === 'granted';
       setPermission(result);
       setNotifications(enabled);
-      savePreference(NOTIFICATIONS_KEY, enabled);
+      savePreference(notificationsKey, enabled);
       alerts.current?.setNotifications(enabled);
     } catch {
       setError('Không thể bật thông báo trên trình duyệt này.');

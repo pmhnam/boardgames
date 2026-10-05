@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TurnAlerts, type AlertTurn } from './turnAlerts';
 
-describe('Harmonies turn alerts', () => {
+describe.each(['harmonies', 'splendor'])('%s turn alerts', (gameType) => {
   let alerts: TurnAlerts;
   let page: EventTarget & { hidden: boolean; hasFocus: () => boolean };
   let browser: EventTarget & { focus: ReturnType<typeof vi.fn> };
@@ -74,7 +74,11 @@ describe('Harmonies turn alerts', () => {
     vi.stubGlobal('window', browser);
     vi.stubGlobal('Notification', FakeNotification);
     vi.stubGlobal('AudioContext', FakeAudio);
-    alerts = new TurnAlerts();
+    alerts = new TurnAlerts({
+      preferenceKey: gameType,
+      title: `${gameType} — Đến lượt bạn`,
+      body: 'Quay lại game để chơi.',
+    });
     alerts.start();
     alerts.setNotifications(true);
   });
@@ -90,6 +94,8 @@ describe('Harmonies turn alerts', () => {
     alerts.update(turn());
     alerts.update(turn());
     expect(notices).toHaveLength(1);
+    expect(notices[0]!.title).toBe(`${gameType} — Đến lượt bạn`);
+    expect(notices[0]!.options.tag).toBe(`${gameType}-turn-match-1`);
     expect(tones).toHaveLength(2);
     alerts.update(turn(2, false));
     expect(notices[0]!.close).toHaveBeenCalledOnce();
@@ -119,6 +125,18 @@ describe('Harmonies turn alerts', () => {
     alerts.update(turn(2, false));
     expect(tones).toHaveLength(0);
     expect(notices).toHaveLength(0);
+  });
+
+  it('stays silent during autoplay and alerts when the player takes over a new turn', () => {
+    page.dispatchEvent(new Event('pointerdown'));
+    alerts.update(turn(1, false));
+    alerts.update(turn(3, false));
+    expect(tones).toHaveLength(0);
+    alerts.update(turn(3));
+    expect(tones).toHaveLength(2);
+    alerts.update(turn(3, false));
+    alerts.update(turn(3));
+    expect(tones).toHaveLength(2);
   });
 
   it('respects disabled preferences and notification permission', () => {

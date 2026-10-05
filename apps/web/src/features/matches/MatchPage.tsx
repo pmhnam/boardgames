@@ -39,7 +39,7 @@ export function MatchPage() {
     ) ?? false;
   const controlPending = controlRequest?.gameId === matchId && controlRequest.pending;
   const autoplay =
-    message.gameType === 'harmonies' && message.viewerPlayerId !== null && !finished
+    definition?.supportsAutoplay && message.viewerPlayerId !== null && !finished
       ? {
           enabled,
           pending: Boolean(controlPending),
