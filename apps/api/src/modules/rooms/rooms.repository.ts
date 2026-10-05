@@ -24,7 +24,7 @@ export class RoomsRepository {
       await tx.insert(rooms).values(room);
       await tx
         .insert(roomMembers)
-        .values({ roomId: room.id, userId: room.hostUserId, seat: 0, status: 'joined' });
+        .values({ roomId: room.id, userId: room.hostUserId, seat: 0, status: 'ready' });
     });
   }
 
@@ -61,7 +61,7 @@ export class RoomsRepository {
       .orderBy(asc(roomMembers.seat));
   }
 
-  /** A computer player takes its seat already ready. */
+  /** Every player takes their seat already ready. */
   async addMember(
     roomId: string,
     userId: string,
@@ -70,7 +70,7 @@ export class RoomsRepository {
   ): Promise<void> {
     await this.connection.db
       .insert(roomMembers)
-      .values({ roomId, userId, seat, status: botLevel ? 'ready' : 'joined', botLevel });
+      .values({ roomId, userId, seat, status: 'ready', botLevel });
   }
 
   async removeMember(roomId: string, userId: string): Promise<void> {
@@ -86,10 +86,10 @@ export class RoomsRepository {
       .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId)));
   }
 
-  async resetMemberStatuses(roomId: string): Promise<void> {
+  async resetMemberStatuses(roomId: string, status: RoomMemberStatus = 'ready'): Promise<void> {
     await this.connection.db
       .update(roomMembers)
-      .set({ status: 'joined' })
+      .set({ status })
       // Computer players stay ready.
       .where(and(eq(roomMembers.roomId, roomId), isNull(roomMembers.botLevel)));
   }

@@ -75,6 +75,7 @@ export const vi = {
   'roomPage.ready': 'Sẵn sàng',
   'roomPage.notReady': 'Chưa sẵn sàng',
   'roomPage.removeBot': 'Xoá',
+  'roomPage.kick': 'Mời ra khỏi phòng',
   'roomPage.matchInProgress': 'Đang có một trận diễn ra.',
   'roomPage.settingsHint': 'Đổi cài đặt sẽ yêu cầu mọi người xác nhận sẵn sàng lại.',
   'roomPage.computerPlayer': 'Người chơi máy',

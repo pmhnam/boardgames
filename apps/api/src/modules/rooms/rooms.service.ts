@@ -141,6 +141,22 @@ export class RoomsService {
     return this.changed(roomId);
   }
 
+  async kick(roomId: string, userId: string, memberUserId: string): Promise<RoomDto> {
+    const room = await this.requireRoom(roomId);
+    const members = await this.requireMember(roomId, userId);
+    this.requireOpen(room);
+    this.requireHost(room, userId, 'Only the host can kick players.');
+
+    if (memberUserId === userId) {
+      throw new AppError(ErrorCodes.Forbidden, 'The host cannot kick themselves.', 403);
+    }
+    if (!members.some((member) => member.userId === memberUserId)) {
+      throw new AppError(ErrorCodes.NotRoomMember, 'There is no such player here.', 404);
+    }
+    await this.rooms.removeMember(roomId, memberUserId);
+    return this.changed(roomId);
+  }
+
   /** Seats a computer player. It is a member like any other, and is always ready. */
   async addBot(roomId: string, userId: string, level: BotLevel): Promise<RoomDto> {
     const room = await this.requireRoom(roomId);
@@ -217,7 +233,7 @@ export class RoomsService {
     if (!parsed.ok) throw new AppError(ErrorCodes.InvalidRoomSettings, parsed.message, 400);
 
     await this.rooms.update(roomId, { settings: parsed.settings });
-    await this.rooms.resetMemberStatuses(roomId);
+    await this.rooms.resetMemberStatuses(roomId, 'joined');
     return this.changed(roomId);
   }
 

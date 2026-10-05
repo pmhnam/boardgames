@@ -142,6 +142,82 @@ describe('platform MVP flow', () => {
     await expect(connect('not-a-token')).rejects.toThrow(ErrorCodes.Unauthorized);
   });
 
+  it('lets only the host kick other members while the room is open', async () => {
+    const host = await createClient('Kick Host');
+    const guest = await createClient('Kick Guest');
+    const stranger = await createClient('Kick Stranger');
+    type ErrorBody = { error: { code: string } };
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', { gameType: 'grid-claim' });
+    const guestId = guest.session.user.id;
+    const hostId = host.session.user.id;
+    await guest.api('POST', `/rooms/${room.id}/join`);
+
+    const notHost = await guest.api<ErrorBody>('DELETE', `/rooms/${room.id}/members/${hostId}`);
+    expect(notHost.status).toBe(403);
+    expect(notHost.body.error.code).toBe(ErrorCodes.NotRoomHost);
+    const notMember = await stranger.api<ErrorBody>(
+      'DELETE',
+      `/rooms/${room.id}/members/${guestId}`,
+    );
+    expect(notMember.status).toBe(403);
+    expect(notMember.body.error.code).toBe(ErrorCodes.NotRoomMember);
+    const self = await host.api<ErrorBody>('DELETE', `/rooms/${room.id}/members/${hostId}`);
+    expect(self.status).toBe(403);
+    expect(self.body.error.code).toBe(ErrorCodes.Forbidden);
+    const missing = await host.api<ErrorBody>(
+      'DELETE',
+      `/rooms/${room.id}/members/${stranger.session.user.id}`,
+    );
+    expect(missing.status).toBe(404);
+    expect(missing.body.error.code).toBe(ErrorCodes.NotRoomMember);
+
+    const secondTab = await connect(guest.session.accessToken);
+    const updates: RoomDto[] = [];
+    const secondTabUpdates: RoomDto[] = [];
+    guest.socket.on(ServerEvents.RoomUpdated, (dto: RoomDto) => updates.push(dto));
+    secondTab.on(ServerEvents.RoomUpdated, (dto: RoomDto) => secondTabUpdates.push(dto));
+    expect((await guest.emit(ClientEvents.RoomJoin, { roomId: room.id })).ok).toBe(true);
+    expect((await secondTab.emitWithAck(ClientEvents.RoomJoin, { roomId: room.id })).ok).toBe(true);
+
+    const kicked = await host.api<RoomDto>('DELETE', `/rooms/${room.id}/members/${guestId}`);
+    expect(kicked.status).toBe(200);
+    expect(kicked.body.hostUserId).toBe(hostId);
+    expect(kicked.body.members.map((member) => member.userId)).toEqual([hostId]);
+    await waitFor(() => updates.find((dto) => dto.members.length === 1), 'kick notification');
+    await waitFor(
+      () => secondTabUpdates.find((dto) => dto.members.length === 1),
+      'kick notification on second tab',
+    );
+
+    const readyDenied = await guest.api<ErrorBody>('POST', `/rooms/${room.id}/ready`, {
+      ready: true,
+    });
+    expect(readyDenied.body.error.code).toBe(ErrorCodes.NotRoomMember);
+    const { body: replacement } = await stranger.api<RoomDto>('POST', `/rooms/${room.id}/join`);
+    expect(replacement.members[1]).toMatchObject({
+      userId: stranger.session.user.id,
+      seat: 1,
+      status: 'ready',
+    });
+    // Acknowledgments are delivered after earlier events on each connection.
+    expect((await guest.emit(ClientEvents.RoomJoin, { roomId: room.id })).ok).toBe(false);
+    expect((await secondTab.emitWithAck(ClientEvents.RoomJoin, { roomId: room.id })).ok).toBe(
+      false,
+    );
+    expect(updates).toHaveLength(1);
+    expect(secondTabUpdates).toHaveLength(1);
+
+    // Default readiness is enough to start without an explicit ready request.
+    const started = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    expect(started.status).toBe(200);
+    const inMatch = await host.api<ErrorBody>(
+      'DELETE',
+      `/rooms/${room.id}/members/${stranger.session.user.id}`,
+    );
+    expect(inMatch.status).toBe(409);
+    expect(inMatch.body.error.code).toBe(ErrorCodes.RoomNotOpen);
+  });
+
   it('plays a whole match from lobby to replay', async () => {
     const alice = await createClient('Alice');
     const bob = await createClient('Bob');
@@ -150,10 +226,12 @@ describe('platform MVP flow', () => {
     // Room: create, join by code, ready, start.
     const { body: room } = await alice.api<RoomDto>('POST', '/rooms', { gameType: 'grid-claim' });
     expect(room.members).toHaveLength(1);
+    expect(room.members[0]?.status).toBe('ready');
 
     const { body: found } = await bob.api<RoomDto>('GET', `/rooms/by-code/${room.code}`);
     const { body: joined } = await bob.api<RoomDto>('POST', `/rooms/${found.id}/join`);
     expect(joined.members.map((member) => member.displayName)).toEqual(['Alice', 'Bob']);
+    expect(joined.members.every((member) => member.status === 'ready')).toBe(true);
 
     const full = await mallory.api<{ error: { code: string } }>('POST', `/rooms/${room.id}/join`);
     expect(full.body.error.code).toBe(ErrorCodes.RoomFull);
@@ -163,6 +241,7 @@ describe('platform MVP flow', () => {
     expect((await alice.emit(ClientEvents.RoomJoin, { roomId: room.id })).ok).toBe(true);
     expect((await mallory.emit(ClientEvents.RoomJoin, { roomId: room.id })).ok).toBe(false);
 
+    await bob.api('POST', `/rooms/${room.id}/ready`, { ready: false });
     const early = await alice.api<{ error: { code: string } }>('POST', `/rooms/${room.id}/start`);
     expect(early.body.error.code).toBe(ErrorCodes.PlayersNotReady);
 
@@ -350,7 +429,7 @@ describe('platform MVP flow', () => {
           (dto) =>
             dto.status === 'open' &&
             dto.currentMatchId === null &&
-            dto.members.every((member) => member.status === 'joined') &&
+            dto.members.every((member) => member.status === 'ready') &&
             roomUpdates.indexOf(dto) > 2,
         ),
       'room reopened',

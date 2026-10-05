@@ -76,6 +76,7 @@ export const en: Messages = {
   'roomPage.ready': 'Ready',
   'roomPage.notReady': 'Not ready',
   'roomPage.removeBot': 'Remove',
+  'roomPage.kick': 'Kick from room',
   'roomPage.matchInProgress': 'A match is in progress.',
   'roomPage.settingsHint': 'Changing this asks everyone to confirm they are ready again.',
   'roomPage.computerPlayer': 'Computer player',

@@ -51,7 +51,9 @@ export function RoomPage() {
       });
     };
     const onUpdated = (updated: RoomDto) => {
-      if (updated.id === roomId) queryClient.setQueryData(['room', roomId], updated);
+      if (updated.id !== roomId) return;
+      queryClient.setQueryData(['room', roomId], updated);
+      if (!updated.members.some((member) => member.userId === userId)) navigate('/');
     };
     const onStarted = (message: GameStartedMessage) => {
       if (message.roomId === roomId) navigate(`/matches/${message.matchId}`);
@@ -68,7 +70,7 @@ export function RoomPage() {
       socket.off(ServerEvents.GameStarted, onStarted);
       socket.emit(ClientEvents.RoomLeave, { roomId });
     };
-  }, [socket, roomId, queryClient, navigate]);
+  }, [socket, roomId, queryClient, navigate, userId]);
 
   const update = (data: RoomDto) => queryClient.setQueryData(queryKey, data);
   const setReady = useMutation({
@@ -93,6 +95,11 @@ export function RoomPage() {
   });
   const removeBot = useMutation({
     mutationFn: (botUserId: string) => api<RoomDto>('DELETE', `/rooms/${roomId}/bots/${botUserId}`),
+    onSuccess: update,
+  });
+  const kick = useMutation({
+    mutationFn: (memberUserId: string) =>
+      api<RoomDto>('DELETE', `/rooms/${roomId}/members/${memberUserId}`),
     onSuccess: update,
   });
   const changeSettings = useMutation({
@@ -132,6 +139,7 @@ export function RoomPage() {
     join.error ??
     addBot.error ??
     removeBot.error ??
+    kick.error ??
     changeSettings.error;
   const game = games.data?.find((definition) => definition.gameType === data.gameType);
   const canAddBot =
@@ -175,6 +183,16 @@ export function RoomPage() {
                   onClick={() => removeBot.mutate(member.userId)}
                 >
                   {t('roomPage.removeBot')}
+                </button>
+              )}
+              {!member.botLevel && member.userId !== userId && isHost && data.status === 'open' && (
+                <button
+                  type="button"
+                  className="link"
+                  disabled={kick.isPending}
+                  onClick={() => kick.mutate(member.userId)}
+                >
+                  {t('roomPage.kick')}
                 </button>
               )}
             </span>

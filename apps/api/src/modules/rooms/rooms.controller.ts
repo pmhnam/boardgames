@@ -79,6 +79,15 @@ export class RoomsController {
     return this.rooms.leave(roomId, user.userId);
   }
 
+  @Delete(':roomId/members/:memberUserId')
+  kick(
+    @Param('roomId', ParseUUIDPipe) roomId: string,
+    @Param('memberUserId', ParseUUIDPipe) memberUserId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<RoomDto> {
+    return this.rooms.kick(roomId, user.userId, memberUserId);
+  }
+
   @Post(':roomId/ready')
   @HttpCode(200)
   setReady(

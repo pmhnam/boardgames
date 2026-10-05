@@ -197,6 +197,13 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   async onRoomUpdated(event: RoomUpdatedEvent): Promise<void> {
     const room = await this.rooms.getDto(event.roomId);
     this.server.to(channels.room(event.roomId)).emit(ServerEvents.RoomUpdated, room);
+    // Notify removed members once, then revoke every tab's room subscription.
+    const memberIds = new Set(room.members.map((member) => member.userId));
+    for (const socket of await this.server.in(channels.room(event.roomId)).fetchSockets()) {
+      if (!memberIds.has(socket.data.userId as string)) {
+        await socket.leave(channels.room(event.roomId));
+      }
+    }
   }
 
   @OnEvent(PlatformEvents.MatchStarted)
