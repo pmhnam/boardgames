@@ -70,7 +70,7 @@ export function MatchPage() {
       : undefined;
 
   return (
-    <div className="stack">
+    <div className="stack match-page">
       {finished && (
         <div className="card result">
           <strong>

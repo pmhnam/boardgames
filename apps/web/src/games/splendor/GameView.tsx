@@ -19,6 +19,7 @@ import { PlayerPanel } from './components/PlayerPanel';
 import { TIER_LABEL, TOKEN_LABEL } from './layout';
 import { useLastMove } from './useLastMove';
 import { useTurnAlerts } from '../shared/useTurnAlerts';
+import { HeaderControls } from '../../shared/components/HeaderControls';
 
 const TURN_ALERTS = {
   preferenceKey: 'splendor',
@@ -174,28 +175,30 @@ export function SplendorGameView({
       </header>
 
       {autoplay && me !== null && playing && message.status === 'playing' && (
-        <div className="stack">
-          <div className="row wrap" aria-label="Bot chơi giúp và âm báo tới lượt">
-            {autoplay && (
-              <button
-                type="button"
-                aria-pressed={autoplay.enabled}
-                disabled={autoplay.pending || (!autoplay.enabled && disabled)}
-                onClick={autoplay.toggle}
-              >
-                {autoplay.pending
-                  ? 'Đang chuyển quyền…'
-                  : autoplay.enabled
-                    ? 'Lấy lại quyền chơi'
-                    : '🤖 Bật bot chơi giùm'}
+        <>
+          <HeaderControls>
+            <div className="row wrap" aria-label="Bot chơi giúp và âm báo tới lượt">
+              {autoplay && (
+                <button
+                  type="button"
+                  aria-pressed={autoplay.enabled}
+                  disabled={autoplay.pending || (!autoplay.enabled && disabled)}
+                  onClick={autoplay.toggle}
+                >
+                  {autoplay.pending
+                    ? 'Đang chuyển quyền…'
+                    : autoplay.enabled
+                      ? 'Lấy lại quyền chơi'
+                      : '🤖 Bật bot chơi giùm'}
+                </button>
+              )}
+              <button type="button" aria-pressed={alerts.sound} onClick={alerts.toggleSound}>
+                {alerts.sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt'}
               </button>
-            )}
-            <button type="button" aria-pressed={alerts.sound} onClick={alerts.toggleSound}>
-              {alerts.sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt'}
-            </button>
-          </div>
+            </div>
+          </HeaderControls>
           {autoplay?.enabled && (
-            <p className="muted hint" role="status">
+            <p className="muted splendor-control-status" role="status">
               Bot đang chơi giùm bạn (mức thường), liên tục đến khi bạn tắt.
             </p>
           )}
@@ -204,7 +207,7 @@ export function SplendorGameView({
               {autoplay.error}
             </p>
           )}
-        </div>
+        </>
       )}
 
       {isMyTurn && mine && legal.mustReturn > 0 && (

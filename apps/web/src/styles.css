@@ -1826,6 +1826,320 @@ button.splendor-card:disabled {
   margin-top: 0.5rem;
 }
 
+.app-game-controls:empty {
+  display: none;
+}
+
+.app-game-controls button {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* Size the playing surface from available height, rather than card aspect ratios. */
+@media (min-width: 64rem) and (min-height: 36rem) {
+  .app:has(.splendor) {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  .app:has(.splendor) > .app-header {
+    flex: none;
+  }
+
+  .app:has(.splendor) > main {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    padding: 0.5rem;
+  }
+
+  main:has(.splendor) > .stack {
+    height: 100%;
+    min-height: 0;
+    gap: 0.5rem;
+  }
+
+  .splendor {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    gap: 0.5rem;
+  }
+
+  .splendor-banner {
+    flex: none;
+    font-size: 0.85rem;
+  }
+
+  .splendor-control-status {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+
+  .splendor-table {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) 17rem;
+    grid-template-areas: 'board side' 'mine side';
+    grid-template-rows: minmax(0, 1fr) 13rem;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+
+  .splendor-board {
+    min-height: 0;
+    padding: 0.6rem;
+    grid-template-columns: minmax(0, 1fr) 5rem 8rem;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .splendor-market {
+    display: grid;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    min-height: 0;
+    gap: 0.5rem;
+  }
+
+  .splendor-row {
+    min-height: 0;
+    gap: 0.5rem;
+  }
+
+  .splendor-market .splendor-slot {
+    min-height: 0;
+  }
+
+  .splendor-market .splendor-card {
+    height: 100%;
+    aspect-ratio: auto;
+    padding: 0.4rem;
+  }
+
+  .splendor-market .splendor-card-cost {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    max-height: none;
+  }
+
+  .splendor-board > .splendor-bank {
+    justify-content: center;
+    min-height: 0;
+    gap: 0.5rem;
+  }
+
+  .splendor-board .splendor-bank-tokens {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  .splendor-board .splendor-bank-token {
+    width: clamp(1.8rem, 4dvh, 3rem);
+    height: clamp(1.8rem, 4dvh, 3rem);
+    font-size: 1.1rem;
+  }
+
+  .splendor-taking {
+    gap: 0.3rem;
+    font-size: 0.75rem;
+  }
+
+  .splendor-taking > .muted {
+    display: none;
+  }
+
+  .splendor-taking button {
+    padding: 0.3rem 0.5rem;
+  }
+
+  .splendor-board > .splendor-nobles {
+    position: relative;
+    min-height: 0;
+    overflow-y: auto;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: safe center;
+    gap: 0.4rem;
+  }
+
+  .splendor-board .splendor-noble {
+    flex: none;
+    min-height: 0;
+    font-size: 0.75rem;
+    gap: 0.15rem;
+    padding: 0.3rem;
+  }
+
+  .splendor-side {
+    display: flex;
+    position: relative;
+    top: auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    gap: 0.5rem;
+    padding: 2px;
+  }
+
+  .splendor-side .splendor-player {
+    flex: none;
+    padding: 0.6rem;
+    gap: 0.3rem;
+  }
+
+  .splendor-stack {
+    max-height: 2.5rem;
+    overflow-y: auto;
+  }
+
+  .splendor-mine {
+    min-height: 0;
+  }
+
+  .splendor-mine .splendor-player {
+    position: relative;
+    height: 100%;
+    padding: 0.5rem 0.75rem;
+    grid-template-columns: minmax(15rem, 1fr) minmax(15rem, 1fr) minmax(8rem, 0.6fr);
+    grid-template-rows: auto 0.3rem minmax(0, 1fr) auto;
+    gap: 0.4rem 0.75rem;
+  }
+
+  .splendor-mine .splendor-player-name {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .splendor-mine .splendor-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 0.3rem;
+  }
+
+  .splendor-mine .splendor-columns {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: center;
+    width: 100%;
+  }
+
+  .splendor-mine .splendor-tokens {
+    grid-column: 1;
+    grid-row: 4;
+    padding: 0.3rem 0 0;
+    gap: 0.3rem;
+  }
+
+  .splendor-mine .splendor-tokens .splendor-gem {
+    width: 1.9rem;
+    height: 1.9rem;
+    font-size: 1rem;
+  }
+
+  .splendor-mine .splendor-reserved-area,
+  .splendor-mine .splendor-owned-nobles {
+    position: relative;
+    grid-row: 3 / 5;
+    min-height: 0;
+    padding: 0.4rem;
+    gap: 0.25rem;
+  }
+
+  .splendor-mine .splendor-reserved-area {
+    grid-column: 2;
+  }
+
+  .splendor-mine .splendor-owned-nobles {
+    grid-column: 3;
+    overflow-y: auto;
+  }
+
+  .splendor-mine h3 {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+
+  .splendor-mine .splendor-reserved {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .splendor-mine .splendor-reserved .splendor-card {
+    min-height: 5rem;
+    height: 6rem;
+  }
+
+  .splendor-mine .splendor-last {
+    display: none; /* The same move is already announced in the table banner. */
+  }
+
+  .splendor-mine .splendor-purchased {
+    position: absolute;
+    right: 6rem;
+    top: 0.6rem;
+    z-index: 3;
+  }
+
+  .splendor-mine .splendor-purchased[open] {
+    top: auto;
+    bottom: calc(100% + 0.5rem);
+    width: min(32rem, 80vw);
+    max-height: 50dvh;
+    overflow-y: auto;
+    padding: 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .splendor-mine .splendor-purchased .splendor-reserved {
+    grid-template-columns: repeat(auto-fill, minmax(0, 5rem));
+  }
+
+  .splendor-mine .splendor-actions {
+    top: auto;
+    bottom: calc(100% + 0.35rem);
+  }
+
+  .splendor-prompt {
+    position: absolute;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: min(46rem, 90%);
+    max-height: calc(100% - 3rem);
+    overflow-y: auto;
+    box-shadow: 0 6px 24px rgb(0 0 0 / 0.4);
+  }
+}
+
+@media (min-width: 64rem) and (min-height: 36rem) and (max-height: 40rem) {
+  .splendor-market .splendor-card {
+    padding: 0.25rem;
+  }
+
+  .splendor-market .splendor-card-head {
+    min-height: 1.2rem;
+  }
+
+  .splendor-market .splendor-card-points {
+    font-size: 1.2rem;
+  }
+
+  .splendor-market .splendor-gem.small {
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 0.7rem;
+  }
+}
+
 /* Werewolf */
 
 .werewolf-banner {

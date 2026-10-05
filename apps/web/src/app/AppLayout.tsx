@@ -1,4 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import { HeaderControlsTarget } from '../shared/components/HeaderControls';
 import { useAuthStore } from '../features/auth/auth.store';
 import { ConnectionIndicator } from '../shared/components/ConnectionIndicator';
 import { LanguageSwitcher } from '../shared/i18n/LanguageSwitcher';
@@ -8,34 +10,38 @@ export function AppLayout() {
   const t = useT();
   const session = useAuthStore((state) => state.session);
   const signOut = useAuthStore((state) => state.signOut);
+  const [controlsTarget, setControlsTarget] = useState<HTMLDivElement | null>(null);
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <Link to="/" className="brand">
-          {t('app.name')}
-        </Link>
-        <div className="app-header-tools">
-          {session && (
-            <nav aria-label={t('nav.label')}>
-              <NavLink to="/history">{t('nav.history')}</NavLink>
-            </nav>
-          )}
-          <LanguageSwitcher />
-          {session && (
-            <>
-              <ConnectionIndicator />
-              <span className="muted">{session.user.displayName}</span>
-              <button type="button" className="link" onClick={signOut}>
-                {t('nav.signOut')}
-              </button>
-            </>
-          )}
-        </div>
-      </header>
-      <main>
-        <Outlet />
-      </main>
-    </div>
+    <HeaderControlsTarget.Provider value={controlsTarget}>
+      <div className="app">
+        <header className="app-header">
+          <Link to="/" className="brand">
+            {t('app.name')}
+          </Link>
+          <div className="app-header-tools">
+            <div className="app-game-controls" ref={setControlsTarget} />
+            {session && (
+              <nav aria-label={t('nav.label')}>
+                <NavLink to="/history">{t('nav.history')}</NavLink>
+              </nav>
+            )}
+            <LanguageSwitcher />
+            {session && (
+              <>
+                <ConnectionIndicator />
+                <span className="muted">{session.user.displayName}</span>
+                <button type="button" className="link" onClick={signOut}>
+                  {t('nav.signOut')}
+                </button>
+              </>
+            )}
+          </div>
+        </header>
+        <main>
+          <Outlet />
+        </main>
+      </div>
+    </HeaderControlsTarget.Provider>
   );
 }
