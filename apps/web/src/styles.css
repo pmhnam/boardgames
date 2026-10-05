@@ -1055,6 +1055,12 @@ input[type='checkbox'] {
 
 /* Splendor */
 
+.splendor {
+  --splendor-width: max(100%, min(100vw - 2rem, 116rem));
+  width: var(--splendor-width);
+  margin-inline: calc((100% - var(--splendor-width)) / 2);
+}
+
 .splendor-banner {
   display: flex;
   flex-wrap: wrap;
@@ -1094,24 +1100,39 @@ input[type='checkbox'] {
 
 .splendor-table {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
+  grid-template-areas:
+    'board side'
+    'mine side';
+  grid-template-rows: auto 1fr;
   gap: 1rem;
   align-items: start;
 }
 
 .splendor-board {
-  gap: 1rem;
-  align-items: center;
+  display: grid;
+  grid-area: board;
+  grid-template-columns: minmax(0, 1fr) 6rem 8rem;
+  grid-template-areas: 'market bank nobles';
+  gap: clamp(0.75rem, 1.5vw, 1.75rem);
+  align-items: start;
+  min-width: 0;
+}
+
+.splendor-mine {
+  grid-area: mine;
+  min-width: 0;
 }
 
 .splendor-side {
   display: flex;
+  grid-area: side;
   flex-direction: column;
   gap: 1rem;
   min-width: 0;
 }
 
-@media (min-width: 56.01rem) {
+@media (min-width: 80.01rem) {
   .splendor-side {
     position: sticky;
     top: 1rem;
@@ -1120,9 +1141,28 @@ input[type='checkbox'] {
   }
 }
 
-@media (max-width: 56rem) {
+@media (max-width: 80rem) {
   .splendor-table {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'board'
+      'mine'
+      'side';
+  }
+
+  .splendor-side {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  }
+}
+
+@media (max-width: 56rem) {
+  .splendor-board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'nobles'
+      'market'
+      'bank';
   }
 }
 
@@ -1186,6 +1226,27 @@ input[type='checkbox'] {
   border-top: 1px solid var(--border);
 }
 
+.splendor-board > .splendor-bank {
+  grid-area: bank;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.splendor-board .splendor-bank-tokens {
+  flex-direction: column;
+  gap: clamp(0.75rem, 1.5vw, 1.75rem);
+}
+
+.splendor-board .splendor-bank-token {
+  width: 3.8rem;
+  height: 3.8rem;
+  font-size: 1.4rem;
+}
+
+.splendor-board .splendor-taking {
+  font-size: 0.85rem;
+}
+
 .splendor-bank-tokens,
 .splendor-taking {
   display: flex;
@@ -1245,14 +1306,15 @@ button.splendor-bank-token:disabled {
 .splendor-market {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  grid-area: market;
+  gap: clamp(0.5rem, 1.2vw, 1.5rem);
   width: 100%;
 }
 
 .splendor-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 6.25rem));
-  gap: 0.5rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.4rem, 1vw, 1.25rem);
   justify-content: center;
 }
 
@@ -1494,6 +1556,35 @@ button.splendor-card:disabled {
   justify-content: center;
 }
 
+.splendor-board > .splendor-nobles {
+  grid-area: nobles;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.splendor-board .splendor-noble {
+  min-height: 6rem;
+  justify-content: space-between;
+}
+
+@media (max-width: 56rem) {
+  .splendor-board > .splendor-nobles,
+  .splendor-board .splendor-bank-tokens {
+    flex-direction: row;
+  }
+
+  .splendor-board > .splendor-bank {
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .splendor-board .splendor-bank-token {
+    width: 2.7rem;
+    height: 2.7rem;
+    font-size: 1.2rem;
+  }
+}
+
 .splendor-noble {
   display: flex;
   flex-direction: column;
@@ -1534,6 +1625,90 @@ button.splendor-card:disabled {
 .splendor-player {
   gap: 0.5rem;
   min-width: 0;
+}
+
+.splendor-mine .splendor-player {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.25rem;
+}
+
+.splendor-mine .splendor-player-name,
+.splendor-mine .splendor-progress,
+.splendor-mine .splendor-last,
+.splendor-mine .splendor-columns,
+.splendor-mine .splendor-tokens,
+.splendor-mine .splendor-purchased {
+  grid-column: 1 / -1;
+}
+
+.splendor-mine .splendor-columns {
+  width: min(100%, 32rem);
+  justify-self: center;
+}
+
+.splendor-mine .splendor-tokens {
+  justify-content: center;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+}
+
+.splendor-mine .splendor-tokens .splendor-gem {
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 1.2rem;
+}
+
+.splendor-mine .splendor-reserved-area,
+.splendor-mine .splendor-owned-nobles {
+  min-width: 0;
+  min-height: 8rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.splendor-mine .splendor-reserved-area {
+  grid-column: 1;
+  order: 1;
+}
+
+.splendor-mine .splendor-owned-nobles {
+  grid-column: 2;
+  order: 2;
+}
+
+.splendor-mine .splendor-purchased {
+  order: 3;
+}
+
+.splendor-mine h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.splendor-mine .splendor-reserved {
+  grid-template-columns: repeat(auto-fill, minmax(0, 7rem));
+}
+
+@media (max-width: 40rem) {
+  .splendor-mine .splendor-player {
+    display: flex;
+  }
+
+  .splendor-mine .splendor-tokens {
+    gap: 0.4rem;
+  }
+
+  .splendor-mine .splendor-tokens .splendor-gem {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+  }
 }
 
 .splendor-player.active {

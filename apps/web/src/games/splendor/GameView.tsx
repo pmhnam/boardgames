@@ -132,8 +132,27 @@ export function SplendorGameView({
     );
   };
 
-  // The viewer's own panel first; spectators see play order.
-  const panelOrder = [...view.turnOrder].sort((a, b) => Number(b === me) - Number(a === me));
+  const renderPlayer = (playerId: string) => {
+    const player = view.players[playerId];
+    if (!player) return null;
+    const own = playerId === me;
+    return (
+      <PlayerPanel
+        key={playerId}
+        name={playerName(players, playerId)}
+        player={player}
+        targetScore={view.targetScore}
+        mine={own}
+        active={playing && turn.activePlayerId === playerId}
+        winner={view.winnerPlayerIds.includes(playerId)}
+        lastMove={lastMove?.playerId === playerId ? lastMove.text : undefined}
+        shortfalls={own ? view.shortfalls : {}}
+        selectedCardId={own ? selectedCardId : null}
+        onSelectCard={own && interactive ? toggleCard : undefined}
+        cardActions={own && selectedCardId ? cardActions(selectedCardId, false) : undefined}
+      />
+    );
+  };
 
   return (
     <div className="stack splendor">
@@ -259,7 +278,7 @@ export function SplendorGameView({
 
       <div className="splendor-table">
         <section className="card splendor-board" aria-label="Table">
-          <div className="splendor-nobles">
+          <div className="splendor-nobles" aria-label="Available nobles">
             {view.nobles.length === 0 ? (
               <span className="muted">Every noble has found a host.</span>
             ) : (
@@ -332,28 +351,9 @@ export function SplendorGameView({
         </section>
 
         <div className="splendor-side">
-          {panelOrder.map((playerId) => {
-            const player = view.players[playerId];
-            if (!player) return null;
-            const own = playerId === me;
-            return (
-              <PlayerPanel
-                key={playerId}
-                name={playerName(players, playerId)}
-                player={player}
-                targetScore={view.targetScore}
-                mine={own}
-                active={playing && turn.activePlayerId === playerId}
-                winner={view.winnerPlayerIds.includes(playerId)}
-                lastMove={lastMove?.playerId === playerId ? lastMove.text : undefined}
-                shortfalls={own ? view.shortfalls : {}}
-                selectedCardId={own ? selectedCardId : null}
-                onSelectCard={own && interactive ? toggleCard : undefined}
-                cardActions={own && selectedCardId ? cardActions(selectedCardId, false) : undefined}
-              />
-            );
-          })}
+          {view.turnOrder.filter((playerId) => playerId !== me).map(renderPlayer)}
         </div>
+        {mine && me !== null && <div className="splendor-mine">{renderPlayer(me)}</div>}
       </div>
     </div>
   );

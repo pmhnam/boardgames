@@ -89,17 +89,27 @@ export function PlayerPanel({
         </span>
       </div>
 
-      {player.nobles.length > 0 && (
-        <div className="row wrap">
-          {player.nobles.map((noble) => (
-            <NobleTile key={noble.id} noble={noble} />
-          ))}
+      {(mine || player.nobles.length > 0) && (
+        <div className="stack-small splendor-owned-nobles">
+          {mine && <h3>My nobles</h3>}
+          <div className="row wrap">
+            {player.nobles.map((noble) => (
+              <NobleTile key={noble.id} noble={noble} />
+            ))}
+            {player.nobles.length === 0 && <span className="muted">No nobles yet.</span>}
+          </div>
         </div>
       )}
 
-      {player.reserved.length > 0 && (
-        <div className="stack-small">
-          <span className="muted">Reserved</span>
+      {(mine || player.reserved.length > 0) && (
+        <div className="stack-small splendor-reserved-area">
+          {mine ? (
+            <h3>
+              My reserved cards <span className="muted">{player.reserved.length}/3</span>
+            </h3>
+          ) : (
+            <span className="muted">Reserved</span>
+          )}
           <div className="splendor-reserved">
             {player.reserved.map((entry, index) =>
               entry.hidden ? (
@@ -124,6 +134,7 @@ export function PlayerPanel({
               ),
             )}
           </div>
+          {player.reserved.length === 0 && <span className="muted">No cards reserved.</span>}
         </div>
       )}
 
