@@ -17,9 +17,10 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:5173. Each browser tab is its own guest (the session lives in
-`sessionStorage`), so two tabs can play each other: create a room in one, open the invite link
-in the other.
+Open http://localhost:5173. Enter a username to create or return to the same player (ignoring
+case and surrounding whitespace). All tabs share a persistent session in `localStorage`.
+To play as different people on one device, use separate browser profiles or browsers.
+Finished match history and replays are deleted after 24 hours; active matches and usernames remain.
 
 With no `DATABASE_URL`, the API runs on embedded Postgres (PGlite) stored in
 `apps/api/.data/pglite` — no Docker needed. To use a real PostgreSQL:

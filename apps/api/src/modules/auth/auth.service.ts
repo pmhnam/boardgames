@@ -20,9 +20,12 @@ export class AuthService {
     private readonly users: UsersRepository,
   ) {}
 
-  /** MVP auth: an anonymous guest account identified only by its token. */
+  /** Username-only login: returning players recover their existing seats and history. */
   async loginAsGuest(displayName: string): Promise<AuthSessionDto> {
-    const user = await this.users.create({ id: randomUUID(), displayName });
+    const user = await this.users.findOrCreateHuman({
+      id: randomUUID(),
+      displayName: displayName.trim(),
+    });
     const payload: AccessTokenPayload = { sub: user.id };
     return { accessToken: await this.jwt.signAsync(payload), user: toUserDto(user) };
   }
@@ -32,6 +35,8 @@ export class AuthService {
     if (!token) throw new AppError(ErrorCodes.Unauthorized, 'Missing access token.', 401);
     try {
       const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token);
+      // Database resets invalidate old sessions even while their JWTs have time remaining.
+      await this.getUser(payload.sub);
       return payload.sub;
     } catch {
       throw new AppError(ErrorCodes.Unauthorized, 'Invalid or expired access token.', 401);

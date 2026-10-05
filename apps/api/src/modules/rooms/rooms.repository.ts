@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { BotLevel } from '@bgp/shared-types';
-import { and, asc, desc, eq, gt, isNull, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, ne, or, inArray } from 'drizzle-orm';
 import { DatabaseConnection } from '../../infrastructure/database/database.connection.js';
 import { matches, roomMembers, rooms, users } from '../../infrastructure/database/schema.js';
 
@@ -106,7 +106,21 @@ export class RoomsRepository {
     return this.connection.db
       .select()
       .from(rooms)
-      .where(and(ne(rooms.status, 'closed'), gt(rooms.createdAt, createdAfter)))
+      .where(
+        and(
+          ne(rooms.status, 'closed'),
+          or(
+            gt(rooms.createdAt, createdAfter),
+            inArray(
+              rooms.id,
+              this.connection.db
+                .select({ roomId: matches.roomId })
+                .from(matches)
+                .where(eq(matches.status, 'playing')),
+            ),
+          ),
+        ),
+      )
       .orderBy(desc(rooms.createdAt))
       .limit(limit);
   }

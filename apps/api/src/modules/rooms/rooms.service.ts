@@ -73,7 +73,7 @@ export class RoomsService {
 
   /**
    * The rooms a person can see from the lobby: public ones, and any they are a member of.
-   * Rooms older than a day are left out so abandoned ones do not pile up.
+   * Rooms older than a day are left out unless they have an ongoing match to resume.
    */
   async listForLobby(userId: string): Promise<RoomDto[]> {
     const createdAfter = new Date(Date.now() - LOBBY_ROOM_MAX_AGE_MS);

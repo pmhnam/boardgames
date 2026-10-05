@@ -10,10 +10,10 @@ export const en: Messages = {
   'connection.online': 'Online',
   'connection.reconnecting': 'Reconnecting…',
 
-  'login.title': 'Play as guest',
+  'login.title': 'Sign in with username',
   'login.intro':
-    'Play board games with friends or against the computer, right in the browser. All you need is a name.',
-  'login.displayName': 'Display name',
+    'Enter your existing username to return to your rooms and matches. A new username creates a new player.',
+  'login.displayName': 'Username',
   'login.submit': 'Continue',
 
   'join.joining': 'Joining room {code}…',

@@ -1,4 +1,5 @@
 import type { BotLevel } from '@bgp/shared-types';
+import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -9,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -17,15 +19,23 @@ export type OpaqueGameState = Record<string, unknown>;
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey(),
-  displayName: text('display_name').notNull(),
-  avatarUrl: text('avatar_url'),
-  /** Computer players are users too, so rooms, matches and history treat them like anyone. */
-  isBot: boolean('is_bot').notNull().default(false),
-  createdAt: createdAt(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey(),
+    displayName: text('display_name').notNull(),
+    avatarUrl: text('avatar_url'),
+    /** Computer players are users too, so rooms, matches and history treat them like anyone. */
+    isBot: boolean('is_bot').notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('users_human_username_unique')
+      .on(sql`lower(btrim(${table.displayName}))`)
+      .where(sql`${table.isBot} = false`),
+  ],
+);
 
 /**
  * Append-only. Each row is one complete, validated configuration of a game; the highest

@@ -35,7 +35,8 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     .then((parsed: Partial<ApiErrorBody>) => parsed.error ?? fallback)
     .catch(() => fallback);
   // The token no longer maps to a user (expired, or the dev database was reset).
-  if (response.status === 401) useAuthStore.getState().signOut();
+  if (response.status === 401 && token === useAuthStore.getState().session?.accessToken)
+    useAuthStore.getState().signOut();
   throw new ApiRequestError(response.status, error);
 }
 

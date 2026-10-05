@@ -4,6 +4,7 @@ import { and, asc, desc, eq, isNotNull, or } from 'drizzle-orm';
 import { AppError } from '../../common/errors/app-error.js';
 import { DatabaseConnection } from '../../infrastructure/database/database.connection.js';
 import { uniqueViolationConstraint } from '../../infrastructure/database/pg-errors.js';
+import { retainedMatch } from './match-retention.js';
 import {
   matchActions,
   matchPlayers,
@@ -70,7 +71,7 @@ export class MatchRepository {
     const [match] = await this.connection.db
       .select()
       .from(matches)
-      .where(eq(matches.id, matchId))
+      .where(and(eq(matches.id, matchId), retainedMatch()))
       .limit(1);
     return match ?? null;
   }
@@ -155,7 +156,7 @@ export class MatchRepository {
       .select({ match: matches })
       .from(matches)
       .innerJoin(matchPlayers, eq(matchPlayers.matchId, matches.id))
-      .where(eq(matchPlayers.userId, userId))
+      .where(and(eq(matchPlayers.userId, userId), retainedMatch()))
       .orderBy(desc(matches.createdAt))
       .limit(limit)
       .then((rows) => rows.map((row) => row.match));

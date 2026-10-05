@@ -36,6 +36,13 @@
       "when": 1791175699116,
       "tag": "0004_autoplay",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791180848636,
+      "tag": "0005_username_login",
+      "breakpoints": true
     }
   ]
 }

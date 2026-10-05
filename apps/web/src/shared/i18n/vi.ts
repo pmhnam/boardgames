@@ -9,10 +9,10 @@ export const vi = {
   'connection.online': 'Trực tuyến',
   'connection.reconnecting': 'Đang kết nối lại…',
 
-  'login.title': 'Chơi với tư cách khách',
+  'login.title': 'Đăng nhập bằng username',
   'login.intro':
-    'Chơi board game với bạn bè hoặc với máy ngay trên trình duyệt. Chỉ cần một cái tên.',
-  'login.displayName': 'Tên hiển thị',
+    'Nhập lại username cũ để tiếp tục phòng và trận của bạn. Username mới sẽ tạo người chơi mới.',
+  'login.displayName': 'Username',
   'login.submit': 'Tiếp tục',
 
   'join.joining': 'Đang vào phòng {code}…',
