@@ -2140,6 +2140,40 @@ button.splendor-card:disabled {
   }
 }
 
+.splendor-card-cost.four {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: 0.3rem;
+  max-height: none;
+}
+
+.splendor-card-cost .splendor-gem.small {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.85rem;
+}
+
+.splendor-card-cost .splendor-pip-mark {
+  left: auto;
+  right: -0.35rem;
+}
+
+@media (min-width: 64rem) and (min-height: 40.01rem) {
+  .splendor-market .splendor-card-cost .splendor-gem.small {
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 40rem), (min-width: 64rem) and (max-height: 40rem) {
+  .splendor-card-cost .splendor-gem.small {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.75rem;
+  }
+}
+
 /* Werewolf */
 
 .werewolf-banner {

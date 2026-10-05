@@ -80,6 +80,7 @@ export function DevCardView({
   /** Just turned over: draws the eye once. */
   fresh?: boolean;
 }) {
+  const costColors = GEM_COLORS.filter((color) => card.cost[color] > 0);
   const reach = !shortfall
     ? ''
     : shortfall.short === 0
@@ -98,8 +99,11 @@ export function DevCardView({
         <span className="splendor-card-points">{card.points > 0 ? card.points : ''}</span>
         <GemToken color={card.bonus} bonus small />
       </span>
-      <span className="splendor-card-cost" aria-hidden="true">
-        {GEM_COLORS.filter((color) => card.cost[color] > 0).map((color) => {
+      <span
+        className={`splendor-card-cost${costColors.length === 4 ? ' four' : ''}`}
+        aria-hidden="true"
+      >
+        {costColors.map((color) => {
           const missing = shortfall?.missing[color];
           return (
             <span key={color} className="splendor-pip">
