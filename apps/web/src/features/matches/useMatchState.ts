@@ -5,11 +5,14 @@ import {
   type Ack,
   type ApiError,
   type GameStateMessage,
+  type GameAutoplayMessage,
+  type PlayerAutoplayDto,
 } from '@bgp/shared-types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getGameUi } from '../../games/registry';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useGameAction } from '../../shared/websocket/useGameAction';
+import { acceptMatchMessage, mergeAutoplay } from './autoplay';
 
 export interface MatchState {
   message: GameStateMessage | null;
@@ -19,6 +22,7 @@ export interface MatchState {
   actionError: ApiError | null;
   pending: boolean;
   sendAction(action: unknown): void;
+  acceptControl(message: GameAutoplayMessage): void;
 }
 
 /**
@@ -42,10 +46,40 @@ export function useMatchState(gameId: string): MatchState {
   const [loadError, setLoadError] = useState<ApiError | null>(null);
   const [actionError, setActionError] = useState<ApiError | null>(null);
   const [pending, setPending] = useState(false);
+  const control = useRef<{ gameId: string; players: PlayerAutoplayDto[] }>({ gameId, players: [] });
+  const activeGameId = useRef(gameId);
+  activeGameId.current = gameId;
 
-  const accept = useCallback((incoming: GameStateMessage) => {
-    setMessage((current) => (current && current.version > incoming.version ? current : incoming));
-  }, []);
+  const mergeControl = useCallback(
+    (incoming: GameAutoplayMessage) => {
+      if (incoming.gameId !== gameId || incoming.gameId !== activeGameId.current) return;
+      const current = control.current.gameId === gameId ? control.current.players : [];
+      control.current = { gameId, players: mergeAutoplay(current, incoming.players) };
+    },
+    [gameId],
+  );
+
+  const acceptControl = useCallback(
+    (incoming: GameAutoplayMessage) => {
+      if (incoming.gameId !== activeGameId.current) return;
+      mergeControl(incoming);
+      setMessage((current) =>
+        current?.gameId === incoming.gameId && incoming.gameId === gameId
+          ? { ...current, autoplay: control.current.players }
+          : current,
+      );
+    },
+    [gameId, mergeControl],
+  );
+
+  const accept = useCallback(
+    (incoming: GameStateMessage) => {
+      if (incoming.gameId !== gameId || incoming.gameId !== activeGameId.current) return;
+      mergeControl({ gameId, players: incoming.autoplay ?? [] });
+      setMessage((current) => acceptMatchMessage(current, incoming, control.current.players));
+    },
+    [gameId, mergeControl],
+  );
 
   const sync = useCallback(async (): Promise<GameStateMessage | null> => {
     if (!socket) return null;
@@ -67,16 +101,24 @@ export function useMatchState(gameId: string): MatchState {
     };
     socket.on('connect', onConnect);
     socket.on(ServerEvents.GameState, onState);
+    socket.on(ServerEvents.GameAutoplay, acceptControl);
     if (socket.connected) void sync();
     return () => {
       socket.off('connect', onConnect);
       socket.off(ServerEvents.GameState, onState);
+      socket.off(ServerEvents.GameAutoplay, acceptControl);
     };
-  }, [socket, gameId, sync, accept]);
+  }, [socket, gameId, sync, accept, acceptControl]);
 
   const sendAction = useCallback(
     (action: unknown) => {
       if (!message || pending) return;
+      if (
+        message.autoplay?.some(
+          (player) => player.playerId === message.viewerPlayerId && player.level !== null,
+        )
+      )
+        return;
       setPending(true);
       const resendOnConflict = getGameUi(message.gameType)?.resendOnConflict === true;
       const attempt = async (expectedVersion: number, resendsLeft: number): Promise<void> => {
@@ -99,5 +141,12 @@ export function useMatchState(gameId: string): MatchState {
     [message, pending, send, gameId, sync],
   );
 
-  return { message, loadError, actionError, pending, sendAction };
+  return {
+    message: message?.gameId === gameId ? message : null,
+    loadError,
+    actionError,
+    pending,
+    sendAction,
+    acceptControl,
+  };
 }

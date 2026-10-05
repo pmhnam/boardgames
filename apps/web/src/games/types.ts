@@ -10,6 +10,13 @@ export interface GameViewProps<TView = unknown, TAction = unknown> {
   sendAction(action: TAction): void;
   /** True while an action is in flight, or when the view is read-only (replay). */
   disabled: boolean;
+  /** Live match control only; absent for spectators and replays. */
+  autoplay?: {
+    enabled: boolean;
+    pending: boolean;
+    error: string | null;
+    toggle(): void;
+  };
 }
 
 export type RoomSettings = Record<string, unknown>;

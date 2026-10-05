@@ -69,6 +69,13 @@ export interface RoomDto {
 
 export type MatchStatus = 'playing' | 'finished' | 'abandoned';
 
+export interface PlayerAutoplayDto {
+  playerId: string;
+  level: BotLevel | null;
+  /** Independent of the game's action sequence. Increases on each control handoff. */
+  version: number;
+}
+
 export interface MatchPlayerDto {
   playerId: string;
   userId: string;
@@ -76,6 +83,8 @@ export interface MatchPlayerDto {
   seat: number;
   /** Set when this player is a computer player. */
   botLevel: BotLevel | null;
+  autoplayLevel: BotLevel | null;
+  controlVersion: number;
 }
 
 export interface MatchResultDto {

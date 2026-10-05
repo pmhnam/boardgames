@@ -29,6 +29,13 @@
       "when": 1791026950652,
       "tag": "0003_bots",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791175699116,
+      "tag": "0004_autoplay",
+      "breakpoints": true
     }
   ]
 }

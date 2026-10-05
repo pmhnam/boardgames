@@ -138,7 +138,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   ): Promise<Ack<GameStateMessage>> {
     return this.ack(async () => {
       const { gameId } = this.parse(gameSyncSchema, body);
-      const { match, player } = await this.matches.getAccess(gameId, socket.data.userId);
+      const { match, player, players } = await this.matches.getAccess(gameId, socket.data.userId);
 
       await socket.join(channels.match(gameId));
       if (player) {
@@ -148,10 +148,14 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
           const presence: PlayerPresenceMessage = { gameId, playerId: player.playerId };
           socket.to(channels.match(gameId)).emit(ServerEvents.PlayerConnected, presence);
         }
-        return this.matches.buildStateMessage(match, { type: 'player', playerId: player.playerId });
+        return this.matches.buildStateMessage(
+          match,
+          { type: 'player', playerId: player.playerId },
+          players,
+        );
       }
       await socket.join(channels.matchSpectators(gameId));
-      return this.matches.buildStateMessage(match, { type: 'spectator' });
+      return this.matches.buildStateMessage(match, { type: 'spectator' }, players);
     });
   }
 
@@ -201,6 +205,16 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     this.server.to(channels.room(event.roomId)).emit(ServerEvents.GameStarted, message);
   }
 
+  /** Control handoffs do not advance the engine's action sequence. */
+  @OnEvent(PlatformEvents.MatchControlChanged)
+  async onMatchControlChanged(event: MatchStateChangedEvent): Promise<void> {
+    const access = await this.matches.getAccessForBroadcast(event.matchId);
+    if (!access) return;
+    this.server
+      .to(channels.match(event.matchId))
+      .emit(ServerEvents.GameAutoplay, this.matches.controlMessage(event.matchId, access.players));
+  }
+
   /** Each player gets their own view; nobody is ever sent the raw state. */
   @OnEvent(PlatformEvents.MatchStateChanged)
   async onMatchStateChanged(event: MatchStateChangedEvent): Promise<void> {
@@ -213,12 +227,19 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
         .to(channels.matchPlayer(match.id, player.playerId))
         .emit(
           ServerEvents.GameState,
-          this.matches.buildStateMessage(match, { type: 'player', playerId: player.playerId }),
+          this.matches.buildStateMessage(
+            match,
+            { type: 'player', playerId: player.playerId },
+            players,
+          ),
         );
     }
     this.server
       .to(channels.matchSpectators(match.id))
-      .emit(ServerEvents.GameState, this.matches.buildStateMessage(match, { type: 'spectator' }));
+      .emit(
+        ServerEvents.GameState,
+        this.matches.buildStateMessage(match, { type: 'spectator' }, players),
+      );
 
     if (match.status === 'finished') {
       const finished: GameFinishedMessage = { gameId: match.id, result: match.result ?? null };

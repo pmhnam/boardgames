@@ -58,6 +58,11 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
     this.wake(event.matchId);
   }
 
+  @OnEvent(PlatformEvents.MatchControlChanged)
+  onMatchControlChanged(event: MatchStateChangedEvent): void {
+    this.wake(event.matchId);
+  }
+
   /**
    * Returns at once: the action that triggered the event must not wait for the bots' replies.
    * One loop per match; a change that arrives while it runs is picked up by that loop.
@@ -70,7 +75,11 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
     }
     const loop = { dirty: false };
     this.loops.set(matchId, loop);
-    void this.run(matchId, loop).finally(() => this.loops.delete(matchId));
+    void this.run(matchId, loop).finally(() => {
+      this.loops.delete(matchId);
+      // A handoff can arrive after the final idle check but before this cleanup microtask.
+      if (loop.dirty && !this.stopped) this.wake(matchId);
+    });
   }
 
   private async run(matchId: string, loop: { dirty: boolean }): Promise<void> {
@@ -89,7 +98,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
 
   /** Plays one action for a computer player whose turn it is, if there is one. */
   private async step(matchId: string): Promise<StepOutcome> {
-    const match = await this.matches.findById(matchId);
+    let match = await this.matches.findById(matchId);
     if (!match || match.status !== 'playing') return 'idle';
 
     const game = this.registry.get(match.gameType);
@@ -97,42 +106,67 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
 
     const players = await this.matches.listPlayers(matchId);
     const toMove = game.engine.getCurrentPlayerIds(match.state);
-    const bot = players.find(
-      (player) => player.botLevel !== null && toMove.includes(player.playerId),
+    let bot = players.find(
+      (player) =>
+        (player.botLevel !== null || player.autoplayLevel !== null) &&
+        toMove.includes(player.playerId),
     );
-    if (!bot || bot.botLevel === null) return 'idle';
+    if (!bot) return 'idle';
+    const scheduledPlayerId = bot.playerId;
 
     await this.pause();
     if (this.stopped) return 'idle';
 
+    // Re-read after thinking time: the player may have reclaimed control or acted meanwhile.
+    match = await this.matches.findById(matchId);
+    if (!match || match.status !== 'playing') return 'idle';
+    const currentPlayers = await this.matches.listPlayers(matchId);
+    bot = currentPlayers.find((player) => player.playerId === scheduledPlayerId);
+    if (!bot || (bot.botLevel === null && bot.autoplayLevel === null)) return 'retry';
+    if (!game.engine.getCurrentPlayerIds(match.state).includes(bot.playerId)) return 'retry';
+    const level = bot.botLevel ?? bot.autoplayLevel;
+    if (level === null) return 'idle';
+    const currentMatch = match;
+    const currentBot = bot;
+
     const choose = (level: BotLevel): unknown =>
       game.bot?.chooseAction({
-        view: game.engine.getPublicView(match.state, { type: 'player', playerId: bot.playerId }),
-        playerId: bot.playerId,
+        view: game.engine.getPublicView(currentMatch.state, {
+          type: 'player',
+          playerId: currentBot.playerId,
+        }),
+        playerId: currentBot.playerId,
         level,
         // Derived from the match, so a bot's play can be reproduced.
-        random: createSeededRandom(`${match.randomSeed}:${match.stateVersion}:${level}`),
+        random: createSeededRandom(
+          `${currentMatch.randomSeed}:${currentMatch.stateVersion}:${level}`,
+        ),
       });
     const submit = (action: unknown) =>
       this.actions.execute({
         matchId,
-        userId: bot.userId,
+        userId: currentBot.userId,
         requestId: randomUUID(),
-        expectedVersion: match.stateVersion,
+        expectedVersion: currentMatch.stateVersion,
         action,
         now: new Date(),
+        automation: { controlVersion: currentBot.controlVersion },
       });
 
     try {
-      await submit(choose(bot.botLevel));
+      await submit(choose(level));
       return 'acted';
     } catch (error) {
       // Someone else moved first: look again.
-      if (error instanceof AppError && error.code === ErrorCodes.GameVersionConflict)
+      if (
+        error instanceof AppError &&
+        (error.code === ErrorCodes.GameVersionConflict ||
+          error.code === ErrorCodes.GameControlChanged)
+      )
         return 'retry';
 
       this.logger.warn(
-        `Bot ${bot.playerId} (${bot.botLevel}) failed in match ${matchId}: ${
+        `Bot ${bot.playerId} (${level}) failed in match ${matchId}: ${
           error instanceof Error ? error.message : String(error)
         }. Falling back to a simple move.`,
       );
@@ -144,6 +178,12 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
       await submit(choose('easy'));
       return 'acted';
     } catch (error) {
+      if (
+        error instanceof AppError &&
+        (error.code === ErrorCodes.GameVersionConflict ||
+          error.code === ErrorCodes.GameControlChanged)
+      )
+        return 'retry';
       this.logger.error(
         `Bot ${bot.playerId} could not move in match ${matchId}: ${
           error instanceof Error ? error.message : String(error)

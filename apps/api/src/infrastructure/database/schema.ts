@@ -112,6 +112,8 @@ export const matchPlayers = pgTable(
     playerId: text('player_id').notNull(),
     seat: integer('seat').notNull(),
     botLevel: text('bot_level').$type<BotLevel>(),
+    autoplayLevel: text('autoplay_level').$type<BotLevel>(),
+    controlVersion: bigint('control_version', { mode: 'number' }).notNull().default(0),
   },
   (table) => [
     primaryKey({ columns: [table.matchId, table.playerId] }),

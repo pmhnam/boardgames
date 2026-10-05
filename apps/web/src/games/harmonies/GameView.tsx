@@ -15,6 +15,7 @@ import { PlayerPanel } from './components/PlayerPanel';
 import { ScoringGuide } from './components/ScoringGuide';
 import { TokenChip } from './components/TokenChip';
 import { TOKEN_LABEL } from './layout';
+import { useTurnAlerts } from './useTurnAlerts';
 
 /** What the player has picked up and is about to put on their board. UI state only. */
 type Selection = { kind: 'token'; color: TokenColor } | { kind: 'card'; cardId: string } | null;
@@ -34,12 +35,25 @@ export function HarmoniesGameView({
   players,
   sendAction,
   disabled,
+  autoplay,
 }: GameViewProps<HarmoniesView, HarmoniesAction>) {
   const view = message.state;
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
   const playing = view.phase === 'PLAYING';
-  const isMyTurn = !disabled && playing && turn.activePlayerId === me;
+  const alerts = useTurnAlerts({
+    gameId: message.gameId,
+    playerId: me,
+    number: turn.number,
+    mine:
+      playing &&
+      message.status === 'playing' &&
+      me !== null &&
+      turn.activePlayerId === me &&
+      !autoplay?.enabled,
+  });
+  const isMyTurn =
+    !disabled && !autoplay?.enabled && !autoplay?.pending && playing && turn.activePlayerId === me;
   const myBoard = me === null ? undefined : view.boards[me];
   const [selection, setSelection] = useState<Selection>(null);
 
@@ -68,15 +82,17 @@ export function HarmoniesGameView({
   const hasPlaceable = turn.hand.some((color) => (legal.tokenCells[color]?.length ?? 0) > 0);
   const status = !playing
     ? 'Game over.'
-    : !mine
-      ? `${playerName(players, turn.activePlayerId)} is playing${turn.hand.length > 0 ? ', holding' : '.'}`
-      : selection
-        ? 'Pick a highlighted cell on your board.'
-        : legal.canTakeTokens
-          ? 'Take three tokens from the central board.'
-          : hasPlaceable
-            ? 'Pick a token, then a cell on your board.'
-            : 'Take a card, place an animal, or end your turn.';
+    : autoplay?.enabled && mine
+      ? 'Bot đang chơi giùm bạn.'
+      : !mine
+        ? `${playerName(players, turn.activePlayerId)} is playing${turn.hand.length > 0 ? ', holding' : '.'}`
+        : selection
+          ? 'Pick a highlighted cell on your board.'
+          : legal.canTakeTokens
+            ? 'Take three tokens from the central board.'
+            : hasPlaceable
+              ? 'Pick a token, then a cell on your board.'
+              : 'Take a card, place an animal, or end your turn.';
 
   const inProgress = myBoard?.cards.filter((entry) => !entry.complete) ?? [];
 
@@ -132,7 +148,7 @@ export function HarmoniesGameView({
         <p className="harmonies-turn">
           {view.phase === 'FINISHED'
             ? 'Game over'
-            : isMyTurn
+            : mine
               ? 'Your turn'
               : `${playerName(players, turn.activePlayerId)}’s turn`}
           {view.finalRound && playing && <span className="harmonies-final">Final round</span>}
@@ -141,6 +157,66 @@ export function HarmoniesGameView({
           {view.map.name} · turn {turn.number} · {view.pouchCount} tokens in the pouch
         </p>
       </header>
+
+      {me !== null && playing && (
+        <div className="stack">
+          <div className="row" aria-label="Nhắc khi đến lượt">
+            {autoplay && (
+              <button
+                type="button"
+                aria-pressed={autoplay.enabled}
+                disabled={autoplay.pending || (!autoplay.enabled && disabled)}
+                onClick={autoplay.toggle}
+              >
+                {autoplay.pending
+                  ? 'Đang chuyển quyền…'
+                  : autoplay.enabled
+                    ? 'Lấy lại quyền chơi'
+                    : '🤖 Bật bot chơi giùm'}
+              </button>
+            )}
+            <button type="button" aria-pressed={alerts.sound} onClick={alerts.toggleSound}>
+              {alerts.sound ? '🔊 Âm thanh: Bật' : '🔇 Âm thanh: Tắt'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={alerts.notifications && alerts.permission === 'granted'}
+              disabled={!alerts.supported || alerts.permission === 'denied' || alerts.requesting}
+              onClick={() => void alerts.toggleNotifications()}
+            >
+              {alerts.requesting
+                ? 'Đang xin quyền…'
+                : alerts.notifications && alerts.permission === 'granted'
+                  ? '🔔 Tắt thông báo'
+                  : '🔔 Bật thông báo'}
+            </button>
+            <span className="muted hint">Thông báo khi tab game không active.</span>
+          </div>
+          {autoplay?.enabled && (
+            <p className="muted hint" role="status">
+              Bot đang chơi giùm bạn (mức thường), liên tục đến khi bạn tắt.
+            </p>
+          )}
+          {autoplay?.error && (
+            <p className="error" role="alert">
+              {autoplay.error}
+            </p>
+          )}
+          {!alerts.supported && (
+            <p className="muted hint">Thông báo cần HTTPS hoặc localhost và trình duyệt hỗ trợ.</p>
+          )}
+          {alerts.supported && alerts.permission === 'denied' && (
+            <p className="muted hint">
+              Thông báo bị chặn. Hãy cấp quyền trong cài đặt trang của trình duyệt.
+            </p>
+          )}
+          {alerts.error && (
+            <p className="muted hint" role="status">
+              {alerts.error}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Laid out so a turn needs no scrolling: the cards on offer down the left, the tokens
           above the viewer's own board in the middle, everyone else on the right. */}

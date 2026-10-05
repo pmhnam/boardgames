@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { AnyGameEngine, GameViewer, PlayerSeat } from '@bgp/game-core';
 import {
   ErrorCodes,
@@ -8,9 +9,12 @@ import {
   type MatchDto,
   type MatchHistoryDto,
   type MatchReplayDto,
+  type GameAutoplayMessage,
+  type PlayerAutoplayDto,
   type ReplayFrameDto,
 } from '@bgp/shared-types';
 import { AppError } from '../../common/errors/app-error.js';
+import { PlatformEvents } from '../../common/events/platform-events.js';
 import type { OpaqueGameState } from '../../infrastructure/database/schema.js';
 import { GameConfigService } from '../games/game-config.service.js';
 import { GameRegistry } from '../games/game-registry.js';
@@ -30,6 +34,7 @@ export class MatchesService {
     private readonly matches: MatchRepository,
     private readonly registry: GameRegistry,
     private readonly configs: GameConfigService,
+    private readonly events: EventEmitter2,
   ) {}
 
   /** Turns a room's seated members into a new match. Seat N becomes player `p{N+1}`. */
@@ -123,15 +128,20 @@ export class MatchesService {
   }
 
   async getStateMessage(matchId: string, userId: string): Promise<GameStateMessage> {
-    const { match, player } = await this.getAccess(matchId, userId);
+    const { match, player, players } = await this.getAccess(matchId, userId);
     return this.buildStateMessage(
       match,
       player ? { type: 'player', playerId: player.playerId } : { type: 'spectator' },
+      players,
     );
   }
 
   /** The only path by which game state leaves the server: always through the engine's view. */
-  buildStateMessage(match: MatchRecord, viewer: GameViewer): GameStateMessage {
+  buildStateMessage(
+    match: MatchRecord,
+    viewer: GameViewer,
+    players: MatchPlayerRecord[] = [],
+  ): GameStateMessage {
     const { engine } = this.registry.getForMatch(match);
     return {
       gameId: match.id,
@@ -140,7 +150,31 @@ export class MatchesService {
       status: match.status,
       viewerPlayerId: viewer.type === 'player' ? viewer.playerId : null,
       state: engine.getPublicView(match.state, viewer),
+      autoplay: this.controlMessage(match.id, players).players,
     };
+  }
+
+  controlMessage(gameId: string, players: MatchPlayerRecord[]): GameAutoplayMessage {
+    return {
+      gameId,
+      players: players.map((player) => ({
+        playerId: player.playerId,
+        level: player.autoplayLevel,
+        version: player.controlVersion,
+      })),
+    };
+  }
+
+  async setAutoplay(matchId: string, userId: string, enabled: boolean): Promise<PlayerAutoplayDto> {
+    const { match, player } = await this.getAccess(matchId, userId);
+    if (!player || player.botLevel !== null)
+      throw new AppError(ErrorCodes.Forbidden, 'You can only control your own human seat.', 403);
+    const game = this.registry.getForMatch(match);
+    if (!game.bot)
+      throw new AppError(ErrorCodes.BotsNotSupported, 'This game does not support bots.', 409);
+    const control = await this.matches.setAutoplay(matchId, userId, enabled);
+    await this.events.emitAsync(PlatformEvents.MatchControlChanged, { matchId });
+    return control;
   }
 
   async listForUser(userId: string): Promise<MatchDto[]> {

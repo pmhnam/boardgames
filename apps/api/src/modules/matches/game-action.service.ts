@@ -22,6 +22,8 @@ export interface ExecuteGameActionCommand {
   /** Untrusted. Parsed by the game's engine. */
   action: unknown;
   now: Date;
+  /** Internal runner credential. Never parsed from an HTTP/WebSocket request. */
+  automation?: { controlVersion: number };
 }
 
 /**
@@ -57,6 +59,14 @@ export class GameActionService {
 
     if (match.status !== 'playing') {
       throw new AppError(ErrorCodes.MatchNotPlaying, 'This match is not in progress.', 409);
+    }
+
+    const automated = player.botLevel !== null || player.autoplayLevel !== null;
+    if (
+      automated !== Boolean(command.automation) ||
+      (command.automation && command.automation.controlVersion !== player.controlVersion)
+    ) {
+      throw this.controlChanged();
     }
 
     if (match.stateVersion !== command.expectedVersion) {
@@ -103,6 +113,7 @@ export class GameActionService {
       status: finished ? 'finished' : 'playing',
       result: finished ? engine.getResult(newState) : null,
       finishedAt: finished ? command.now : null,
+      control: { automated: Boolean(command.automation), version: player.controlVersion },
     });
 
     if (outcome === 'duplicate_request') {
@@ -113,6 +124,7 @@ export class GameActionService {
       const latest = await this.matches.findById(match.id);
       throw this.versionConflict(latest?.stateVersion ?? nextVersion);
     }
+    if (outcome === 'control_changed') throw this.controlChanged();
 
     this.logger.log({
       event: 'game_action_processed',
@@ -150,6 +162,14 @@ export class GameActionService {
       'The game has moved on. Refresh and try again.',
       409,
       { latestVersion },
+    );
+  }
+
+  private controlChanged(): AppError {
+    return new AppError(
+      ErrorCodes.GameControlChanged,
+      'Quyền điều khiển đã thay đổi. Hãy tắt bot để tự chơi.',
+      409,
     );
   }
 }

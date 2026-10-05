@@ -16,6 +16,8 @@ export function toMatchDto(match: MatchRecord, players: MatchPlayerRecord[]): Ma
       displayName: player.displayName,
       seat: player.seat,
       botLevel: player.botLevel,
+      autoplayLevel: player.autoplayLevel,
+      controlVersion: player.controlVersion,
     })),
     result: match.result ?? null,
     createdAt: match.createdAt.toISOString(),

@@ -18,6 +18,7 @@ import {
 } from '@bgp/shared-types';
 import { io } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { MatchesService } from '../src/modules/matches/matches.service.js';
 
 /**
  * A server restart must not strand a match on a computer player's turn. The two "servers" here
@@ -26,6 +27,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 describe('bot recovery after a restart', () => {
   let dataDir: string;
   let app: INestApplication | undefined;
+
+  async function shutdown() {
+    await app?.close();
+    app = undefined;
+  }
 
   async function boot(botDelayMs: number): Promise<string> {
     process.env.DATABASE_URL = '';
@@ -129,5 +135,53 @@ describe('bot recovery after a restart', () => {
       after = await call<MatchDto>(base, 'GET', `/matches/${matchId}`, accessToken);
     }
     expect(after.version).toBe(before.version + 1);
+  });
+
+  it('restores autoplay on a human seat even when the match has no computer players', async () => {
+    await shutdown();
+    let base = await boot(10_000);
+    const host = await call<AuthSessionDto>(base, 'POST', '/auth/guest', undefined, {
+      displayName: 'Autoplay host',
+    });
+    const guest = await call<AuthSessionDto>(base, 'POST', '/auth/guest', undefined, {
+      displayName: 'Human guest',
+    });
+    const room = await call<RoomDto>(base, 'POST', '/rooms', host.accessToken, {
+      gameType: 'harmonies',
+    });
+    await call(base, 'POST', `/rooms/${room.id}/join`, guest.accessToken);
+    await call(base, 'POST', `/rooms/${room.id}/ready`, host.accessToken, { ready: true });
+    await call(base, 'POST', `/rooms/${room.id}/ready`, guest.accessToken, { ready: true });
+    const { matchId } = await call<StartRoomResponse>(
+      base,
+      'POST',
+      `/rooms/${room.id}/start`,
+      host.accessToken,
+    );
+    const state = await app!.get(MatchesService).getStateMessage(matchId, host.user.id);
+    const actor =
+      (state.state as { turn: { activePlayerId: string } }).turn.activePlayerId ===
+      state.viewerPlayerId
+        ? host
+        : guest;
+    await call(base, 'PUT', `/matches/${matchId}/autoplay`, actor.accessToken, { enabled: true });
+    const before = await call<MatchDto>(base, 'GET', `/matches/${matchId}`, actor.accessToken);
+    expect(before.version).toBe(0);
+    expect(before.players.every((player) => player.botLevel === null)).toBe(true);
+    await shutdown();
+
+    base = await boot(0);
+    let after = before;
+    for (let attempt = 0; attempt < 400 && after.version < 5; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      after = await call<MatchDto>(base, 'GET', `/matches/${matchId}`, actor.accessToken);
+    }
+    expect(after.version).toBeGreaterThanOrEqual(5);
+    expect(after.players.find((player) => player.userId === actor.user.id)).toMatchObject({
+      botLevel: null,
+      autoplayLevel: 'normal',
+      controlVersion: 1,
+    });
+    await call(base, 'PUT', `/matches/${matchId}/autoplay`, actor.accessToken, { enabled: false });
   });
 });

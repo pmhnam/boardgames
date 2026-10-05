@@ -3,6 +3,7 @@ export const PlatformEvents = {
   RoomUpdated: 'room.updated',
   MatchStarted: 'match.started',
   MatchStateChanged: 'match.state-changed',
+  MatchControlChanged: 'match.control-changed',
   MatchFinished: 'match.finished',
 } as const;
 

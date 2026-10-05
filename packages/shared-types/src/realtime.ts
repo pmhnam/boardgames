@@ -1,5 +1,5 @@
 import type { ApiError } from './errors.js';
-import type { MatchResultDto, RoomDto } from './rest.js';
+import type { MatchResultDto, PlayerAutoplayDto, RoomDto } from './rest.js';
 
 export const ClientEvents = {
   RoomJoin: 'room.join',
@@ -12,6 +12,7 @@ export const ServerEvents = {
   RoomUpdated: 'room.updated',
   GameStarted: 'game.started',
   GameState: 'game.state',
+  GameAutoplay: 'game.autoplay',
   GameActionAccepted: 'game.action.accepted',
   GameActionRejected: 'game.action.rejected',
   GameFinished: 'game.finished',
@@ -47,6 +48,13 @@ export interface GameStateMessage<TView = unknown> {
   viewerPlayerId: string | null;
   /** Personalised view. Never the raw server state. */
   state: TView;
+  /** Control metadata, not engine state. Absent in replay frames. */
+  autoplay?: PlayerAutoplayDto[];
+}
+
+export interface GameAutoplayMessage {
+  gameId: string;
+  players: PlayerAutoplayDto[];
 }
 
 export interface GameActionAccepted {

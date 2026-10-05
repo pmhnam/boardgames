@@ -1,22 +1,36 @@
-import { Controller, Get, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
+import { z } from 'zod';
 import {
   ErrorCodes,
   type MatchDto,
   type MatchHistoryDto,
   type MatchReplayDto,
+  type PlayerAutoplayDto,
 } from '@bgp/shared-types';
 import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../../common/decorators/current-user.decorator.js';
 import { AppError } from '../../common/errors/app-error.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { MatchesService } from './matches.service.js';
+
+const autoplaySchema = z.object({ enabled: z.boolean() });
 
 @Controller()
 @UseGuards(AuthGuard)
 export class MatchesController {
   constructor(private readonly matches: MatchesService) {}
+
+  @Put('matches/:matchId/autoplay')
+  autoplay(
+    @Param('matchId', ParseUUIDPipe) matchId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(autoplaySchema)) body: z.infer<typeof autoplaySchema>,
+  ): Promise<PlayerAutoplayDto> {
+    return this.matches.setAutoplay(matchId, user.userId, body.enabled);
+  }
 
   @Get('matches/:matchId')
   get(
