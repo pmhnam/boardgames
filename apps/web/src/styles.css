@@ -1893,13 +1893,14 @@ button.splendor-card:disabled {
   .splendor-board {
     min-height: 0;
     padding: 0.6rem;
-    grid-template-columns: minmax(0, 1fr) 5rem 8rem;
+    grid-template-columns: minmax(0, 1fr) 10rem 10rem;
     grid-template-rows: minmax(0, 1fr);
     gap: 0.75rem;
     align-items: stretch;
   }
 
   .splendor-market {
+    container-type: size;
     display: grid;
     grid-template-rows: repeat(3, minmax(0, 1fr));
     min-height: 0;
@@ -1908,6 +1909,9 @@ button.splendor-card:disabled {
 
   .splendor-row {
     min-height: 0;
+    /* Five portrait cards, bounded by the height of the three market rows. */
+    width: min(100%, calc((100cqh - 1rem) * 25 / 21 + 2rem));
+    justify-self: center;
     gap: 0.5rem;
   }
 
@@ -1932,18 +1936,22 @@ button.splendor-card:disabled {
     justify-content: center;
     min-height: 0;
     gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
   }
 
   .splendor-board .splendor-bank-tokens {
     flex-direction: column;
     flex-wrap: nowrap;
-    gap: 0.4rem;
+    gap: clamp(0.15rem, 0.7dvh, 0.5rem);
   }
 
   .splendor-board .splendor-bank-token {
-    width: clamp(1.8rem, 4dvh, 3rem);
-    height: clamp(1.8rem, 4dvh, 3rem);
-    font-size: 1.1rem;
+    width: clamp(1.8rem, 8dvh - 1rem, 4.5rem);
+    height: clamp(1.8rem, 8dvh - 1rem, 4.5rem);
+    font-size: clamp(1.1rem, 2.5dvh, 1.7rem);
   }
 
   .splendor-taking {
@@ -2121,6 +2129,11 @@ button.splendor-card:disabled {
 }
 
 @media (min-width: 64rem) and (min-height: 36rem) and (max-height: 40rem) {
+  .splendor-board .splendor-bank-token {
+    width: clamp(1.8rem, 6dvh - 0.5rem, 3rem);
+    height: clamp(1.8rem, 6dvh - 0.5rem, 3rem);
+  }
+
   .splendor-market .splendor-card {
     padding: 0.25rem;
   }
@@ -2137,6 +2150,12 @@ button.splendor-card:disabled {
     width: 1.1rem;
     height: 1.1rem;
     font-size: 0.7rem;
+  }
+}
+
+@media (min-width: 64rem) and (max-width: 75rem) and (min-height: 36rem) {
+  .splendor-board {
+    grid-template-columns: minmax(0, 1fr) 6rem 8rem;
   }
 }
 
