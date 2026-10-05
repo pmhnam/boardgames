@@ -1284,12 +1284,6 @@ button.splendor-bank-token:disabled {
   border-style: dashed;
 }
 
-.splendor-picked {
-  padding: 0;
-  background: transparent;
-  border-radius: 50%;
-}
-
 .splendor-stepper {
   display: inline-flex;
   gap: 0.25rem;
@@ -1959,10 +1953,6 @@ button.splendor-card:disabled {
     font-size: 0.75rem;
   }
 
-  .splendor-taking > .muted {
-    display: none;
-  }
-
   .splendor-taking button {
     padding: 0.3rem 0.5rem;
   }
@@ -2164,6 +2154,70 @@ button.splendor-card:disabled {
   grid-template-columns: repeat(2, max-content);
   gap: 0.3rem;
   max-height: none;
+}
+
+.splendor-board .splendor-bank-token.selected {
+  opacity: 1;
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.splendor-bank-selection {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.15rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.splendor-board .splendor-taking {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: 100%;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.splendor-pick-status {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.splendor-bank-actions {
+  display: flex;
+  gap: 0.3rem;
+  width: 100%;
+  max-width: 14rem;
+}
+
+.splendor-bank-actions > button:first-child {
+  flex: 1;
+}
+
+.splendor-board .splendor-bank-actions > button {
+  white-space: nowrap;
+  padding: 0.3rem 0.35rem;
+}
+
+@media (min-width: 64rem) and (min-height: 36rem) and (max-height: 40rem) {
+  .splendor-table {
+    grid-template-rows: minmax(0, 1fr) 12rem;
+  }
+
+  .splendor-board .splendor-bank-token {
+    width: clamp(1.5rem, 6dvh - 0.85rem, 3rem);
+    height: clamp(1.5rem, 6dvh - 0.85rem, 3rem);
+  }
+
+  .splendor-board .splendor-bank-tokens {
+    gap: 0.2rem;
+  }
 }
 
 .splendor-card-cost .splendor-gem.small {

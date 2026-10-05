@@ -1,7 +1,7 @@
 import { GEM_COLORS, type GemColor, type LegalMoves, type TokenCounts } from '@bgp/game-splendor';
 import { TOKEN_LABEL } from '../layout';
 import { GemIcon } from './GemIcon';
-import { GemToken, gemStyle } from './GemToken';
+import { gemStyle } from './GemToken';
 
 /**
  * The supply, and the gems the player is about to take from it. The engine says which colours
@@ -36,7 +36,8 @@ export function Bank({
     return picked.length < legal.takeCount && legal.gemColors.includes(color);
   };
   const canTake = isMyTurn && picked.length > 0 && (isDouble || picked.length === legal.takeCount);
-  const unpick = (index: number) => onPick(picked.filter((_, at) => at !== index));
+  const selectColor = (color: GemColor) =>
+    onPick(canPick(color) ? [...picked, color] : picked.filter((selected) => selected !== color));
 
   return (
     <div className="splendor-bank">
@@ -46,14 +47,20 @@ export function Bank({
             <button
               key={color}
               type="button"
-              className="splendor-bank-token"
+              className={`splendor-bank-token${picked.includes(color) ? ' selected' : ''}`}
               style={gemStyle(color)}
               aria-label={`Take ${TOKEN_LABEL[color]}, ${bank[color]} in the bank`}
-              disabled={!canPick(color)}
-              onClick={() => onPick([...picked, color])}
+              aria-pressed={picked.includes(color)}
+              disabled={!isMyTurn || (!canPick(color) && !picked.includes(color))}
+              onClick={() => selectColor(color)}
             >
               <GemIcon color={color} />
               <span className="splendor-gem-count">{bank[color]}</span>
+              {picked.includes(color) && (
+                <span className="splendor-bank-selection" aria-hidden="true">
+                  ✓ {picked.filter((selected) => selected === color).length}
+                </span>
+              )}
             </button>
           ) : (
             <span key={color} className="splendor-bank-token" style={gemStyle(color)}>
@@ -75,30 +82,30 @@ export function Bank({
       </div>
 
       {interactive && (
-        <div className="splendor-taking">
-          {picked.length === 0 ? (
-            <span className="muted">
-              Take 3 different gems, or 2 of one colour from a pile of 4 or more.
-            </span>
-          ) : (
-            <>
-              <span>Taking</span>
-              {picked.map((color, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className="splendor-picked"
-                  aria-label={`Put back ${TOKEN_LABEL[color]}`}
-                  onClick={() => unpick(index)}
-                >
-                  <GemToken color={color} />
-                </button>
-              ))}
-            </>
-          )}
-          <button type="button" disabled={!canTake} onClick={onTake}>
-            Take
-          </button>
+        <div className="splendor-taking" role="group" aria-label="Take selected gems">
+          <span className="splendor-pick-status" role="status">
+            {!isMyTurn
+              ? 'Not your turn'
+              : picked.length === 0
+                ? 'Select gems'
+                : `Selected ${picked.length}/${isDouble ? 2 : legal.takeCount}`}
+          </span>
+          <div className="splendor-bank-actions">
+            <button type="button" disabled={!canTake} onClick={onTake}>
+              {picked.length > 0 ? `Take ${picked.length}` : 'Take'}
+            </button>
+            {picked.length > 0 && (
+              <button
+                type="button"
+                className="secondary"
+                aria-label="Clear selected gems"
+                title="Clear selection"
+                onClick={() => onPick([])}
+              >
+                ×
+              </button>
+            )}
+          </div>
           {isMyTurn && legal.canPass && (
             <button type="button" onClick={onPass}>
               Pass (no move left)
