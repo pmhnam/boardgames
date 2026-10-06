@@ -1,5 +1,7 @@
 import { GEM_COLORS, type GemCounts, type Noble } from '@bgp/game-splendor';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { nobleImageUrl } from '../card-images';
 import { GemToken } from './GemToken';
 
 export function NobleTile({
@@ -12,8 +14,19 @@ export function NobleTile({
   bonuses?: GemCounts;
   action?: ReactNode;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = nobleImageUrl(noble);
   return (
     <div className="splendor-noble">
+      {imageUrl && !imageFailed && (
+        <img
+          className="splendor-noble-image"
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      )}
       <span className="splendor-noble-name">
         <strong>{noble.points}</strong> {noble.name}
       </span>

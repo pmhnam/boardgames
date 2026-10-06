@@ -5,6 +5,8 @@ import {
   type Tier,
 } from '@bgp/game-splendor';
 import type { CSSProperties, ReactNode } from 'react';
+import { useState } from 'react';
+import { cardBackImageUrl, cardImageUrl } from '../card-images';
 import { CARD_TINT, TIER_LABEL, TOKEN_LABEL, TOKEN_NAME } from '../layout';
 import { GemToken } from './GemToken';
 
@@ -80,6 +82,9 @@ export function DevCardView({
   /** Just turned over: draws the eye once. */
   fresh?: boolean;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = cardImageUrl(card);
+  const artwork = imageUrl && !imageFailed;
   const costColors = GEM_COLORS.filter((color) => card.cost[color] > 0);
   const reach = !shortfall
     ? ''
@@ -90,33 +95,52 @@ export function DevCardView({
         : '';
   return (
     <Frame
-      className={`splendor-card${reach}${fresh ? ' fresh' : ''}`}
+      className={`splendor-card${artwork ? ' artwork' : ''}${reach}${fresh ? ' fresh' : ''}`}
       label={describe(card, shortfall)}
       tint={CARD_TINT[card.bonus]}
       {...selectable}
     >
-      <span className="splendor-card-head" aria-hidden="true">
-        <span className="splendor-card-points">{card.points > 0 ? card.points : ''}</span>
-        <GemToken color={card.bonus} bonus small />
-      </span>
-      <span
-        className={`splendor-card-cost${costColors.length === 4 ? ' four' : ''}`}
-        aria-hidden="true"
-      >
-        {costColors.map((color) => {
-          const missing = shortfall?.missing[color];
-          return (
-            <span key={color} className="splendor-pip">
-              <GemToken color={color} count={card.cost[color]} small />
-              {missing !== undefined && (
-                <span className={missing === 0 ? 'splendor-pip-mark met' : 'splendor-pip-mark'}>
-                  {missing === 0 ? '✓' : `−${missing}`}
-                </span>
-              )}
+      {artwork ? (
+        <>
+          <img
+            className="splendor-card-image"
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+          />
+          {shortfall && (
+            <span className="splendor-card-status" aria-hidden="true">
+              {shortfall.short === 0 ? '✓' : `Thiếu ${shortfall.short}`}
             </span>
-          );
-        })}
-      </span>
+          )}
+        </>
+      ) : (
+        <>
+          <span className="splendor-card-head" aria-hidden="true">
+            <span className="splendor-card-points">{card.points > 0 ? card.points : ''}</span>
+            <GemToken color={card.bonus} bonus small />
+          </span>
+          <span
+            className={`splendor-card-cost${costColors.length === 4 ? ' four' : ''}`}
+            aria-hidden="true"
+          >
+            {costColors.map((color) => {
+              const missing = shortfall?.missing[color];
+              return (
+                <span key={color} className="splendor-pip">
+                  <GemToken color={color} count={card.cost[color]} small />
+                  {missing !== undefined && (
+                    <span className={missing === 0 ? 'splendor-pip-mark met' : 'splendor-pip-mark'}>
+                      {missing === 0 ? '✓' : `−${missing}`}
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </span>
+        </>
+      )}
     </Frame>
   );
 }
@@ -140,20 +164,32 @@ export function CardBack({
   count,
   ...selectable
 }: Selectable & { tier: Tier; count?: number }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const label =
     count === undefined
       ? `Hidden tier ${TIER_LABEL[tier]} card`
       : `Tier ${TIER_LABEL[tier]} deck, ${count} cards left`;
   return (
     <Frame
-      className={`splendor-card back tier-${tier}`}
+      className={`splendor-card back tier-${tier}${imageFailed ? '' : ' artwork'}`}
       label={label}
       tint="var(--muted)"
       {...selectable}
     >
-      <span className="splendor-card-tier" aria-hidden="true">
-        {TIER_LABEL[tier]}
-      </span>
+      {!imageFailed && (
+        <img
+          className="splendor-card-image"
+          src={cardBackImageUrl(tier)}
+          alt=""
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      )}
+      {imageFailed && (
+        <span className="splendor-card-tier" aria-hidden="true">
+          {TIER_LABEL[tier]}
+        </span>
+      )}
       {count !== undefined && (
         <span className="splendor-card-left" aria-hidden="true">
           {count}

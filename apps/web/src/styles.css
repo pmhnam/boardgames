@@ -1369,6 +1369,34 @@ button.splendor-bank-token:disabled {
     box-shadow 0.12s;
 }
 
+.splendor-card.artwork {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  background: var(--ground);
+}
+
+.splendor-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.splendor-card-status {
+  position: absolute;
+  right: 0.2rem;
+  bottom: 0.2rem;
+  padding: 0.08rem 0.2rem;
+  color: white;
+  background: rgb(20 20 24 / 0.85);
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
 button.splendor-card:not(:disabled):hover {
   transform: translateY(-3px);
   box-shadow: 0 5px 12px rgb(0 0 0 / 0.35);
@@ -1428,6 +1456,10 @@ button.splendor-card:disabled {
     repeating-linear-gradient(45deg, rgb(127 127 127 / 0.14) 0 6px, transparent 6px 12px),
     var(--ground);
   border-color: var(--border);
+}
+
+.splendor-card.back.artwork {
+  background: var(--ground);
 }
 
 .splendor-card.back.tier-1 {
@@ -1593,6 +1625,15 @@ button.splendor-card:disabled {
   border: 1px solid color-mix(in srgb, #e6b422 45%, var(--border));
   border-radius: 8px;
   font-size: 0.9rem;
+}
+
+.splendor-noble-image {
+  display: block;
+  width: min(100%, 6rem);
+  aspect-ratio: 1;
+  object-fit: contain;
+  align-self: center;
+  border-radius: 5px;
 }
 
 .splendor-noble-needs {
@@ -1820,6 +1861,11 @@ button.splendor-card:disabled {
 .splendor-reserved .splendor-card {
   aspect-ratio: auto;
   min-height: 6rem;
+}
+
+.splendor-reserved .splendor-card.artwork {
+  aspect-ratio: 205 / 286;
+  min-height: 0;
 }
 
 .splendor-purchased summary {
