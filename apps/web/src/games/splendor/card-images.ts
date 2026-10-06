@@ -4,7 +4,6 @@ import {
   type DevelopmentCard,
   type Noble,
   type Tier,
-  type TokenColor,
 } from '@bgp/game-splendor';
 
 const ASSET_BASE =
@@ -189,8 +188,4 @@ export function nobleImageUrl(noble: Noble): string | undefined {
 
 export function cardBackImageUrl(tier: Tier): string {
   return url(`backs/level-${tier}-back.png`);
-}
-
-export function gemImageUrl(color: TokenColor): string {
-  return url(`gems/${color}.png`);
 }

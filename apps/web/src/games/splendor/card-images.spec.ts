@@ -5,7 +5,6 @@ import {
   NOBLE_IMAGE_PATHS,
   cardBackImageUrl,
   cardImageUrl,
-  gemImageUrl,
   nobleImageUrl,
 } from './card-images';
 
@@ -27,9 +26,6 @@ describe('Splendor artwork', () => {
     for (const noble of nobles) expect(nobleImageUrl(noble)).toContain(NOBLE_IMAGE_PATHS[noble.id]);
     for (const tier of [1, 2, 3] as const) {
       expect(cardBackImageUrl(tier)).toContain(`backs/level-${tier}-back.png`);
-    }
-    for (const color of ['white', 'blue', 'green', 'red', 'black', 'gold'] as const) {
-      expect(gemImageUrl(color)).toContain(`gems/${color}.png`);
     }
   });
 
