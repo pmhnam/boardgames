@@ -29,9 +29,18 @@ describe('Splendor artwork', () => {
     }
   });
 
-  it('uses the crop with the printed gems, rather than the JSON card number', () => {
+  it('matches the printed bonus, points and cost on the source sheet', () => {
     expect(CARD_IMAGE_PATHS['red-L1-01']).toBe('development/level-1/L1-R01-C01.png');
     expect(CARD_IMAGE_PATHS['white-L1-07']).toBe('development/level-1/L1-R01-C04.png');
+    // The two higher tiers have repeated artwork with different printed gem costs.
+    expect(CARD_IMAGE_PATHS['red-L2-03']).toBe('development/level-2/L2-R01-C01.png');
+    expect(CARD_IMAGE_PATHS['red-L2-04']).toBe('development/level-2/L2-R03-C06.png');
+    expect(CARD_IMAGE_PATHS['blue-L2-02']).toBe('development/level-2/L2-R01-C02.png');
+    expect(CARD_IMAGE_PATHS['black-L2-01']).toBe('development/level-2/L2-R03-C01.png');
+    expect(CARD_IMAGE_PATHS['white-L3-01']).toBe('development/level-3/L3-R01-C07.png');
+    expect(CARD_IMAGE_PATHS['black-L3-01']).toBe('development/level-3/L3-R01-C01.png');
+    expect(CARD_IMAGE_PATHS['black-L3-02']).toBe('development/level-3/L3-R01-C06.png');
+    expect(CARD_IMAGE_PATHS['red-L3-03']).toBe('development/level-3/L3-R02-C08.png');
     expect(NOBLE_IMAGE_PATHS['noble-henry-viii']).toBe('nobles/NOBLE-02.png');
   });
 

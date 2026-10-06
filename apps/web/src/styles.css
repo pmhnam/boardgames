@@ -2044,6 +2044,11 @@ button.splendor-card:disabled {
   .splendor-stack {
     max-height: 2.5rem;
     overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .splendor-stack::-webkit-scrollbar {
+    display: none;
   }
 
   .splendor-mine {
