@@ -1385,18 +1385,6 @@ button.splendor-bank-token:disabled {
   pointer-events: none;
 }
 
-.splendor-card-status {
-  position: absolute;
-  right: 0.2rem;
-  bottom: 0.2rem;
-  padding: 0.08rem 0.2rem;
-  color: white;
-  background: rgb(20 20 24 / 0.85);
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 700;
-}
-
 button.splendor-card:not(:disabled):hover {
   transform: translateY(-3px);
   box-shadow: 0 5px 12px rgb(0 0 0 / 0.35);

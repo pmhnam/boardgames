@@ -101,20 +101,13 @@ export function DevCardView({
       {...selectable}
     >
       {artwork ? (
-        <>
-          <img
-            className="splendor-card-image"
-            src={imageUrl}
-            alt=""
-            loading="lazy"
-            onError={() => setImageFailed(true)}
-          />
-          {shortfall && (
-            <span className="splendor-card-status" aria-hidden="true">
-              {shortfall.short === 0 ? '✓' : `Thiếu ${shortfall.short}`}
-            </span>
-          )}
-        </>
+        <img
+          className="splendor-card-image"
+          src={imageUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
       ) : (
         <>
           <span className="splendor-card-head" aria-hidden="true">
