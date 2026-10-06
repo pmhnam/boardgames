@@ -1,4 +1,6 @@
 import type { TokenColor } from '@bgp/game-splendor';
+import { useState } from 'react';
+import { gemImageUrl } from '../card-images';
 
 /** One outline per colour, so a gem can be told apart by shape as well as by colour. */
 const SHAPE: Record<TokenColor, string> = {
@@ -12,6 +14,18 @@ const SHAPE: Record<TokenColor, string> = {
 
 /** Drawn in the current text colour; the token or card behind it supplies the gem's own colour. */
 export function GemIcon({ color }: { color: TokenColor }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  if (!imageFailed) {
+    return (
+      <img
+        className="splendor-gem-icon"
+        src={gemImageUrl(color)}
+        alt=""
+        aria-hidden="true"
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
   return (
     <svg className="splendor-gem-icon" viewBox="0 0 24 24" aria-hidden="true">
       <path d={SHAPE[color]} fill="currentColor" fillRule="evenodd" />

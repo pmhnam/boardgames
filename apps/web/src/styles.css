@@ -1200,18 +1200,32 @@ input[type='checkbox'] {
 
 .splendor-gem-icon {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+svg.splendor-gem-icon {
   inset: 12%;
   width: 76%;
   height: 76%;
   opacity: 0.28;
 }
 
-.splendor-gem.bare .splendor-gem-icon {
+.splendor-gem.bare svg.splendor-gem-icon {
   opacity: 0.7;
 }
 
 .splendor-gem-count {
   position: relative;
+  z-index: 1;
+  padding: 0 0.15em;
+  color: #fff;
+  background: rgb(0 0 0 / 0.65);
+  border-radius: 0.4em;
+  text-shadow: 0 1px 2px #000;
 }
 
 /* Bank */
