@@ -5,7 +5,6 @@ import {
   RESOURCE_INK,
   SIZE,
   TERRAIN_ART,
-  TERRAIN_LABEL,
   boundsOf,
   edgePoints,
   portLabel,
@@ -17,6 +16,7 @@ import {
   vertexPoint,
   type Point,
 } from '../layout';
+import { useCatanText } from '../useCatanText';
 import { Glyph } from './Icon';
 
 /** Sea around the island: enough for the ports, and no more, so the tiles stay large. */
@@ -115,6 +115,7 @@ export function Board({
   onEdge,
   onHex,
 }: BoardProps) {
+  const text = useCatanText();
   const { hexes, ports, robber } = view.board;
   const bounds = useMemo(() => boundsOf(hexes, PAD_X, PAD_Y), [hexes]);
   /** Where the robber stands on a tile: over its artwork, leaving the number in sight. */
@@ -131,7 +132,7 @@ export function Board({
     <svg
       className="catan-board"
       role="group"
-      aria-label="The island"
+      aria-label={text.island}
       viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
     >
       <defs>
@@ -188,11 +189,11 @@ export function Board({
         else if (hex.number === rolled) classes.push('rolled');
         const description =
           hex.number === null
-            ? TERRAIN_LABEL[hex.terrain]
-            : `${TERRAIN_LABEL[hex.terrain]}, produces on ${hex.number}`;
+            ? text.terrain[hex.terrain]
+            : text.producesOn(hex.terrain, hex.number);
         return (
           <g key={key} className={`catan-hex ${hex.terrain}`} transform={at(centre)}>
-            <title>{key === robber ? `${description}. The robber is here.` : description}</title>
+            <title>{key === robber ? text.robberHere(description) : description}</title>
             <polygon
               className="catan-hex-ground"
               points={outline}
@@ -238,8 +239,7 @@ export function Board({
       {ports.map((port) => {
         const [a, b] = edgePoints(port.edge);
         const spot = portSpot(port.edge, hexes, PORT_REACH);
-        const label =
-          port.type === 'any' ? 'Port: any 3 of a kind for 1' : `Port: 2 ${port.type} for 1`;
+        const label = port.type === 'any' ? text.portAny : text.portOf(port.type);
         return (
           <g key={port.edge} className="catan-port">
             <title>{label}</title>
@@ -264,7 +264,7 @@ export function Board({
                     {portLabel(port.type)}
                   </text>
                   <text className="catan-port-kind" y={6.8}>
-                    any
+                    {text.any}
                   </text>
                 </g>
               ) : (
@@ -289,9 +289,7 @@ export function Board({
             key={key}
             className="catan-target hex"
             points={hexPoints(hexCentre(hex), SIZE - 4)}
-            {...clickable(`Move the robber to the ${TERRAIN_LABEL[hex.terrain]} at ${key}`, () =>
-              onHex?.(key),
-            )}
+            {...clickable(text.moveRobberTo(hex.terrain, key), () => onHex?.(key))}
           />
         );
       })}
@@ -303,7 +301,7 @@ export function Board({
         const line = { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
         return (
           <g key={edge} className="catan-road">
-            <title>{`Road of ${nameOf(playerId)}`}</title>
+            <title>{text.roadOf(nameOf(playerId))}</title>
             <line className="catan-road-edge" {...line} />
             <line className="catan-road-body" {...line} stroke={colors[playerId]} />
             <line className="catan-road-shine" {...line} />
@@ -320,7 +318,7 @@ export function Board({
           <g
             key={edge}
             className="catan-target edge"
-            {...clickable('Build a road here', () => onEdge?.(edge))}
+            {...clickable(text.buildRoadHere, () => onEdge?.(edge))}
           >
             <line className="catan-hit" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
             <line className="catan-target-edge" {...line} />
@@ -334,7 +332,11 @@ export function Board({
         const city = building.kind === 'city';
         return (
           <g key={vertex} className="catan-building" transform={at(vertexPoint(vertex))}>
-            <title>{`${city ? 'City' : 'Settlement'} of ${nameOf(building.playerId)}`}</title>
+            <title>
+              {city
+                ? text.cityOf(nameOf(building.playerId))
+                : text.settlementOf(nameOf(building.playerId))}
+            </title>
             {/* Keyed by kind, so a settlement growing into a city arrives like a new piece. */}
             <g key={building.kind} className="catan-pop">
               <ellipse className="catan-shadow" cy={7.4} rx={city ? 12.5 : 9.5} ry={2.8} />
@@ -365,7 +367,7 @@ export function Board({
             key={vertex}
             className={upgrade ? 'catan-target vertex upgrade' : 'catan-target vertex'}
             transform={at(vertexPoint(vertex))}
-            {...clickable(upgrade ? 'Build a city here' : 'Build a settlement here', () =>
+            {...clickable(upgrade ? text.buildCityHere : text.buildSettlementHere, () =>
               onVertex?.(vertex),
             )}
           >

@@ -2,6 +2,7 @@ import { DEFAULT_CATAN_CONFIG, buildTopology } from '@bgp/game-catan';
 import { describe, expect, it } from 'vitest';
 import { ICON_PATHS } from './art/icons';
 import { CARD_ICON, SIZE, edgePoints, hexCentre, portSpot, towards } from './layout';
+import { CATAN_TEXT } from './text';
 import { handDifference } from './useHandChange';
 
 const hexes = DEFAULT_CATAN_CONFIG.hexes;
@@ -49,5 +50,16 @@ describe('CATAN hand changes', () => {
       wheat: 2,
       ore: 1,
     });
+  });
+});
+
+describe('CATAN text', () => {
+  it('names amounts and trades in the language asked for', () => {
+    expect(CATAN_TEXT.en.tradeFor(4, 'wheat', 'ore')).toBe('Trade 4 wheat for 1 ore');
+    expect(CATAN_TEXT.vi.tradeFor(4, 'wheat', 'ore')).toBe('Đổi 4 lúa lấy 1 quặng');
+    expect(CATAN_TEXT.en.status.freeRoads(1)).toBe('Place 1 free road.');
+    expect(CATAN_TEXT.vi.status.waitingDiscard(['An', 'Bình'])).toBe(
+      'Xúc xắc ra 7. Đang chờ An, Bình bỏ bài.',
+    );
   });
 });

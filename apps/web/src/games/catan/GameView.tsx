@@ -20,7 +20,8 @@ import { PlayerPanel } from './components/PlayerPanel';
 import { ResourceCard, ResourceChip, resourceStyle } from './components/ResourceChip';
 import { NO_RESOURCES } from './components/ResourcePicker';
 import { TradePanel } from './components/TradePanel';
-import { CARD_HINT, CARD_ICON, CARD_LABEL, RESOURCE_LABEL, playerColors } from './layout';
+import { CARD_ICON, playerColors } from './layout';
+import { useCatanText } from './useCatanText';
 import { useHandChange } from './useHandChange';
 import './catan.css';
 
@@ -29,18 +30,6 @@ type Tool = 'road' | 'settlement' | 'city';
 
 /** A card that needs a choice before it can be played. UI state only. */
 type CardPick = { type: 'invention'; picks: Resource[] } | { type: 'monopoly' } | null;
-
-const TOOL_HINT: Record<Tool, string> = {
-  road: 'Pick a highlighted edge for your road.',
-  settlement: 'Pick a highlighted corner for your settlement.',
-  city: 'Pick one of your settlements to make it a city.',
-};
-
-function describeCost(cost: Readonly<ResourceCounts>): string {
-  return RESOURCES.filter((resource) => cost[resource] > 0)
-    .map((resource) => `${cost[resource]} ${resource}`)
-    .join(', ');
-}
 
 /** A price as one dot per card, hollow for each card the hand is short of. */
 function CostPips({
@@ -71,6 +60,7 @@ export function CatanGameView({
   sendAction,
   disabled,
 }: GameViewProps<CatanView, CatanAction>) {
+  const text = useCatanText();
   const view = message.state;
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
@@ -81,6 +71,10 @@ export function CatanGameView({
   const mine = playing && turn.activePlayerId === me;
   const canAct = !disabled && playing && seat !== undefined;
   const nameOf = (playerId: string) => playerName(players, playerId);
+  const describeCost = (cost: Readonly<ResourceCounts>) =>
+    RESOURCES.filter((resource) => cost[resource] > 0)
+      .map((resource) => text.amount(cost[resource], resource))
+      .join(', ');
   const colors = useMemo(() => playerColors(view.turnOrder), [view.turnOrder]);
 
   const [tool, setTool] = useState<Tool | null>(null);
@@ -166,44 +160,41 @@ export function CatanGameView({
 
   const activeName = nameOf(turn.activePlayerId);
   const discarding = Object.keys(turn.pendingDiscards);
+  const say = text.status;
   const status = (() => {
     if (!playing) {
-      return view.winnerPlayerIds.length > 0
-        ? `${view.winnerPlayerIds.map(nameOf).join(' & ')} won the game.`
-        : 'Game over.';
+      return view.winnerPlayerIds.length > 0 ? say.won(view.winnerPlayerIds.map(nameOf)) : say.over;
     }
-    if (legal.mustDiscard > 0) return `A 7 was rolled. Discard ${legal.mustDiscard} of your cards.`;
+    if (legal.mustDiscard > 0) return say.discard(legal.mustDiscard);
     if (turn.step === 'DISCARD') {
-      return `A 7 was rolled. Waiting for ${discarding.map(nameOf).join(', ')} to discard.`;
+      return say.waitingDiscard(discarding.map(nameOf));
     }
-    if (legal.canRespond) return `${activeName} offers you a trade. Accept or decline it.`;
+    if (legal.canRespond) return say.offersYou(activeName);
     if (!mine) {
-      if (turn.offer) return `${activeName} has a trade on offer.`;
-      if (turn.step === 'SETUP_SETTLEMENT') return `${activeName} is placing a settlement.`;
-      if (turn.step === 'SETUP_ROAD') return `${activeName} is placing a road.`;
-      if (turn.step === 'ROBBER') return `${activeName} is moving the robber.`;
-      if (turn.step === 'ROLL') return `${activeName} is about to roll.`;
-      return `${activeName} is building and trading.`;
+      if (turn.offer) return say.hasOffer(activeName);
+      if (turn.step === 'SETUP_SETTLEMENT') return say.placingSettlement(activeName);
+      if (turn.step === 'SETUP_ROAD') return say.placingRoad(activeName);
+      if (turn.step === 'ROBBER') return say.movingRobber(activeName);
+      if (turn.step === 'ROLL') return say.aboutToRoll(activeName);
+      return say.building(activeName);
     }
-    if (turn.offer) return 'Your offer is on the table. Close it with a player, or withdraw it.';
-    if (turn.step === 'SETUP_SETTLEMENT') return 'Place a settlement on a highlighted corner.';
-    if (turn.step === 'SETUP_ROAD') return 'Place a road from that settlement.';
+    if (turn.offer) return say.yourOffer;
+    if (turn.step === 'SETUP_SETTLEMENT') return say.placeSettlement;
+    if (turn.step === 'SETUP_ROAD') return say.placeRoad;
     if (turn.step === 'ROBBER') {
-      return robberHex ? 'Choose who to rob.' : 'Move the robber to a highlighted hex.';
+      return robberHex ? say.chooseVictim : say.moveRobber;
     }
     if (turn.freeRoads > 0) {
-      return `Place ${turn.freeRoads} free ${turn.freeRoads === 1 ? 'road' : 'roads'}.`;
+      return say.freeRoads(turn.freeRoads);
     }
-    if (cardPick?.type === 'monopoly') return 'Monopoly: name the resource to collect.';
+    if (cardPick?.type === 'monopoly') return say.monopoly;
     if (cardPick?.type === 'invention') {
-      return `Invention: take ${2 - cardPick.picks.length} from the supply.`;
+      return say.invention(2 - cardPick.picks.length);
     }
     if (turn.step === 'ROLL') {
-      return legal.playableCards.length > 0
-        ? 'Roll the dice, or play a development card first.'
-        : 'Roll the dice.';
+      return legal.playableCards.length > 0 ? say.rollOrCard : say.roll;
     }
-    return tool ? TOOL_HINT[tool] : 'Build, trade, play a card, or end your turn.';
+    return tool ? say.tool[tool] : say.main;
   })();
 
   const heldCards = DEVELOPMENT_CARD_TYPES.map((type) => ({
@@ -217,8 +208,8 @@ export function CatanGameView({
       className={tool === kind ? 'catan-build selected' : 'catan-build secondary'}
       disabled={!canAct || forced || toolTargets[kind].length === 0}
       aria-pressed={tool === kind}
-      aria-label={`${label}: costs ${describeCost(view.costs[kind])}`}
-      title={`Costs ${describeCost(view.costs[kind])}`}
+      aria-label={`${label}. ${text.costs(describeCost(view.costs[kind]))}`}
+      title={text.costs(describeCost(view.costs[kind]))}
       onClick={() => setTool(tool === kind ? null : kind)}
     >
       <Icon name={icon} />
@@ -252,11 +243,11 @@ export function CatanGameView({
               disabled={!canAct}
               onClick={() => sendAction({ type: 'MOVE_ROBBER', hex: robberHex, victimId })}
             >
-              Rob {nameOf(victimId)}
+              {text.rob(nameOf(victimId))}
             </button>
           ))}
           <button type="button" className="secondary" onClick={() => setRobberHex(null)}>
-            Another hex
+            {text.anotherHex}
           </button>
         </div>
       );
@@ -280,11 +271,11 @@ export function CatanGameView({
               onClick={() => pickResource(resource)}
             >
               <ResourceChip resource={resource} />
-              {RESOURCE_LABEL[resource]}
+              {text.resource[resource]}
             </button>
           ))}
           <button type="button" className="secondary" onClick={() => setCardPick(null)}>
-            Cancel
+            {text.cancel}
           </button>
         </div>
       );
@@ -313,8 +304,8 @@ export function CatanGameView({
           <div className="catan-status-text">
             <p className="catan-turn">
               {playing && <span className="catan-seat" aria-hidden="true" />}
-              {!playing ? 'Game over' : mine ? 'Your turn' : `${activeName}’s turn`}
-              <span className="catan-turn-number">Turn {turn.number}</span>
+              {!playing ? text.gameOver : mine ? text.yourTurn : text.turnOf(activeName)}
+              <span className="catan-turn-number">{text.turnNumber(turn.number)}</span>
             </p>
             <p className="catan-step" aria-live="polite">
               {status}
@@ -357,7 +348,7 @@ export function CatanGameView({
             />
           )}
           <section className="card catan-bank">
-            <h2>Bank</h2>
+            <h2>{text.bank}</h2>
             <div className="catan-chips">
               {RESOURCES.map((resource) => (
                 <ResourceChip
@@ -371,14 +362,16 @@ export function CatanGameView({
                 className={
                   view.developmentDeckCount === 0 ? 'catan-chip deck dim' : 'catan-chip deck'
                 }
-                title={`${view.developmentDeckCount} development cards left`}
+                title={text.deckLeft(view.developmentDeckCount)}
               >
                 <Icon name="card" />
-                <span className="catan-chip-count">{view.developmentDeckCount}</span>
-                <span className="sr-only">development cards left</span>
+                <span className="catan-chip-count" aria-hidden="true">
+                  {view.developmentDeckCount}
+                </span>
+                <span className="sr-only">{text.deckLeft(view.developmentDeckCount)}</span>
               </span>
             </div>
-            <p className="muted hint">First to {view.victoryPointsToWin} points wins.</p>
+            <p className="muted hint">{text.firstTo(view.victoryPointsToWin)}</p>
           </section>
         </div>
 
@@ -401,7 +394,7 @@ export function CatanGameView({
         </div>
 
         {seat && me !== null && (
-          <section className="card catan-dock" aria-label="Your hand and what you can do">
+          <section className="card catan-dock" aria-label={text.dock}>
             {prompt && <div className="catan-prompt">{prompt}</div>}
             <div className="catan-hand">
               <div className="catan-hand-cards">
@@ -420,18 +413,15 @@ export function CatanGameView({
                   {heldCards.map(({ type, cards }) => {
                     const playable = type !== 'victoryPoint' && legal.playableCards.includes(type);
                     return (
-                      <li key={type} title={CARD_HINT[type]}>
+                      <li key={type} title={text.cardHint[type]}>
                         <Icon name={CARD_ICON[type]} />
                         <span>
-                          {CARD_LABEL[type]}
+                          {text.card[type]}
                           {cards.length > 1 && ` ×${cards.length}`}
                         </span>
                         {cards.every((card) => card.fresh) && (
-                          <span
-                            className="catan-card-fresh"
-                            title="Bought this turn: it can be played from your next turn."
-                          >
-                            new
+                          <span className="catan-card-fresh" title={text.freshHint}>
+                            {text.fresh}
                           </span>
                         )}
                         {type !== 'victoryPoint' && (
@@ -441,7 +431,7 @@ export function CatanGameView({
                             disabled={!canAct || !playable || forced}
                             onClick={() => playCard(type)}
                           >
-                            Play
+                            {text.play}
                           </button>
                         )}
                       </li>
@@ -458,22 +448,22 @@ export function CatanGameView({
                 onClick={() => sendAction({ type: 'ROLL_DICE' })}
               >
                 <Icon name="dice" />
-                Roll dice
+                {text.rollDice}
               </button>
-              <div className="catan-builds" role="group" aria-label="Build">
-                {toolButton('road', 'road', 'Road')}
-                {toolButton('settlement', 'settlement', 'Settlement')}
-                {toolButton('city', 'city', 'City')}
+              <div className="catan-builds" role="group" aria-label={text.build}>
+                {toolButton('road', 'road', text.road)}
+                {toolButton('settlement', 'settlement', text.settlement)}
+                {toolButton('city', 'city', text.city)}
                 <button
                   type="button"
                   className="catan-build secondary"
                   disabled={!canAct || !legal.canBuyDevelopmentCard}
-                  aria-label={`Buy a development card: costs ${describeCost(view.costs.developmentCard)}`}
-                  title={`Costs ${describeCost(view.costs.developmentCard)}`}
+                  aria-label={`${text.buyDevCard}. ${text.costs(describeCost(view.costs.developmentCard))}`}
+                  title={text.costs(describeCost(view.costs.developmentCard))}
                   onClick={() => sendAction({ type: 'BUY_DEVELOPMENT_CARD' })}
                 >
                   <Icon name="card" />
-                  <span>Dev card</span>
+                  <span>{text.devCard}</span>
                   <CostPips cost={view.costs.developmentCard} hand={hand} />
                 </button>
               </div>
@@ -485,7 +475,7 @@ export function CatanGameView({
                   onClick={() => setTradeOpen(true)}
                 >
                   <Icon name="swap" />
-                  Trade
+                  {text.trade}
                 </button>
               )}
               <button
@@ -494,7 +484,7 @@ export function CatanGameView({
                 disabled={!canAct || !legal.canEndTurn}
                 onClick={() => sendAction({ type: 'END_TURN' })}
               >
-                End turn
+                {text.endTurn}
               </button>
             </div>
           </section>

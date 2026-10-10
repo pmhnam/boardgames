@@ -1,3 +1,5 @@
+import { useCatanText } from '../useCatanText';
+
 /** Which of the nine places on a die's face carry a pip, for each value. */
 const PIPS: Record<number, readonly number[]> = {
   1: [4],
@@ -21,6 +23,7 @@ function Die({ value }: { value: number | null }) {
 
 /** The two dice of this turn, and what they add up to. Blank until they are rolled. */
 export function Dice({ roll, turn }: { roll: [number, number] | null; turn: number }) {
+  const text = useCatanText();
   const total = roll ? roll[0] + roll[1] : null;
   return (
     <span
@@ -28,7 +31,7 @@ export function Dice({ roll, turn }: { roll: [number, number] | null; turn: numb
       key={roll ? `${turn}:${roll[0]}:${roll[1]}` : 'idle'}
       className={roll ? 'catan-dice rolled' : 'catan-dice'}
       role="img"
-      aria-label={roll ? `Rolled ${roll[0]} and ${roll[1]}` : 'Not rolled yet'}
+      aria-label={roll ? text.rolled(roll[0], roll[1]) : text.notRolled}
     >
       <Die value={roll?.[0] ?? null} />
       <Die value={roll?.[1] ?? null} />

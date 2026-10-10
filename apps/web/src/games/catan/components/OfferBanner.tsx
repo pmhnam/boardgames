@@ -1,4 +1,5 @@
 import type { CatanAction, CatanView } from '@bgp/game-catan';
+import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
 import { ResourceList } from './ResourcePicker';
 
@@ -17,6 +18,7 @@ export function OfferBanner({
   disabled: boolean;
   sendAction(action: CatanAction): void;
 }) {
+  const text = useCatanText();
   const { legal, turn } = view;
   const { offer } = turn;
   if (!offer) return null;
@@ -29,9 +31,9 @@ export function OfferBanner({
     <div className="catan-offer">
       <p className="catan-offer-terms">
         <Icon name="handshake" />
-        <strong>{proposing ? 'You offer' : `${nameOf(turn.activePlayerId)} offers`}</strong>
+        <strong>{proposing ? text.youOffer : text.offers(nameOf(turn.activePlayerId))}</strong>
         <ResourceList counts={offer.give} />
-        <span>for</span>
+        <span>{text.for}</span>
         <ResourceList counts={offer.receive} />
       </p>
       {proposing ? (
@@ -43,7 +45,7 @@ export function OfferBanner({
               disabled={disabled}
               onClick={() => sendAction({ type: 'CONFIRM_TRADE', playerId })}
             >
-              Trade with {nameOf(playerId)}
+              {text.tradeWithPlayer(nameOf(playerId))}
             </button>
           ))}
           <button
@@ -52,14 +54,14 @@ export function OfferBanner({
             disabled={disabled || !legal.canCancelTrade}
             onClick={() => sendAction({ type: 'CANCEL_TRADE' })}
           >
-            Withdraw offer
+            {text.withdraw}
           </button>
           <span className="muted">
             {waitingOn.length > 0
-              ? `Waiting for ${waitingOn.map(nameOf).join(', ')}.`
+              ? text.waitingFor(waitingOn.map(nameOf))
               : legal.accepters.length === 0
-                ? 'Everyone declined.'
-                : 'Everyone has answered.'}
+                ? text.everyoneDeclined
+                : text.everyoneAnswered}
           </span>
         </div>
       ) : legal.canRespond ? (
@@ -69,7 +71,7 @@ export function OfferBanner({
             disabled={disabled || !legal.canAccept}
             onClick={() => sendAction({ type: 'RESPOND_TRADE', offerId: offer.id, accept: true })}
           >
-            Accept
+            {text.accept}
           </button>
           <button
             type="button"
@@ -77,16 +79,15 @@ export function OfferBanner({
             disabled={disabled}
             onClick={() => sendAction({ type: 'RESPOND_TRADE', offerId: offer.id, accept: false })}
           >
-            Decline
+            {text.decline}
           </button>
-          {!legal.canAccept && <span className="muted">You do not hold those cards.</span>}
+          {!legal.canAccept && <span className="muted">{text.cannotAccept}</span>}
         </div>
       ) : (
         me !== null &&
         offer.responses[me] && (
           <p className="muted">
-            You {offer.responses[me] === 'accepted' ? 'accepted' : 'declined'}. It is up to{' '}
-            {nameOf(turn.activePlayerId)} now.
+            {text.youAnswered(offer.responses[me] === 'accepted', nameOf(turn.activePlayerId))}
           </p>
         )
       )}

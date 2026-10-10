@@ -1,6 +1,7 @@
 import type { PlayerView, TradeResponse } from '@bgp/game-catan';
 import type { CSSProperties } from 'react';
 import type { IconName } from '../art/icons';
+import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
 
 function Stat({
@@ -15,11 +16,9 @@ function Stat({
   /** The award this count holds right now, e.g. Longest Route. */
   bonus?: string | false;
 }) {
+  const text = useCatanText();
   return (
-    <div
-      className={bonus ? 'held' : undefined}
-      title={bonus ? `${label}: ${bonus}, +2 points` : label}
-    >
+    <div className={bonus ? 'held' : undefined} title={bonus ? text.holds(label, bonus) : label}>
       <dt>
         <Icon name={icon} />
         <span className="sr-only">{label}</span>
@@ -28,7 +27,7 @@ function Stat({
         {value}
         {bonus && (
           <span className="catan-bonus">
-            +2<span className="sr-only"> points for {bonus}</span>
+            +2<span className="sr-only"> {text.pointsFor(bonus)}</span>
           </span>
         )}
       </dd>
@@ -64,12 +63,14 @@ export function PlayerPanel({
   /** Their answer to the open trade offer, if they gave one. */
   response?: TradeResponse;
 }) {
+  const text = useCatanText();
   const classes = ['catan-player', mine && 'mine', active && 'active', winner && 'winner']
     .filter(Boolean)
     .join(' ');
   // Victory Point cards are hidden, so anyone else's score is only what the table shows.
   const points = player.points ?? player.publicPoints;
   const { piecesLeft } = player;
+  const leftToBuild = text.leftToBuild(piecesLeft.roads, piecesLeft.settlements, piecesLeft.cities);
 
   return (
     <section className={classes} style={{ '--seat': color } as CSSProperties}>
@@ -77,42 +78,42 @@ export function PlayerPanel({
         <span className="catan-seat" aria-hidden="true" />
         <span className="catan-player-label">
           {name}
-          {mine && <span className="muted"> (you)</span>}
+          {mine && <span className="muted"> {text.you}</span>}
         </span>
         {winner && <Icon name="trophy" className="catan-winner-mark" />}
-        {active && <span className="catan-turn-mark">Turn</span>}
+        {active && <span className="catan-turn-mark">{text.turnMark}</span>}
         <span
           className="catan-score"
-          title={player.points === null ? 'Points on the table' : 'Your points'}
+          title={player.points === null ? text.pointsOnTable : text.yourPoints}
         >
           <Icon name="star" />
           {points}
           <span className="catan-score-target"> / {target}</span>
-          <span className="sr-only"> points</span>
+          <span className="sr-only"> {text.points}</span>
         </span>
       </h2>
       <div className="catan-player-row">
         <dl className="catan-stats">
-          <Stat icon="hand" label="Cards in hand" value={player.resourceCount} />
-          <Stat icon="card" label="Development cards" value={player.developmentCardCount} />
+          <Stat icon="hand" label={text.stat.hand} value={player.resourceCount} />
+          <Stat
+            icon="card"
+            label={text.stat.developmentCards}
+            value={player.developmentCardCount}
+          />
           <Stat
             icon="army"
-            label="Knights played"
+            label={text.stat.knights}
             value={player.knightsPlayed}
-            bonus={largestArmy && 'Largest Army'}
+            bonus={largestArmy && text.largestArmy}
           />
           <Stat
             icon="route"
-            label="Longest route"
+            label={text.stat.route}
             value={player.routeLength}
-            bonus={longestRoute && 'Longest Route'}
+            bonus={longestRoute && text.longestRoute}
           />
         </dl>
-        <p
-          className="catan-pieces"
-          aria-label={`Left to build: ${piecesLeft.roads} roads, ${piecesLeft.settlements} settlements, ${piecesLeft.cities} cities`}
-          title={`Left to build: ${piecesLeft.roads} roads, ${piecesLeft.settlements} settlements, ${piecesLeft.cities} cities`}
-        >
+        <p className="catan-pieces" aria-label={leftToBuild} title={leftToBuild}>
           <span>
             <Icon name="road" />
             {piecesLeft.roads}
@@ -130,10 +131,10 @@ export function PlayerPanel({
       {/* News about this player, pinned to the panel's corner so that nothing moves for it. */}
       {(owes > 0 || response) && (
         <p className="catan-flags">
-          {owes > 0 && <span className="catan-badge warn">Discarding {owes}</span>}
+          {owes > 0 && <span className="catan-badge warn">{text.discarding(owes)}</span>}
           {response && (
             <span className={response === 'accepted' ? 'catan-badge' : 'catan-badge quiet'}>
-              {response === 'accepted' ? 'Accepts' : 'Declines'}
+              {response === 'accepted' ? text.accepts : text.declines}
             </span>
           )}
         </p>

@@ -692,6 +692,7 @@ button.catan-pick {
   min-height: 2.9rem;
   padding: 0.5rem 1rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .catan-action .catan-icon {
@@ -1002,9 +1003,10 @@ button.catan-tab {
   gap: 0.35rem;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem 0.5rem;
-  font-size: 0.9rem;
+  padding: 0.4rem 0.3rem;
+  font-size: 0.82rem;
   color: var(--muted);
+  white-space: nowrap;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1207,7 +1209,7 @@ button.catan-option[aria-checked='true'] {
   /* What to build across the top; the dice, the trade and the end of the turn under the thumbs. */
   .catan-actions {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1.3fr auto 1fr;
     grid-template-areas:
       'builds builds builds'
       'roll trade end';

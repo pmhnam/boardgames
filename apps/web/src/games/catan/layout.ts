@@ -28,15 +28,6 @@ export const TERRAIN_ART: Record<Terrain, { light: string; dark: string; ink: st
   desert: { light: '#eedfb6', dark: '#d6bf86', ink: '#a48a4e' },
 };
 
-export const TERRAIN_LABEL: Record<Terrain, string> = {
-  hills: 'Hills',
-  forest: 'Forest',
-  pasture: 'Pasture',
-  fields: 'Fields',
-  mountains: 'Mountains',
-  desert: 'Desert',
-};
-
 export const RESOURCE_FILL: Record<Resource, string> = {
   brick: TERRAIN_FILL.hills,
   wood: TERRAIN_FILL.forest,
@@ -54,36 +45,12 @@ export const RESOURCE_INK: Record<Resource, string> = {
   ore: '#fff',
 };
 
-export const RESOURCE_LABEL: Record<Resource, string> = {
-  brick: 'Brick',
-  wood: 'Wood',
-  wool: 'Wool',
-  wheat: 'Wheat',
-  ore: 'Ore',
-};
-
-export const CARD_LABEL: Record<DevelopmentCardType, string> = {
-  knight: 'Knight',
-  victoryPoint: 'Victory Point',
-  roadBuilding: 'Road Building',
-  invention: 'Invention',
-  monopoly: 'Monopoly',
-};
-
 export const CARD_ICON: Record<DevelopmentCardType, IconName> = {
   knight: 'knight',
   victoryPoint: 'star',
   roadBuilding: 'road',
   invention: 'invention',
   monopoly: 'monopoly',
-};
-
-export const CARD_HINT: Record<DevelopmentCardType, string> = {
-  knight: 'Move the robber and rob a player next to it.',
-  victoryPoint: 'Worth 1 point. Stays hidden until you win.',
-  roadBuilding: 'Place 2 roads for free.',
-  invention: 'Take any 2 cards from the supply.',
-  monopoly: 'Every other player gives you all their cards of one resource.',
 };
 
 export function portLabel(type: PortType): string {

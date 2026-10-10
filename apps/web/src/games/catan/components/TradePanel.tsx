@@ -6,7 +6,7 @@ import {
   type ResourceCounts,
 } from '@bgp/game-catan';
 import { useState } from 'react';
-import { RESOURCE_LABEL } from '../layout';
+import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
 import { resourceStyle } from './ResourceChip';
 import { NO_RESOURCES, ResourcePicker, compact, totalOf } from './ResourcePicker';
@@ -37,6 +37,7 @@ export function TradePanel({
   open: boolean;
   onClose(): void;
 }) {
+  const text = useCatanText();
   const { legal, turn, supply } = view;
   const seat = me === null ? undefined : view.players[me];
   const hand = seat?.resources ?? NO_RESOURCES;
@@ -78,42 +79,41 @@ export function TradePanel({
   );
 
   return (
-    <section className={open ? 'card catan-trade open' : 'card catan-trade'} aria-label="Trade">
+    <section
+      className={open ? 'card catan-trade open' : 'card catan-trade'}
+      aria-label={text.trade}
+    >
       <header className="catan-trade-head">
-        <h2>Trade</h2>
+        <h2>{text.trade}</h2>
         <button
           type="button"
           className="secondary catan-sheet-close"
-          aria-label="Close trade"
+          aria-label={text.closeTrade}
           onClick={onClose}
         >
           ✕
         </button>
       </header>
-      <div className="catan-tabs" role="group" aria-label="Who to trade with">
-        {partnerTab('supply', 'swap', 'Bank & ports')}
-        {partnerTab('players', 'handshake', 'Players')}
+      <div className="catan-tabs" role="group" aria-label={text.tradeWith}>
+        {partnerTab('supply', 'swap', text.bankAndPorts)}
+        {partnerTab('players', 'handshake', text.players)}
       </div>
       {!legal.canTrade && (
-        <p className="muted hint">
-          {turn.offer
-            ? 'One offer at a time: this one has to be closed first.'
-            : 'Trading opens on your own turn, once the dice are rolled.'}
-        </p>
+        <p className="muted hint">{turn.offer ? text.oneOfferAtATime : text.tradeOpensLater}</p>
       )}
 
       {partner === 'supply' ? (
         <div className="catan-trade-form">
           <div className="catan-trade-side">
-            <span className="catan-trade-title">You give</span>
-            <div className="catan-options" role="radiogroup" aria-label="Resource to give">
+            <span className="catan-trade-title">{text.youGive}</span>
+            <div className="catan-options" role="radiogroup" aria-label={text.resourceToGive}>
               {RESOURCES.map((resource) => (
                 <button
                   key={resource}
                   type="button"
                   role="radio"
                   aria-checked={give === resource}
-                  aria-label={`${seat.supplyRates[resource]} ${RESOURCE_LABEL[resource].toLowerCase()}`}
+                  aria-label={text.amount(seat.supplyRates[resource], resource)}
                   className="catan-option"
                   style={resourceStyle(resource)}
                   disabled={!canTrade || hand[resource] < seat.supplyRates[resource]}
@@ -126,22 +126,22 @@ export function TradePanel({
             </div>
           </div>
           <div className="catan-trade-side">
-            <span className="catan-trade-title">You get</span>
-            <div className="catan-options" role="radiogroup" aria-label="Resource to get">
+            <span className="catan-trade-title">{text.youGet}</span>
+            <div className="catan-options" role="radiogroup" aria-label={text.resourceToGet}>
               {RESOURCES.map((resource) => (
                 <button
                   key={resource}
                   type="button"
                   role="radio"
                   aria-checked={receive === resource}
-                  aria-label={`1 ${RESOURCE_LABEL[resource].toLowerCase()}, ${supply[resource]} left in the supply`}
+                  aria-label={text.getOne(resource, supply[resource])}
                   className="catan-option"
                   style={resourceStyle(resource)}
                   disabled={!canTrade || resource === give || supply[resource] === 0}
                   onClick={() => setReceive(resource)}
                 >
                   <Icon name={resource} />
-                  <span className="catan-option-note">{supply[resource]} left</span>
+                  <span className="catan-option-note">{text.leftInSupply(supply[resource])}</span>
                 </button>
               ))}
             </div>
@@ -156,16 +156,16 @@ export function TradePanel({
             }}
           >
             {give !== null && receive !== null && give !== receive
-              ? `Trade ${rate} ${RESOURCE_LABEL[give].toLowerCase()} for 1 ${RESOURCE_LABEL[receive].toLowerCase()}`
-              : 'Pick what to give and get'}
+              ? text.tradeFor(rate, give, receive)
+              : text.pickGiveAndGet}
           </button>
         </div>
       ) : (
         <div className="catan-trade-form">
           <div className="catan-trade-side">
-            <span className="catan-trade-title">You give</span>
+            <span className="catan-trade-title">{text.youGive}</span>
             <ResourcePicker
-              label="Cards you give"
+              label={text.cardsYouGive}
               value={giving}
               onChange={setOffered}
               max={(resource) => (asked[resource] > 0 ? 0 : hand[resource])}
@@ -173,9 +173,9 @@ export function TradePanel({
             />
           </div>
           <div className="catan-trade-side">
-            <span className="catan-trade-title">You want</span>
+            <span className="catan-trade-title">{text.youWant}</span>
             <ResourcePicker
-              label="Cards you want"
+              label={text.cardsYouWant}
               value={asked}
               onChange={setAsked}
               max={(resource) => (giving[resource] > 0 ? 0 : MAX_ASK)}
@@ -193,7 +193,7 @@ export function TradePanel({
               })
             }
           >
-            Offer to the table
+            {text.offerToTable}
           </button>
         </div>
       )}

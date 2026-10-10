@@ -1,5 +1,6 @@
 import { RESOURCES, type ResourceCounts } from '@bgp/game-catan';
 import { useState } from 'react';
+import { useCatanText } from '../useCatanText';
 import { NO_RESOURCES, ResourcePicker, compact, totalOf } from './ResourcePicker';
 
 /**
@@ -17,6 +18,7 @@ export function DiscardPrompt({
   disabled: boolean;
   onDiscard(resources: Partial<ResourceCounts>): void;
 }) {
+  const text = useCatanText();
   const [picked, setPicked] = useState<ResourceCounts>(NO_RESOURCES);
   // Never more than is held, whatever happened to the hand since.
   const chosen = Object.fromEntries(
@@ -27,7 +29,7 @@ export function DiscardPrompt({
   return (
     <div className="catan-prompt-body">
       <ResourcePicker
-        label="Cards to discard"
+        label={text.cardsToDiscard}
         value={chosen}
         onChange={setPicked}
         max={(resource) => (total >= owed ? chosen[resource] : hand[resource])}
@@ -38,7 +40,7 @@ export function DiscardPrompt({
         disabled={disabled || total !== owed}
         onClick={() => onDiscard(compact(chosen))}
       >
-        Discard {total} / {owed}
+        {text.discard(total, owed)}
       </button>
     </div>
   );

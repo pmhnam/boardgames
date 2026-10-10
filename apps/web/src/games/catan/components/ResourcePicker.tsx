@@ -1,5 +1,5 @@
 import { RESOURCES, type Resource, type ResourceCounts } from '@bgp/game-catan';
-import { RESOURCE_LABEL } from '../layout';
+import { useCatanText } from '../useCatanText';
 import { ResourceCard, ResourceChip } from './ResourceChip';
 
 export const NO_RESOURCES: ResourceCounts = { brick: 0, wood: 0, wool: 0, wheat: 0, ore: 0 };
@@ -28,6 +28,7 @@ export function ResourcePicker({
   max?(resource: Resource): number;
   disabled?: boolean;
 }) {
+  const text = useCatanText();
   const step = (resource: Resource, by: number) =>
     onChange({ ...value, [resource]: value[resource] + by });
 
@@ -43,7 +44,7 @@ export function ResourcePicker({
                 type="button"
                 className="secondary"
                 disabled={disabled || value[resource] === 0}
-                aria-label={`One ${RESOURCE_LABEL[resource].toLowerCase()} fewer`}
+                aria-label={text.oneFewer(resource)}
                 onClick={() => step(resource, -1)}
               >
                 −
@@ -52,7 +53,7 @@ export function ResourcePicker({
                 type="button"
                 className="secondary"
                 disabled={disabled || value[resource] >= limit}
-                aria-label={`One ${RESOURCE_LABEL[resource].toLowerCase()} more`}
+                aria-label={text.oneMore(resource)}
                 onClick={() => step(resource, 1)}
               >
                 +
@@ -67,8 +68,9 @@ export function ResourcePicker({
 
 /** A line of chips for the resources with a count, e.g. one side of a trade. */
 export function ResourceList({ counts }: { counts: Readonly<Partial<ResourceCounts>> }) {
+  const text = useCatanText();
   const held = RESOURCES.filter((resource) => (counts[resource] ?? 0) > 0);
-  if (held.length === 0) return <span className="muted">nothing</span>;
+  if (held.length === 0) return <span className="muted">{text.nothing}</span>;
   return (
     <span className="catan-chips">
       {held.map((resource) => (

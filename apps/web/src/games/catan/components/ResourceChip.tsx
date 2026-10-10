@@ -1,6 +1,7 @@
 import type { Resource } from '@bgp/game-catan';
 import type { CSSProperties } from 'react';
-import { RESOURCE_FILL, RESOURCE_INK, RESOURCE_LABEL } from '../layout';
+import { RESOURCE_FILL, RESOURCE_INK } from '../layout';
+import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
 
 /** The resource's own colour, for the stylesheet to paint with. */
@@ -22,7 +23,8 @@ export function ResourceChip({
   /** Shown faded: none held, or none asked for. */
   dim?: boolean;
 }) {
-  const label = count === undefined ? RESOURCE_LABEL[resource] : `${count} ${resource}`;
+  const text = useCatanText();
+  const label = count === undefined ? text.resource[resource] : text.amount(count, resource);
   return (
     <span
       className={dim ? 'catan-chip dim' : 'catan-chip'}
@@ -52,17 +54,18 @@ export function ResourceCard({
   /** Changes whenever `change` is news, so the same gain twice in a row still shows twice. */
   changeKey?: number;
 }) {
+  const label = useCatanText().amount(count, resource);
   return (
     <span
       className={count === 0 ? 'catan-card-tile empty' : 'catan-card-tile'}
       style={resourceStyle(resource)}
-      title={`${count} ${resource}`}
+      title={label}
     >
       <Icon name={resource} />
       <span className="catan-card-count" aria-hidden="true">
         {count}
       </span>
-      <span className="sr-only">{`${count} ${resource}`}</span>
+      <span className="sr-only">{label}</span>
       {change !== 0 && (
         <span key={changeKey} className={change > 0 ? 'catan-change gain' : 'catan-change loss'}>
           {change > 0 ? `+${change}` : `−${-change}`}
