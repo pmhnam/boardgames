@@ -11,7 +11,7 @@ import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useLocale, useT } from '../../shared/i18n/useT';
 import { RetryNotice } from '../lobby/RetryNotice';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { Pagination } from './Pagination';
 
 const PAGE_SIZE = 10;

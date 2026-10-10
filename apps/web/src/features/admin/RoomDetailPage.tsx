@@ -8,7 +8,7 @@ import type { MessageKey } from '../../shared/i18n/vi';
 import { RetryNotice } from '../lobby/RetryNotice';
 import { roomActions } from './admin-actions';
 import { adminGamesQuery } from './ConfigsPage';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { RoomStatusBadge } from './RoomStatusBadge';
 
 const BOT_LEVEL_KEYS: Record<string, MessageKey> = {
@@ -142,7 +142,7 @@ export function RoomDetailPage() {
             <p className="muted admin-lead">{t('admin.room.closeHint')}</p>
             <button
               type="button"
-              className="admin-danger"
+              className="danger"
               onClick={() => {
                 close.reset();
                 setClosing(true);

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { errorText } from '../../shared/i18n/errors';
-import { useT } from '../../shared/i18n/useT';
+import { errorText } from '../i18n/errors';
+import { useT } from '../i18n/useT';
 
 interface Props {
   title: string;
@@ -15,7 +15,7 @@ interface Props {
   onClose(): void;
 }
 
-/** Asks before an admin action that other people will feel. */
+/** Asks before an action that other people will feel. */
 export function ConfirmDialog(props: Props) {
   const t = useT();
   const titleId = useId();
@@ -33,7 +33,7 @@ export function ConfirmDialog(props: Props) {
   return (
     <dialog
       ref={dialogRef}
-      className="admin-dialog"
+      className="confirm-dialog"
       aria-labelledby={titleId}
       onClose={props.onClose}
       onCancel={(event) => {
@@ -44,7 +44,7 @@ export function ConfirmDialog(props: Props) {
         if (event.target === event.currentTarget && !props.pending) close();
       }}
     >
-      <div className="admin-dialog-body">
+      <div className="confirm-dialog-body">
         <h2 id={titleId}>{props.title}</h2>
         {props.children}
         {props.error != null && (
@@ -52,7 +52,7 @@ export function ConfirmDialog(props: Props) {
             {errorText(t, props.error)}
           </p>
         )}
-        <div className="admin-dialog-actions">
+        <div className="confirm-dialog-actions">
           {/* First, so it is what Enter lands on: the safe choice. */}
           <button
             type="button"
@@ -61,11 +61,11 @@ export function ConfirmDialog(props: Props) {
             autoFocus
             onClick={close}
           >
-            {t('admin.cancel')}
+            {t('common.cancel')}
           </button>
           <button
             type="button"
-            className={props.danger ? 'admin-danger' : undefined}
+            className={props.danger ? 'danger' : undefined}
             disabled={props.pending}
             onClick={props.onConfirm}
           >

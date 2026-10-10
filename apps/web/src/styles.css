@@ -293,6 +293,58 @@ a.button.secondary:hover {
   background: var(--surface-hover);
 }
 
+/* Something that cannot be taken back. */
+button.danger {
+  background: var(--danger);
+}
+
+button.danger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--danger) 85%, black);
+}
+
+/* Confirming an action */
+
+/* The page behind a dialog stays where it was. */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+.confirm-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  /* None, so that a click that lands on the dialog itself can only be on the backdrop. */
+  padding: 0;
+  overflow: auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 30%);
+}
+
+.confirm-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.confirm-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.confirm-dialog-body h2,
+.confirm-dialog-body p {
+  margin: 0;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

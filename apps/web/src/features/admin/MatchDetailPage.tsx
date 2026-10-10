@@ -9,7 +9,7 @@ import type { MessageKey } from '../../shared/i18n/vi';
 import { RetryNotice } from '../lobby/RetryNotice';
 import { matchActions } from './admin-actions';
 import { adminGamesQuery } from './ConfigsPage';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { MatchStatusBadge } from './MatchStatusBadge';
 
 const BOT_LEVEL_KEYS: Record<string, MessageKey> = {
@@ -126,7 +126,7 @@ export function MatchDetailPage() {
             <p className="muted admin-lead">{t('admin.match.abandonHint')}</p>
             <button
               type="button"
-              className="admin-danger"
+              className="danger"
               onClick={() => {
                 abandon.reset();
                 setConfirming(true);

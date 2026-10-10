@@ -272,10 +272,6 @@
 
 /* Creating a room */
 
-html:has(dialog[open]) {
-  overflow: hidden;
-}
-
 .create-dialog {
   width: min(30rem, calc(100vw - 2rem));
   max-height: calc(100dvh - 2rem);

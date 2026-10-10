@@ -11,7 +11,7 @@ import { useImperativeHandle, useState, type Ref } from 'react';
 import { ApiRequestError, api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { formatDraft, parseDraft, publishBlocker, reformat } from './config-editor';
 
 /** Tall enough to show a small config whole, without a large one taking over the page. */
