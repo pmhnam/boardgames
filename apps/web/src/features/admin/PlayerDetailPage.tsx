@@ -10,7 +10,7 @@ import { useAuthStore } from '../auth/auth.store';
 import { RetryNotice } from '../lobby/RetryNotice';
 import { playerActions, type DisableBlocker } from './admin-actions';
 import { adminGamesQuery } from './ConfigsPage';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { MatchStatusBadge } from './MatchStatusBadge';
 import { PlayerBadges } from './PlayerBadges';
 import { RoomStatusBadge } from './RoomStatusBadge';
@@ -105,7 +105,7 @@ export function PlayerDetailPage() {
               <p className="muted admin-lead">{t('admin.player.disableHint')}</p>
               <button
                 type="button"
-                className="admin-danger"
+                className="danger"
                 onClick={() => {
                   setDisabled.reset();
                   setConfirming(true);

@@ -115,52 +115,6 @@ tbody th {
   color: var(--warning);
 }
 
-button.admin-danger {
-  background: var(--danger);
-}
-
-button.admin-danger:not(:disabled):hover {
-  background: color-mix(in srgb, var(--danger) 85%, black);
-}
-
-/* Confirming an action */
-
-.admin-dialog {
-  width: min(30rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - 2rem);
-  /* None, so that a click that lands on the dialog itself can only be on the backdrop. */
-  padding: 0;
-  overflow: auto;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 16px 48px rgb(0 0 0 / 30%);
-}
-
-.admin-dialog::backdrop {
-  background: rgb(0 0 0 / 55%);
-}
-
-.admin-dialog-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-5);
-}
-
-.admin-dialog-body h2,
-.admin-dialog-body p {
-  margin: 0;
-}
-
-.admin-dialog-actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-  margin-top: var(--space-2);
-}
-
 /* Filters above a list */
 
 .admin-filters {

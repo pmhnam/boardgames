@@ -1,0 +1,46 @@
+/* The waiting room */
+
+.room-header h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.room-header p {
+  margin: 0;
+}
+
+/* The way in for everyone else, so it gets a place of its own. */
+.room-invite {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.room-invite-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.room-invite code {
+  flex: 1 1 12rem;
+  min-width: 0;
+  /* One click takes the whole link, for when the button cannot. */
+  user-select: all;
+}
+
+.room-invite .error {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+}
+
+.room-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

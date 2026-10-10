@@ -7,6 +7,7 @@ import {
   ServerEvents,
   type GameStartedMessage,
   type RoomDto,
+  type RoomMemberDto,
   type SetReadyRequest,
   type StartRoomResponse,
 } from '@bgp/shared-types';
@@ -16,12 +17,15 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
 import { api } from '../../shared/api/http';
+import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
 import { PlayerList } from '../../shared/components/PlayerList';
 import { errorText } from '../../shared/i18n/errors';
 import { useLocale, useT } from '../../shared/i18n/useT';
 import type { MessageKey } from '../../shared/i18n/vi';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
+import { primaryAction, startBlocker } from './room-actions';
+import './room.css';
 
 const BOT_LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
 const BOT_LEVEL_KEYS: Record<BotLevel, MessageKey> = {
@@ -29,6 +33,9 @@ const BOT_LEVEL_KEYS: Record<BotLevel, MessageKey> = {
   normal: 'botLevel.normal',
   hard: 'botLevel.hard',
 };
+
+/** How long the copy button says it worked. */
+const COPIED_FOR_MS = 2000;
 
 export function RoomPage() {
   const { roomId = '' } = useParams();
@@ -100,7 +107,10 @@ export function RoomPage() {
   const kick = useMutation({
     mutationFn: (memberUserId: string) =>
       api<RoomDto>('DELETE', `/rooms/${roomId}/members/${memberUserId}`),
-    onSuccess: update,
+    onSuccess: (data) => {
+      update(data);
+      setKicking(null);
+    },
   });
   const changeSettings = useMutation({
     mutationFn: (body: UpdateRoomSettingsRequest) =>
@@ -108,6 +118,23 @@ export function RoomPage() {
     onSuccess: update,
   });
   const [botLevel, setBotLevel] = useState<BotLevel>('normal');
+  /** Who the host is being asked about, while the question is open. */
+  const [kicking, setKicking] = useState<RoomMemberDto | null>(null);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  useEffect(() => {
+    if (copyState !== 'copied') return;
+    const timer = setTimeout(() => setCopyState('idle'), COPIED_FOR_MS);
+    return () => clearTimeout(timer);
+  }, [copyState]);
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState('copied');
+    } catch {
+      // Refused, or the page is not served securely and has no clipboard at all.
+      setCopyState('failed');
+    }
+  };
   const games = useQuery({
     queryKey: ['games'],
     queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
@@ -125,7 +152,6 @@ export function RoomPage() {
   const data = room.data;
   const me = data.members.find((member) => member.userId === userId);
   const isHost = data.hostUserId === userId;
-  const everyoneReady = data.members.every((member) => member.status === 'ready');
   const settingsSummary =
     gameUi?.describeSettings && gameConfig.data
       ? gameUi.describeSettings(data.settings, gameConfig.data.config, data.members.length, locale)
@@ -139,7 +165,6 @@ export function RoomPage() {
     join.error ??
     addBot.error ??
     removeBot.error ??
-    kick.error ??
     changeSettings.error;
   const game = games.data?.find((definition) => definition.gameType === data.gameType);
   const canAddBot =
@@ -147,22 +172,38 @@ export function RoomPage() {
     data.status === 'open' &&
     game?.supportsBots === true &&
     data.members.length < game.maxPlayers;
+  const blocker = startBlocker(data, game);
+  const primary = primaryAction(data, userId, blocker);
+  const startHint =
+    blocker?.kind === 'needPlayers'
+      ? t('roomPage.needPlayers', { count: blocker.missing })
+      : blocker?.kind === 'notReady'
+        ? t('roomPage.waitingReady', { count: blocker.waiting })
+        : isHost
+          ? null
+          : t('roomPage.waitingHost');
 
   return (
     <div className="card">
-      <h1>{t('roomPage.title', { code: data.code })}</h1>
-      <p className="muted">
-        {game?.displayName ?? data.gameType}
-        {settingsSummary && ` · ${settingsSummary}`} · {t('roomPage.inviteLink')}{' '}
-        <code>{inviteLink}</code>{' '}
-        <button
-          type="button"
-          className="link"
-          onClick={() => void navigator.clipboard.writeText(inviteLink)}
-        >
-          {t('roomPage.copy')}
+      <header className="room-header">
+        <h1>{t('roomPage.title', { code: data.code })}</h1>
+        <p className="muted">
+          {game?.displayName ?? data.gameType}
+          {settingsSummary && ` · ${settingsSummary}`}
+        </p>
+      </header>
+
+      <div className="room-invite">
+        <span className="room-invite-label">{t('roomPage.inviteLink')}</span>
+        <code>{inviteLink}</code>
+        <button type="button" className="secondary" onClick={() => void copy(inviteLink)}>
+          {copyState === 'copied' ? t('roomPage.copied') : t('roomPage.copy')}
         </button>
-      </p>
+        <span className={copyState === 'failed' ? 'error' : 'sr-only'} aria-live="polite">
+          {copyState === 'copied' && t('roomPage.copied')}
+          {copyState === 'failed' && t('roomPage.copyFailed')}
+        </span>
+      </div>
 
       <PlayerList
         players={data.members.map((member) => ({
@@ -189,8 +230,10 @@ export function RoomPage() {
                 <button
                   type="button"
                   className="link"
-                  disabled={kick.isPending}
-                  onClick={() => kick.mutate(member.userId)}
+                  onClick={() => {
+                    kick.reset();
+                    setKicking(member);
+                  }}
                 >
                   {t('roomPage.kick')}
                 </button>
@@ -250,35 +293,40 @@ export function RoomPage() {
       )}
 
       {data.status === 'open' && (
-        <div className="row">
-          {!me && (
-            <button type="button" onClick={() => join.mutate()}>
-              {t('roomPage.takeSeat')}
-            </button>
-          )}
-          {me && (
-            <button
-              type="button"
-              disabled={setReady.isPending}
-              onClick={() => setReady.mutate({ ready: me.status !== 'ready' })}
-            >
-              {me.status === 'ready' ? t('roomPage.notReady') : t('roomPage.imReady')}
-            </button>
-          )}
-          {isHost && (
-            <button
-              type="button"
-              disabled={!everyoneReady || start.isPending}
-              onClick={() => start.mutate()}
-            >
-              {t('roomPage.start')}
-            </button>
-          )}
-          {me && (
-            <button type="button" className="secondary" onClick={() => leave.mutate()}>
-              {t('continue.leave')}
-            </button>
-          )}
+        <div className="room-actions">
+          <div className="row wrap">
+            {!me && (
+              <button type="button" onClick={() => join.mutate()}>
+                {t('roomPage.takeSeat')}
+              </button>
+            )}
+            {me && (
+              <button
+                type="button"
+                className={primary === 'ready' ? undefined : 'secondary'}
+                disabled={setReady.isPending}
+                onClick={() => setReady.mutate({ ready: me.status !== 'ready' })}
+              >
+                {me.status === 'ready' ? t('roomPage.cancelReady') : t('roomPage.imReady')}
+              </button>
+            )}
+            {isHost && (
+              <button
+                type="button"
+                className={primary === 'start' ? undefined : 'secondary'}
+                disabled={blocker !== null || start.isPending}
+                onClick={() => start.mutate()}
+              >
+                {t('roomPage.start')}
+              </button>
+            )}
+            {me && (
+              <button type="button" className="secondary" onClick={() => leave.mutate()}>
+                {t('continue.leave')}
+              </button>
+            )}
+          </div>
+          {startHint && <p className="muted hint">{startHint}</p>}
         </div>
       )}
 
@@ -286,6 +334,21 @@ export function RoomPage() {
         <p className="error" role="alert">
           {errorText(t, error)}
         </p>
+      )}
+
+      {kicking && (
+        <ConfirmDialog
+          title={t('roomPage.kickTitle', { name: kicking.displayName })}
+          confirmLabel={t('roomPage.kickConfirm')}
+          pendingLabel={t('roomPage.kicking')}
+          pending={kick.isPending}
+          error={kick.error}
+          danger
+          onConfirm={() => kick.mutate(kicking.userId)}
+          onClose={() => setKicking(null)}
+        >
+          <p>{t('roomPage.kickBody')}</p>
+        </ConfirmDialog>
       )}
     </div>
   );
