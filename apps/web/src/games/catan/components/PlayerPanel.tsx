@@ -1,24 +1,32 @@
 import type { PlayerView, TradeResponse } from '@bgp/game-catan';
 import type { CSSProperties } from 'react';
 import type { IconName } from '../art/icons';
+import { useHints, type Hint, type HintRules } from '../hints';
 import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
+import { HintText, Tip, useTips } from './Tip';
 
 function Stat({
   icon,
   label,
   value,
   bonus,
+  hint,
 }: {
   icon: IconName | 'hand';
   label: string;
   value: number;
   /** The award this count holds right now, e.g. Longest Route. */
   bonus?: string | false;
+  /** What the count is for. The icon alone does not say. */
+  hint: Hint;
 }) {
   const text = useCatanText();
+  const tips = useTips();
+  const title = bonus ? text.holds(label, bonus) : label;
   return (
-    <div className={bonus ? 'held' : undefined} title={bonus ? text.holds(label, bonus) : label}>
+    <div className={bonus ? 'held' : undefined} {...tips.anchor('stat')}>
+      {tips.bubble('stat', <HintText hint={{ ...hint, title }} />)}
       <dt>
         <Icon name={icon} />
         <span className="sr-only">{label}</span>
@@ -39,7 +47,7 @@ export function PlayerPanel({
   name,
   player,
   color,
-  target,
+  rules,
   mine,
   active,
   winner,
@@ -51,8 +59,8 @@ export function PlayerPanel({
   name: string;
   player: PlayerView;
   color: string;
-  /** Points needed to win. */
-  target: number;
+  /** What the match plays by: the points needed to win, and what the hints quote. */
+  rules: HintRules;
   mine: boolean;
   active: boolean;
   winner: boolean;
@@ -64,6 +72,9 @@ export function PlayerPanel({
   response?: TradeResponse;
 }) {
   const text = useCatanText();
+  const hints = useHints();
+  const tips = useTips();
+  const target = rules.victoryPointsToWin;
   const classes = ['catan-player', mine && 'mine', active && 'active', winner && 'winner']
     .filter(Boolean)
     .join(' ');
@@ -82,38 +93,46 @@ export function PlayerPanel({
         </span>
         {winner && <Icon name="trophy" className="catan-winner-mark" />}
         {active && <span className="catan-turn-mark">{text.turnMark}</span>}
-        <span
-          className="catan-score"
-          title={player.points === null ? text.pointsOnTable : text.yourPoints}
-        >
-          <Icon name="star" />
-          {points}
-          <span className="catan-score-target"> / {target}</span>
-          <span className="sr-only"> {text.points}</span>
-        </span>
+        <Tip hint={<HintText hint={hints.score(rules, player.points === null)} />}>
+          <span className="catan-score">
+            <Icon name="star" />
+            {points}
+            <span className="catan-score-target"> / {target}</span>
+            <span className="sr-only"> {text.points}</span>
+          </span>
+        </Tip>
       </h2>
       <div className="catan-player-row">
         <dl className="catan-stats">
-          <Stat icon="hand" label={text.stat.hand} value={player.resourceCount} />
+          <Stat
+            icon="hand"
+            label={text.stat.hand}
+            value={player.resourceCount}
+            hint={hints.stat.hand(rules)}
+          />
           <Stat
             icon="card"
             label={text.stat.developmentCards}
             value={player.developmentCardCount}
+            hint={hints.stat.developmentCards(rules)}
           />
           <Stat
             icon="army"
             label={text.stat.knights}
             value={player.knightsPlayed}
             bonus={largestArmy && text.largestArmy}
+            hint={hints.stat.knights(rules)}
           />
           <Stat
             icon="route"
             label={text.stat.route}
             value={player.routeLength}
             bonus={longestRoute && text.longestRoute}
+            hint={hints.stat.route(rules)}
           />
         </dl>
-        <p className="catan-pieces" aria-label={leftToBuild} title={leftToBuild}>
+        <p className="catan-pieces" aria-label={leftToBuild} {...tips.anchor('pieces')}>
+          {tips.bubble('pieces', <HintText hint={{ ...hints.pieces, title: leftToBuild }} />)}
           <span>
             <Icon name="road" />
             {piecesLeft.roads}

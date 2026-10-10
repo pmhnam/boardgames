@@ -1,5 +1,6 @@
-import { TERRAINS, hexKey, type CatanView, type Terrain } from '@bgp/game-catan';
+import { TERRAINS, TERRAIN_RESOURCE, hexKey, type CatanView, type Terrain } from '@bgp/game-catan';
 import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
+import { useHints } from '../hints';
 import {
   RESOURCE_FILL,
   RESOURCE_INK,
@@ -18,6 +19,7 @@ import {
 } from '../layout';
 import { useCatanText } from '../useCatanText';
 import { Glyph } from './Icon';
+import { HintText, useTips } from './Tip';
 
 /** Sea around the island: enough for the ports, and no more, so the tiles stay large. */
 const PAD_X = SIZE * 1.05;
@@ -57,7 +59,7 @@ const ART: Record<Terrain, (ink: string) => ReactNode> = {
 interface BoardProps {
   view: Pick<CatanView, 'board' | 'buildings' | 'roads'>;
   colors: Record<string, string>;
-  /** Who owns a piece, for its tooltip. */
+  /** Who owns a piece, for its hint. */
   nameOf(playerId: string): string;
   /** The total of the dice this turn: the tiles it pays out on are lit. */
   rolled?: number | null;
@@ -116,6 +118,8 @@ export function Board({
   onHex,
 }: BoardProps) {
   const text = useCatanText();
+  const hints = useHints();
+  const tips = useTips();
   const { hexes, ports, robber } = view.board;
   const bounds = useMemo(() => boundsOf(hexes, PAD_X, PAD_Y), [hexes]);
   /** Where the robber stands on a tile: over its artwork, leaving the number in sight. */
@@ -191,9 +195,27 @@ export function Board({
           hex.number === null
             ? text.terrain[hex.terrain]
             : text.producesOn(hex.terrain, hex.number);
+        const resource = TERRAIN_RESOURCE[hex.terrain];
+        const hint =
+          hex.number === null || resource === null
+            ? hints.desert
+            : hints.hex(hex.terrain, resource, hex.number, pips(hex.number));
         return (
-          <g key={key} className={`catan-hex ${hex.terrain}`} transform={at(centre)}>
-            <title>{key === robber ? text.robberHere(description) : description}</title>
+          <g
+            key={key}
+            className={`catan-hex ${hex.terrain}`}
+            transform={at(centre)}
+            role="img"
+            aria-label={key === robber ? text.robberHere(description) : description}
+            {...tips.anchor(`hex:${key}`)}
+          >
+            {tips.bubble(
+              `hex:${key}`,
+              <>
+                <HintText hint={hint} />
+                {key === robber && <span className="catan-tip-warn">{hints.robberHere}</span>}
+              </>,
+            )}
             <polygon
               className="catan-hex-ground"
               points={outline}
@@ -241,8 +263,14 @@ export function Board({
         const spot = portSpot(port.edge, hexes, PORT_REACH);
         const label = port.type === 'any' ? text.portAny : text.portOf(port.type);
         return (
-          <g key={port.edge} className="catan-port">
-            <title>{label}</title>
+          <g
+            key={port.edge}
+            className="catan-port"
+            role="img"
+            aria-label={label}
+            {...tips.anchor(`port:${port.edge}`)}
+          >
+            {tips.bubble(`port:${port.edge}`, <HintText hint={hints.port(port.type)} />)}
             {[a, b].map((corner, index) => (
               <g key={index}>
                 <line className="catan-pier" x1={corner.x} y1={corner.y} x2={spot.x} y2={spot.y} />
@@ -299,9 +327,16 @@ export function Board({
         const from = towards(a, b, ROAD_INSET);
         const to = towards(b, a, ROAD_INSET);
         const line = { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
+        const hint = hints.roadOf(nameOf(playerId));
         return (
-          <g key={edge} className="catan-road">
-            <title>{text.roadOf(nameOf(playerId))}</title>
+          <g
+            key={edge}
+            className="catan-road"
+            role="img"
+            aria-label={hint.title}
+            {...tips.anchor(`road:${edge}`)}
+          >
+            {tips.bubble(`road:${edge}`, <HintText hint={hint} />)}
             <line className="catan-road-edge" {...line} />
             <line className="catan-road-body" {...line} stroke={colors[playerId]} />
             <line className="catan-road-shine" {...line} />
@@ -330,13 +365,18 @@ export function Board({
 
       {Object.entries(view.buildings).map(([vertex, building]) => {
         const city = building.kind === 'city';
+        const owner = nameOf(building.playerId);
+        const hint = city ? hints.cityOf(owner) : hints.settlementOf(owner);
         return (
-          <g key={vertex} className="catan-building" transform={at(vertexPoint(vertex))}>
-            <title>
-              {city
-                ? text.cityOf(nameOf(building.playerId))
-                : text.settlementOf(nameOf(building.playerId))}
-            </title>
+          <g
+            key={vertex}
+            className="catan-building"
+            transform={at(vertexPoint(vertex))}
+            role="img"
+            aria-label={hint.title}
+            {...tips.anchor(`building:${vertex}`)}
+          >
+            {tips.bubble(`building:${vertex}`, <HintText hint={hint} />)}
             {/* Keyed by kind, so a settlement growing into a city arrives like a new piece. */}
             <g key={building.kind} className="catan-pop">
               <ellipse className="catan-shadow" cy={7.4} rx={city ? 12.5 : 9.5} ry={2.8} />

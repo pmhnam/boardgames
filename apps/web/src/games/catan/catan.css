@@ -1150,6 +1150,90 @@ button.catan-option[aria-checked='true'] {
   align-items: center;
 }
 
+/* Hints for newcomers. The wrapper is what is hovered, so that a disabled button can be asked
+   about too; it has no box, so everything around it is laid out as if it were not there. */
+.catan-tip {
+  display: contents;
+}
+
+/* Words with a hint behind them, where nothing else says so. */
+.catan-explained {
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 0.2em;
+  cursor: help;
+}
+
+.catan-card-name {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.catan-card-name,
+.catan-stats div,
+.catan-pieces,
+.catan-score,
+.catan-dice,
+.catan-hand-cards .catan-card-tile,
+.catan-bank .catan-chip {
+  cursor: help;
+}
+
+/* Explains the step it follows. In the line of text, so it takes no room of its own. */
+button.catan-help {
+  position: relative;
+  width: 1.3rem;
+  height: 1.3rem;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: text-bottom;
+  border-radius: 50%;
+}
+
+/* Small to look at, but no smaller to press than any other button. */
+button.catan-help::after {
+  position: absolute;
+  inset: -0.5rem;
+  content: '';
+}
+
+/* Placed by script, in the body: above what it explains, inside the window, over the trade
+   sheet. */
+.catan-tip-bubble {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: max-content;
+  max-width: min(19rem, calc(100vw - 1rem));
+  padding: 0.5rem 0.65rem;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text);
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.3);
+}
+
+.catan-tip-cost {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.catan-tip-warn {
+  font-weight: 600;
+  color: var(--danger);
+}
+
 /* A phone: the island runs edge to edge, and the hand stays within reach under it. */
 @media (max-width: 39.99rem) {
   .catan-stage {

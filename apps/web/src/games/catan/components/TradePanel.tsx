@@ -6,10 +6,12 @@ import {
   type ResourceCounts,
 } from '@bgp/game-catan';
 import { useState } from 'react';
+import { useHints, type Hint } from '../hints';
 import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
 import { resourceStyle } from './ResourceChip';
 import { NO_RESOURCES, ResourcePicker, compact, totalOf } from './ResourcePicker';
+import { HintText, Tip } from './Tip';
 
 /** The most of one resource an offer may ask for: more than anyone is likely to hold. */
 const MAX_ASK = 9;
@@ -38,6 +40,7 @@ export function TradePanel({
   onClose(): void;
 }) {
   const text = useCatanText();
+  const hints = useHints();
   const { legal, turn, supply } = view;
   const seat = me === null ? undefined : view.players[me];
   const hand = seat?.resources ?? NO_RESOURCES;
@@ -66,16 +69,18 @@ export function TradePanel({
     supply[receive] > 0;
   const canOffer = canTrade && totalOf(giving) > 0 && totalOf(asked) > 0;
 
-  const partnerTab = (kind: Partner, icon: 'swap' | 'handshake', label: string) => (
-    <button
-      type="button"
-      className={partner === kind ? 'catan-tab selected' : 'catan-tab'}
-      aria-pressed={partner === kind}
-      onClick={() => setPartner(kind)}
-    >
-      <Icon name={icon} />
-      {label}
-    </button>
+  const partnerTab = (kind: Partner, icon: 'swap' | 'handshake', label: string, hint: Hint) => (
+    <Tip hint={<HintText hint={hint} />}>
+      <button
+        type="button"
+        className={partner === kind ? 'catan-tab selected' : 'catan-tab'}
+        aria-pressed={partner === kind}
+        onClick={() => setPartner(kind)}
+      >
+        <Icon name={icon} />
+        {label}
+      </button>
+    </Tip>
   );
 
   return (
@@ -95,8 +100,8 @@ export function TradePanel({
         </button>
       </header>
       <div className="catan-tabs" role="group" aria-label={text.tradeWith}>
-        {partnerTab('supply', 'swap', text.bankAndPorts)}
-        {partnerTab('players', 'handshake', text.players)}
+        {partnerTab('supply', 'swap', text.bankAndPorts, hints.bankTrade)}
+        {partnerTab('players', 'handshake', text.players, hints.playerTrade)}
       </div>
       {!legal.canTrade && (
         <p className="muted hint">{turn.offer ? text.oneOfferAtATime : text.tradeOpensLater}</p>
