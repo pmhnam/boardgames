@@ -8,7 +8,10 @@ import { UnsupportedGame } from '../../games/UnsupportedGame';
 import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
+import { useConnectionLost, useIsConnected } from '../../shared/websocket/SocketProvider';
+import { ActionErrorToast } from './ActionErrorToast';
 import { useMatchState } from './useMatchState';
+import './match.css';
 
 export function MatchPage() {
   const t = useT();
@@ -20,6 +23,8 @@ export function MatchPage() {
     pending: boolean;
     error: string | null;
   } | null>(null);
+  const connected = useIsConnected();
+  const connectionLost = useConnectionLost();
   const status = message?.status;
 
   // Refetched when the status flips so the result and room link are current.
@@ -73,38 +78,47 @@ export function MatchPage() {
       : undefined;
 
   return (
-    <div className="stack match-page">
-      {finished && (
-        <div className="card result">
-          <strong>
-            {message.status === 'abandoned'
-              ? t('match.abandoned')
-              : winners.length > 0
-                ? t('history.wonBy', {
-                    names: winners.map((id) => playerName(match.data.players, id)).join(' & '),
-                  })
-                : t('match.over')}
-          </strong>
-          <span className="row">
-            <Link to={`/rooms/${match.data.roomId}`}>{t('match.backToRoom')}</Link>
-            <Link to={`/matches/${matchId}/replay`}>{t('history.replay')}</Link>
-          </span>
-        </div>
-      )}
-      {message.viewerPlayerId === null && <p className="muted">{t('match.watching')}</p>}
-      {actionError && <p className="error">{errorText(t, actionError)}</p>}
-      {GameComponent ? (
-        <GameComponent
-          key={matchId}
-          message={message}
-          players={match.data.players}
-          sendAction={sendAction}
-          disabled={pending || finished || enabled || Boolean(controlPending)}
-          autoplay={autoplay}
-        />
-      ) : (
-        <UnsupportedGame gameType={message.gameType} />
-      )}
-    </div>
+    <>
+      <ActionErrorToast error={actionError} />
+      <div className={connectionLost ? 'stack match-page offline' : 'stack match-page'}>
+        {finished && (
+          <div className="card result">
+            <strong>
+              {message.status === 'abandoned'
+                ? t('match.abandoned')
+                : winners.length > 0
+                  ? t('history.wonBy', {
+                      names: winners.map((id) => playerName(match.data.players, id)).join(' & '),
+                    })
+                  : t('match.over')}
+            </strong>
+            <span className="row">
+              <Link to={`/rooms/${match.data.roomId}`}>{t('match.backToRoom')}</Link>
+              <Link to={`/matches/${matchId}/replay`}>{t('history.replay')}</Link>
+            </span>
+          </div>
+        )}
+        {message.viewerPlayerId === null && <p className="muted">{t('match.watching')}</p>}
+        {GameComponent ? (
+          <GameComponent
+            key={matchId}
+            message={message}
+            players={match.data.players}
+            sendAction={sendAction}
+            disabled={
+              pending ||
+              finished ||
+              enabled ||
+              Boolean(controlPending) ||
+              !connected ||
+              connectionLost
+            }
+            autoplay={autoplay}
+          />
+        ) : (
+          <UnsupportedGame gameType={message.gameType} />
+        )}
+      </div>
+    </>
   );
 }

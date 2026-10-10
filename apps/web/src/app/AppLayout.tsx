@@ -6,11 +6,13 @@ import { isAdmin } from '../features/auth/roles';
 import { ConnectionIndicator } from '../shared/components/ConnectionIndicator';
 import { LanguageSwitcher } from '../shared/i18n/LanguageSwitcher';
 import { useT } from '../shared/i18n/useT';
+import { useConnectionLost } from '../shared/websocket/SocketProvider';
 
 export function AppLayout() {
   const t = useT();
   const session = useAuthStore((state) => state.session);
   const signOut = useAuthStore((state) => state.signOut);
+  const connectionLost = useConnectionLost();
   const [controlsTarget, setControlsTarget] = useState<HTMLDivElement | null>(null);
 
   return (
@@ -40,6 +42,8 @@ export function AppLayout() {
             )}
           </div>
         </header>
+        {/* No live role: the indicator in the header has already announced it. */}
+        {connectionLost && <p className="connection-bar">{t('connection.lost')}</p>}
         <main>
           <Outlet />
         </main>

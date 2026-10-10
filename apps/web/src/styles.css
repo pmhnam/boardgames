@@ -320,6 +320,18 @@ code {
   color: var(--danger);
 }
 
+/* Across the page, once the connection has been down for a moment. */
+.connection-bar {
+  flex: none;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--danger);
+  text-align: center;
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  border-bottom: 1px solid var(--danger);
+}
+
 @media (max-width: 40rem) {
   .app-header-tools {
     font-size: var(--text-sm);

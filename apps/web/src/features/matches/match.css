@@ -1,0 +1,61 @@
+/* A refused move */
+
+/* No height of its own: the message lies over the top of the board instead of pushing it down. */
+.match-toasts {
+  position: sticky;
+  top: var(--space-3);
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  height: 0;
+  pointer-events: none;
+}
+
+.match-toast {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  align-self: flex-start;
+  max-width: min(32rem, 100%);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+  pointer-events: auto;
+  animation: match-toast-in 0.18s ease-out;
+}
+
+.match-toast button {
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--muted);
+}
+
+@keyframes match-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+/* Offline */
+
+.match-page {
+  transition: opacity 0.2s;
+}
+
+/* Nothing on it can be played until the connection is back. */
+.match-page.offline {
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-toast {
+    animation: none;
+  }
+
+  .match-page {
+    transition: none;
+  }
+}

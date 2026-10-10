@@ -10,6 +10,7 @@ export const en: Messages = {
   'nav.language': 'Language',
   'connection.online': 'Online',
   'connection.reconnecting': 'Reconnecting…',
+  'connection.lost': 'Lost connection to the server. Trying to reconnect…',
 
   'login.title': 'Sign in with username',
   'login.intro':
@@ -248,6 +249,7 @@ export const en: Messages = {
 
   'common.you': 'you',
   'common.loading': 'Loading…',
+  'common.close': 'Close',
 
   'roomPage.loading': 'Loading room…',
   'roomPage.title': 'Room {code}',
