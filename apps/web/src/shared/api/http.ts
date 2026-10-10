@@ -1,20 +1,9 @@
 import { ErrorCodes, type ApiError, type ApiErrorBody } from '@bgp/shared-types';
 import { useAuthStore } from '../../features/auth/auth.store';
+import { ApiRequestError } from './api-request-error';
 import { shouldSignOut } from './sign-out-policy';
 
-export class ApiRequestError extends Error {
-  constructor(
-    readonly status: number,
-    readonly error: ApiError,
-  ) {
-    super(error.message);
-    this.name = 'ApiRequestError';
-  }
-
-  get code(): string {
-    return this.error.code;
-  }
-}
+export { ApiRequestError };
 
 /** JSON over REST. Throws ApiRequestError carrying the server's machine-readable code. */
 export async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -39,8 +28,4 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
   if (shouldSignOut(error.code, token, useAuthStore.getState().session?.accessToken))
     useAuthStore.getState().signOut();
   throw new ApiRequestError(response.status, error);
-}
-
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong.';
 }
