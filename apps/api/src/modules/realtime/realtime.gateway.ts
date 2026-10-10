@@ -31,6 +31,8 @@ import {
   type MatchStartedEvent,
   type MatchStateChangedEvent,
   type RoomUpdatedEvent,
+  type MatchFinishedEvent,
+  type UserDisabledEvent,
 } from '../../common/events/platform-events.js';
 import { toApiError } from '../../common/filters/app-exception.filter.js';
 import { parseWithSchema } from '../../common/pipes/zod-validation.pipe.js';
@@ -38,7 +40,7 @@ import { AuthService } from '../auth/auth.service.js';
 import { GameActionService } from '../matches/game-action.service.js';
 import { MatchesService } from '../matches/matches.service.js';
 import { RoomsService } from '../rooms/rooms.service.js';
-import { RateLimiter } from './rate-limiter.js';
+import { RateLimiter } from '../../common/rate-limit/rate-limiter.js';
 import { gameActionSchema, gameSyncSchema, roomSubscriptionSchema } from './realtime.schemas.js';
 
 interface SocketData {
@@ -59,6 +61,8 @@ const channels = {
   match: (matchId: string) => `match:${matchId}`,
   matchPlayer: (matchId: string, playerId: string) => `match:${matchId}:player:${playerId}`,
   matchSpectators: (matchId: string) => `match:${matchId}:spectators`,
+  /** Every connection a person has open, whatever they are looking at. */
+  user: (userId: string) => `user:${userId}`,
 };
 
 /**
@@ -83,7 +87,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       const token = (socket.handshake.auth as { token?: unknown }).token;
       this.auth
         .verifyAccessToken(typeof token === 'string' ? token : undefined)
-        .then((userId) => {
+        .then(({ userId }) => {
           socket.data.userId = userId;
           socket.data.actionLimiter = new RateLimiter(ACTION_BURST, ACTIONS_PER_SECOND);
           socket.data.seats = new Map();
@@ -93,8 +97,9 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     });
   }
 
-  handleConnection(socket: AppSocket): void {
+  async handleConnection(socket: AppSocket): Promise<void> {
     this.logger.debug(`socket connected user=${socket.data.userId}`);
+    await socket.join(channels.user(socket.data.userId));
   }
 
   handleDisconnect(socket: AppSocket): void {
@@ -206,6 +211,12 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
   }
 
+  /** The handshake only stops new connections; this ends the ones already open. */
+  @OnEvent(PlatformEvents.UserDisabled)
+  onUserDisabled(event: UserDisabledEvent): void {
+    this.server.in(channels.user(event.userId)).disconnectSockets(true);
+  }
+
   @OnEvent(PlatformEvents.MatchStarted)
   onMatchStarted(event: MatchStartedEvent): void {
     const message: GameStartedMessage = event;
@@ -247,11 +258,23 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
         ServerEvents.GameState,
         this.matches.buildStateMessage(match, { type: 'spectator' }, players),
       );
+  }
 
-    if (match.status === 'finished') {
-      const finished: GameFinishedMessage = { gameId: match.id, result: match.result ?? null };
-      this.server.to(channels.match(match.id)).emit(ServerEvents.GameFinished, finished);
-    }
+  /**
+   * Tells the table a match is over, however it ended. Separate from the state fan-out because
+   * a match an administrator ends has no new state, and may be one the engine can no longer read.
+   */
+  @OnEvent(PlatformEvents.MatchFinished)
+  async onMatchFinished(event: MatchFinishedEvent): Promise<void> {
+    const access = await this.matches.getAccessForBroadcast(event.matchId);
+    const match = access?.match;
+    if (!match || match.status === 'playing') return;
+    const finished: GameFinishedMessage = {
+      gameId: match.id,
+      status: match.status,
+      result: match.result ?? null,
+    };
+    this.server.to(channels.match(match.id)).emit(ServerEvents.GameFinished, finished);
   }
 
   /** Only reports a player gone when their last socket for that match has closed. */

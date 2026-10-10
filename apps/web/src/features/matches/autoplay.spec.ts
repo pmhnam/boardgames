@@ -1,6 +1,6 @@
 import type { GameStateMessage, PlayerAutoplayDto } from '@bgp/shared-types';
 import { describe, expect, it } from 'vitest';
-import { acceptMatchMessage, mergeAutoplay } from './autoplay';
+import { acceptMatchMessage, applyFinished, mergeAutoplay } from './autoplay';
 
 const control = (
   version: number,
@@ -43,5 +43,31 @@ describe('autoplay synchronisation', () => {
       version: 0,
       autoplay: [control(0, null)],
     });
+  });
+});
+
+describe('a match ending', () => {
+  it('marks the match on screen as over without touching its board', () => {
+    const ended = applyFinished(snapshot(7), {
+      gameId: 'match',
+      status: 'abandoned',
+      result: null,
+    });
+    expect(ended).toEqual({ ...snapshot(7), status: 'abandoned' });
+  });
+
+  it('ignores the ending of a different match, and one with nothing loaded', () => {
+    const current = snapshot(7);
+    expect(applyFinished(current, { gameId: 'other', status: 'abandoned', result: null })).toBe(
+      current,
+    );
+    expect(applyFinished(null, { gameId: 'match', status: 'finished', result: null })).toBeNull();
+  });
+
+  it('changes nothing when the last state already said so', () => {
+    const current = { ...snapshot(9), status: 'finished' as const };
+    expect(applyFinished(current, { gameId: 'match', status: 'finished', result: null })).toBe(
+      current,
+    );
   });
 });

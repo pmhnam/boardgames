@@ -33,7 +33,11 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://bgp:${POSTGRES_PASSWORD}@postgres:5432/bgp
       JWT_SECRET: ${JWT_SECRET:?set in .env}
-      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Two proxies sit in front of the API: the Cloudflare Tunnel, then nginx in `web`. Sign-in
+      # throttling needs the caller's own address, which is that many hops back.
+      TRUST_PROXY: ${TRUST_PROXY:-2}
     depends_on:
       postgres:
         condition: service_healthy

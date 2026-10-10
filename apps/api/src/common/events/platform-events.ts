@@ -5,6 +5,7 @@ export const PlatformEvents = {
   MatchStateChanged: 'match.state-changed',
   MatchControlChanged: 'match.control-changed',
   MatchFinished: 'match.finished',
+  UserDisabled: 'user.disabled',
 } as const;
 
 export interface RoomUpdatedEvent {
@@ -24,4 +25,8 @@ export interface MatchStateChangedEvent {
 export interface MatchFinishedEvent {
   matchId: string;
   roomId: string;
+}
+
+export interface UserDisabledEvent {
+  userId: string;
 }

@@ -6,6 +6,15 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 5173
+    },
+    {
+      "name": "dev-alt",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=3100 pnpm --filter @bgp/api dev & VITE_API_TARGET=http://localhost:3100 pnpm --filter @bgp/web exec vite --port 5183 --strictPort"
+      ],
+      "port": 5183
     }
   ]
 }

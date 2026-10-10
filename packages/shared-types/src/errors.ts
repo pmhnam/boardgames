@@ -7,6 +7,11 @@ export const ErrorCodes = {
   RateLimited: 'RATE_LIMITED',
   Internal: 'INTERNAL_ERROR',
 
+  InvalidCredentials: 'INVALID_CREDENTIALS',
+  PasswordRequired: 'PASSWORD_REQUIRED',
+  AccountDisabled: 'ACCOUNT_DISABLED',
+  UserNotFound: 'USER_NOT_FOUND',
+
   UnknownGameType: 'UNKNOWN_GAME_TYPE',
   InvalidGameConfig: 'INVALID_GAME_CONFIG',
   GameConfigConflict: 'GAME_CONFIG_CONFLICT',
@@ -16,6 +21,7 @@ export const ErrorCodes = {
   InvalidRoomSettings: 'INVALID_ROOM_SETTINGS',
   BotsNotSupported: 'BOTS_NOT_SUPPORTED',
   RoomNotOpen: 'ROOM_NOT_OPEN',
+  RoomInMatch: 'ROOM_IN_MATCH',
   NotRoomMember: 'NOT_ROOM_MEMBER',
   NotRoomHost: 'NOT_ROOM_HOST',
   PlayersNotReady: 'PLAYERS_NOT_READY',

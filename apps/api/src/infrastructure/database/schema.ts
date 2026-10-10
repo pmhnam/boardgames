@@ -1,8 +1,9 @@
-import type { BotLevel } from '@bgp/shared-types';
+import type { BotLevel, UserRole } from '@bgp/shared-types';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   integer,
   jsonb,
   pgTable,
@@ -27,6 +28,11 @@ export const users = pgTable(
     avatarUrl: text('avatar_url'),
     /** Computer players are users too, so rooms, matches and history treat them like anyone. */
     isBot: boolean('is_bot').notNull().default(false),
+    role: text('role').$type<UserRole>().notNull().default('player'),
+    /** Set only for accounts that sign in with a password. Never sent to clients. */
+    passwordHash: text('password_hash'),
+    /** Set while an administrator has locked the account out. */
+    disabledAt: timestamp('disabled_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -34,6 +40,12 @@ export const users = pgTable(
     uniqueIndex('users_human_username_unique')
       .on(sql`lower(btrim(${table.displayName}))`)
       .where(sql`${table.isBot} = false`),
+    check('users_role_valid', sql`${table.role} in ('player', 'admin')`),
+    // Username-only login must never reach an administrator, so one always has a password.
+    check(
+      'users_admin_has_password',
+      sql`${table.role} = 'player' or (${table.passwordHash} is not null and ${table.isBot} = false)`,
+    ),
   ],
 );
 
@@ -49,6 +61,8 @@ export const gameConfigs = pgTable(
     /** Shaped by the game's engine; opaque to the platform. */
     config: jsonb('config').$type<unknown>().notNull(),
     note: text('note'),
+    /** The administrator who published it. Null for versions the server seeded itself. */
+    createdBy: uuid('created_by').references(() => users.id),
     createdAt: createdAt(),
   },
   (table) => [primaryKey({ columns: [table.gameType, table.version] })],

@@ -8,9 +8,23 @@ const MESSAGE_FOR_CODE: Partial<Record<ErrorCode, MessageKey>> = {
   [ErrorCodes.Unauthorized]: 'error.unauthorized',
   [ErrorCodes.RateLimited]: 'error.rateLimited',
   [ErrorCodes.Internal]: 'error.internal',
+  [ErrorCodes.Forbidden]: 'error.forbidden',
+  [ErrorCodes.ValidationFailed]: 'error.validationFailed',
+  [ErrorCodes.NotFound]: 'error.notFound',
+  [ErrorCodes.InvalidCredentials]: 'error.invalidCredentials',
+  [ErrorCodes.PasswordRequired]: 'error.passwordRequired',
+  [ErrorCodes.AccountDisabled]: 'error.accountDisabled',
+  [ErrorCodes.UserNotFound]: 'error.userNotFound',
+  [ErrorCodes.UnknownGameType]: 'error.unknownGameType',
+  [ErrorCodes.InvalidGameConfig]: 'error.invalidGameConfig',
+  [ErrorCodes.GameConfigConflict]: 'error.gameConfigConflict',
   [ErrorCodes.RoomNotFound]: 'error.roomNotFound',
   [ErrorCodes.RoomFull]: 'error.roomFull',
   [ErrorCodes.RoomNotOpen]: 'error.roomNotOpen',
+  [ErrorCodes.RoomInMatch]: 'error.roomInMatch',
+  [ErrorCodes.NotRoomMember]: 'error.notRoomMember',
+  [ErrorCodes.MatchNotFound]: 'error.matchNotFound',
+  [ErrorCodes.MatchNotPlaying]: 'error.matchNotPlaying',
   [ErrorCodes.InvalidRoomSettings]: 'error.invalidRoomSettings',
   [ErrorCodes.PlayersNotReady]: 'error.playersNotReady',
   [ErrorCodes.NotEnoughPlayers]: 'error.notEnoughPlayers',
@@ -19,7 +33,10 @@ const MESSAGE_FOR_CODE: Partial<Record<ErrorCode, MessageKey>> = {
 };
 
 /** Codes whose server message says which thing was wrong: it is shown after ours. */
-const KEEPS_SERVER_DETAIL: ReadonlySet<ErrorCode> = new Set([ErrorCodes.InvalidRoomSettings]);
+const KEEPS_SERVER_DETAIL: ReadonlySet<ErrorCode> = new Set([
+  ErrorCodes.InvalidRoomSettings,
+  ErrorCodes.InvalidGameConfig,
+]);
 
 /** What to tell the person about a failed request, in their language where we have the words. */
 export function errorText(t: Translate, error: unknown): string {

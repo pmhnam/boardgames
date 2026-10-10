@@ -20,4 +20,9 @@ export class RateLimiter {
     this.tokens -= 1;
     return true;
   }
+
+  /** Hands back a token taken by an attempt that turned out not to count. */
+  refund(): void {
+    this.tokens = Math.min(this.capacity, this.tokens + 1);
+  }
 }

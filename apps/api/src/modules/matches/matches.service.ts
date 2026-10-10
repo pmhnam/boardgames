@@ -4,11 +4,14 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { AnyGameEngine, GameViewer, PlayerSeat } from '@bgp/game-core';
 import {
   ErrorCodes,
+  type AdminMatchDto,
   type BotLevel,
+  type ConfigReplayImpactDto,
   type GameStateMessage,
   type MatchDto,
   type MatchHistoryDto,
   type MatchReplayDto,
+  type Page,
   type GameAutoplayMessage,
   type PlayerAutoplayDto,
   type ReplayFrameDto,
@@ -19,7 +22,13 @@ import type { OpaqueGameState } from '../../infrastructure/database/schema.js';
 import { GameConfigService } from '../games/game-config.service.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { toMatchActionDto, toMatchDto } from './match.mapper.js';
-import { MatchRepository, type MatchPlayerRecord, type MatchRecord } from './match.repository.js';
+import {
+  MatchRepository,
+  type MatchListFilter,
+  type MatchPlayerRecord,
+  type MatchRecord,
+  type MatchSummaryRecord,
+} from './match.repository.js';
 
 export interface MatchAccess {
   match: MatchRecord;
@@ -179,9 +188,8 @@ export class MatchesService {
 
   async listForUser(userId: string): Promise<MatchDto[]> {
     const records = await this.matches.listForUser(userId);
-    return Promise.all(
-      records.map(async (match) => toMatchDto(match, await this.matches.listPlayers(match.id))),
-    );
+    const players = await this.matches.listPlayersForMatches(records.map((match) => match.id));
+    return records.map((match) => toMatchDto(match, players.get(match.id) ?? []));
   }
 
   async getHistory(matchId: string, userId: string): Promise<MatchHistoryDto> {
@@ -239,6 +247,57 @@ export class MatchesService {
     }
 
     return { match: toMatchDto(match, players), frames };
+  }
+
+  /** Every kept match, whoever is playing it. Describes matches; never shows their state. */
+  async listForAdmin(
+    filter: MatchListFilter,
+    page: { limit: number; offset: number },
+  ): Promise<Page<AdminMatchDto>> {
+    const [records, total] = await Promise.all([
+      this.matches.listPage(filter, page),
+      this.matches.countPage(filter),
+    ]);
+    return { items: await this.toAdminDtos(records), total, ...page };
+  }
+
+  async getForAdmin(matchId: string): Promise<AdminMatchDto> {
+    const record = await this.matches.findSummary(matchId);
+    if (!record) throw new AppError(ErrorCodes.MatchNotFound, 'Match not found.', 404);
+    const [dto] = await this.toAdminDtos([record]);
+    return dto!;
+  }
+
+  private async toAdminDtos(records: MatchSummaryRecord[]): Promise<AdminMatchDto[]> {
+    const ids = records.map((record) => record.id);
+    const [players, lastActionAt] = await Promise.all([
+      this.matches.listPlayersForMatches(ids),
+      this.matches.lastActionAt(ids),
+    ]);
+    const engineVersions = new Map(
+      this.registry.list().map((game) => [game.definition.gameType, game.engine.engineVersion]),
+    );
+    return records.map((record) => ({
+      ...toMatchDto(record, players.get(record.id) ?? []),
+      roomCode: record.roomCode,
+      lastActionAt: lastActionAt.get(record.id)?.toISOString() ?? null,
+      engineOutdated: engineVersions.get(record.gameType) !== record.engineVersion,
+    }));
+  }
+
+  /**
+   * A replay needs the config its match was set up with to still be the current one, so
+   * publishing a new config ends replay for every match counted here.
+   */
+  async replayImpact(gameType: string): Promise<ConfigReplayImpactDto> {
+    const { engine } = this.registry.get(gameType);
+    const configVersion = await this.configs.getCurrentVersion(gameType);
+    const replayableMatches = await this.matches.countEnded({
+      gameType,
+      configVersion,
+      engineVersion: engine.engineVersion,
+    });
+    return { replayableMatches };
   }
 
   private parseSettings(

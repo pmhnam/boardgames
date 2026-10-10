@@ -56,6 +56,13 @@ outcome without reading game state).
 
 The client only ever sends intent. Anything else in the payload is dropped by `parseAction`.
 
+The same service has one other way to change a match: `abandon`, used by an administrator to end
+a match in progress with no winner. It takes the same row lock as an action commit, sets the
+status to `abandoned` and adds nothing to the action log, so the sequence still equals the state
+version and what was played can be replayed. It never calls the engine, which is what lets it
+end a match saved by rules the server no longer runs. It emits `match.finished`, the event that
+reopens the room and tells the table (`game.finished`, with the status).
+
 ## Persistence
 
 Current state snapshot plus an append-only action log (not event sourcing).
@@ -83,8 +90,10 @@ two simultaneous publishes conflict instead of overwriting each other. The curre
 the row with the highest version.
 
 - **Boot.** A registered game with no row gets version 1 from `engine.defaultConfig`.
-- **Publishing.** `PUT /games/:gameType/config`, guarded by `ADMIN_TOKEN`. The platform passes
-  the document to `engine.parseConfig` and stores the cleaned result; it never looks inside.
+- **Publishing.** `POST /admin/games/:gameType/configs`, administrators only. The platform
+  passes the document to `engine.parseConfig` and stores the cleaned result with its author; it
+  never looks inside. The request names the version the edit started from, and is refused if a
+  newer one exists. Restoring an old version publishes its document again as the newest.
 - **Starting a match.** The current config is re-validated, passed to `createInitialState`, and
   its version recorded in `matches.config_version`. An engine that needs the config after setup
   copies it into its state, as Harmonies does, so a match in progress is unaffected by later
@@ -148,6 +157,15 @@ is replayed.
 
 Room mutations (join, ready, start) go over REST; the socket only carries the resulting updates.
 
+## Admin area
+
+`apps/api/src/modules/admin` is HTTP only: controllers under `/api/admin/*` behind `AuthGuard`
+and `AdminRoleGuard`, each delegating to the service that owns the thing being managed
+(`GameConfigService`, `RoomsService`, `MatchesService`, `GameActionService`, `UsersService`).
+No rule lives in the admin module. Lists are paged (`limit`, `offset`, a `total`) and built from
+one page query plus batched lookups. Match listings select their columns explicitly and never
+include `state` or the seed. How administrators sign in is ADR 0010.
+
 ## Hidden information
 
 Raw state never leaves the server. `MatchesService.buildStateMessage` is the single exit, and it
@@ -157,8 +175,10 @@ because a log can reveal what a view hides.
 
 ## Deviations from the specification
 
-- **Auth** is guest-only (`POST /auth/guest`), with a 7-day token and no refresh. There are no
-  user roles; operator endpoints use a shared `ADMIN_TOKEN`.
+- **Auth** for players is a username and nothing else (`POST /auth/guest`), with a 7-day token
+  and no refresh. Administrators are the one exception: they sign in with a password
+  (`POST /auth/admin/login`), and a name that has a password can never be opened by the
+  username-only login. See ADR 0010.
 - **`game_definitions`, `match_snapshots`, `invitations`** tables are not created: the registry
   is the source of truth for which games exist (`game_configs` holds their data), the current snapshot lives on `matches`, and invites are
   room codes.

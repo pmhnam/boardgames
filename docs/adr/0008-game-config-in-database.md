@@ -18,3 +18,4 @@ the same reasoning as ADR 0004.
   be replayed. This was chosen for simplicity. Every version is kept, so replaying against a
   match's own version later only means loading that row instead of the latest.
 - Publishing is guarded by a shared `ADMIN_TOKEN`, since there are no user roles yet.
+  (Superseded by ADR 0010: publishing now needs an administrator account.)

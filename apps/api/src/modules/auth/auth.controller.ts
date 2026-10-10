@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post, UseGuards } from '@nestjs/common';
 import type { AuthSessionDto, UserDto } from '@bgp/shared-types';
 import { z } from 'zod';
 import {
@@ -13,6 +13,11 @@ const guestLoginSchema = z.object({
   displayName: z.string().trim().min(1).max(32),
 });
 
+const passwordLoginSchema = z.object({
+  username: z.string().trim().min(1).max(32),
+  password: z.string().min(1).max(256),
+});
+
 @Controller()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -22,6 +27,15 @@ export class AuthController {
     @Body(new ZodValidationPipe(guestLoginSchema)) body: z.infer<typeof guestLoginSchema>,
   ): Promise<AuthSessionDto> {
     return this.auth.loginAsGuest(body.displayName);
+  }
+
+  @Post('auth/admin/login')
+  @HttpCode(200)
+  loginAsAdmin(
+    @Body(new ZodValidationPipe(passwordLoginSchema)) body: z.infer<typeof passwordLoginSchema>,
+    @Ip() address: string,
+  ): Promise<AuthSessionDto> {
+    return this.auth.loginWithPassword(body.username, body.password, address);
   }
 
   @Get('users/me')

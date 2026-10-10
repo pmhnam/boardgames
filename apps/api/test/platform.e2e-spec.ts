@@ -29,7 +29,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 type State = GameStateMessage<GridClaimView>;
 
-const ADMIN_TOKEN = 'test-admin-token';
+const ADMIN = { username: 'Operator', password: 'platform test password' };
 
 interface Client {
   session: AuthSessionDto;
@@ -53,7 +53,8 @@ describe('platform MVP flow', () => {
     process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? '';
     process.env.PGLITE_DATA_DIR = 'memory://';
     process.env.JWT_SECRET = 'test-secret';
-    process.env.ADMIN_TOKEN = ADMIN_TOKEN;
+    process.env.ADMIN_USERNAME = ADMIN.username;
+    process.env.ADMIN_PASSWORD = ADMIN.password;
     // Computer players answer at once, so tests do not wait on their thinking time.
     process.env.BOT_ACTION_DELAY_MS = '0';
 
@@ -1476,20 +1477,23 @@ describe('platform MVP flow', () => {
 
   // Runs last on purpose: it changes configs the tests above rely on.
   it('keeps game configs in the database, versioned', async () => {
+    const { body: operator } = await request<AuthSessionDto>(
+      'POST',
+      '/auth/admin/login',
+      undefined,
+      ADMIN,
+    );
+    /** Publishes on top of whatever version is current, as the admin page does. */
     const publish = async <T>(
       gameType: string,
-      body: unknown,
-      token: string | null = ADMIN_TOKEN,
+      body: { config: unknown; note?: string },
+      token: string | undefined = operator.accessToken,
     ) => {
-      const response = await fetch(`${baseUrl}/api/games/${gameType}/config`, {
-        method: 'PUT',
-        headers: {
-          'content-type': 'application/json',
-          ...(token === null ? {} : { 'x-admin-token': token }),
-        },
-        body: JSON.stringify(body),
+      const current = await request<GameConfigDto>('GET', `/games/${gameType}/config`);
+      return request<T>('POST', `/admin/games/${gameType}/configs`, token, {
+        ...body,
+        expectedVersion: current.body.version ?? 1,
       });
-      return { status: response.status, body: (await response.json()) as T };
     };
     type ErrorBody = { error: { code: string; message: string } };
 
@@ -1535,8 +1539,10 @@ describe('platform MVP flow', () => {
       ],
       tokenCounts: { water: 10, mountain: 0, trunk: 0, leaf: 10, field: 10, building: 0 },
     };
-    expect((await publish<ErrorBody>('harmonies', { config: smaller }, null)).status).toBe(403);
-    expect((await publish<ErrorBody>('harmonies', { config: smaller }, 'wrong')).status).toBe(403);
+    expect((await publish<ErrorBody>('harmonies', { config: smaller }, 'wrong')).status).toBe(401);
+    expect(
+      (await publish<ErrorBody>('harmonies', { config: smaller }, host.session.accessToken)).status,
+    ).toBe(403);
 
     const invalid = await publish<ErrorBody>('harmonies', {
       config: { ...smaller, tokenCounts: { water: 1 } },
@@ -1552,7 +1558,7 @@ describe('platform MVP flow', () => {
       config: smaller,
       note: 'Small board for testing',
     });
-    expect(published.status).toBe(200);
+    expect(published.status).toBe(201);
     expect(published.body).toMatchObject({ version: 2, note: 'Small board for testing' });
     const { body: current } = await host.api<GameConfigDto>('GET', '/games/harmonies/config');
     expect(current.version).toBe(2);

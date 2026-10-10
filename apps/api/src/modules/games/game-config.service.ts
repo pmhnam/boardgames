@@ -1,7 +1,23 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import { ErrorCodes, type GameConfigDto } from '@bgp/shared-types';
+import type { AnyGameEngine, GameModule } from '@bgp/game-core';
+import {
+  ErrorCodes,
+  type AdminGameConfigDto,
+  type AdminGameDto,
+  type ConfigAuthorDto,
+  type GameConfigDocumentDto,
+  type GameConfigDto,
+  type GameConfigSummaryDto,
+  type GameDefinitionDto,
+  type Page,
+} from '@bgp/shared-types';
 import { AppError } from '../../common/errors/app-error.js';
-import { GameConfigRepository, type GameConfigRecord } from './game-config.repository.js';
+import {
+  GameConfigRepository,
+  type GameConfigRecord,
+  type GameConfigSummaryRecord,
+  type GameConfigWithAuthor,
+} from './game-config.repository.js';
 import { GameRegistry } from './game-registry.js';
 
 const FIRST_VERSION = 1;
@@ -14,6 +30,52 @@ function toDto(record: GameConfigRecord): GameConfigDto {
     note: record.note,
     createdAt: record.createdAt.toISOString(),
   };
+}
+
+function toAuthor(record: {
+  createdBy: string | null;
+  authorName: string | null;
+}): ConfigAuthorDto | null {
+  if (record.createdBy === null) return null;
+  return { id: record.createdBy, displayName: record.authorName ?? '' };
+}
+
+function toSummaryDto(record: GameConfigSummaryRecord): GameConfigSummaryDto {
+  return {
+    gameType: record.gameType,
+    version: record.version,
+    note: record.note,
+    createdAt: record.createdAt.toISOString(),
+    createdBy: toAuthor(record),
+  };
+}
+
+function toAdminDto(record: GameConfigWithAuthor, engine: AnyGameEngine): AdminGameConfigDto {
+  const parsed = engine.parseConfig(record.config);
+  return {
+    ...toDto(record),
+    createdBy: toAuthor(record),
+    engineError: parsed.ok ? null : parsed.message,
+  };
+}
+
+export function toGameDefinitionDto({ definition, engine }: GameModule): GameDefinitionDto {
+  return {
+    gameType: definition.gameType,
+    displayName: definition.displayName,
+    minPlayers: definition.minPlayers,
+    maxPlayers: definition.maxPlayers,
+    supportsBots: definition.supportsBots,
+    supportsSpectators: definition.supportsSpectators,
+    engineVersion: engine.engineVersion,
+  };
+}
+
+/** Who is publishing, and from which version their edit started. */
+export interface PublishOptions {
+  note: string | null;
+  expectedVersion: number;
+  authorId: string;
 }
 
 /**
@@ -93,29 +155,114 @@ export class GameConfigService implements OnApplicationBootstrap {
     return (await this.requireLatest(gameType)).version;
   }
 
-  /** Publishes a new version. Matches already in progress keep the config they started with. */
-  async publish(gameType: string, rawConfig: unknown, note: string | null): Promise<GameConfigDto> {
+  /** Every registered game with the config version new matches are set up from. */
+  async listForAdmin(): Promise<AdminGameDto[]> {
+    const latest = new Map((await this.configs.listLatest()).map((row) => [row.gameType, row]));
+    return this.registry.list().flatMap((game) => {
+      const current = latest.get(game.definition.gameType);
+      if (!current) return [];
+      return {
+        ...toGameDefinitionDto(game),
+        currentVersion: current.version,
+        currentPublishedAt: current.createdAt.toISOString(),
+      };
+    });
+  }
+
+  async listVersions(
+    gameType: string,
+    page: { limit: number; offset: number },
+  ): Promise<Page<GameConfigSummaryDto>> {
+    this.registry.get(gameType);
+    const [records, total] = await Promise.all([
+      this.configs.listVersions(gameType, page),
+      this.configs.countVersions(gameType),
+    ]);
+    return { items: records.map(toSummaryDto), total, ...page };
+  }
+
+  async getVersion(gameType: string, version: number): Promise<AdminGameConfigDto> {
     const { engine } = this.registry.get(gameType);
-    const parsed = engine.parseConfig(rawConfig);
-    if (!parsed.ok) throw new AppError(ErrorCodes.InvalidGameConfig, parsed.message, 400);
+    return toAdminDto(await this.requireVersion(gameType, version), engine);
+  }
+
+  /** What the engine ships with: the document version 1 was seeded from. */
+  getDefault(gameType: string): GameConfigDocumentDto {
+    return { config: this.registry.get(gameType).engine.defaultConfig };
+  }
+
+  /** Checks a document the way publishing would, without storing anything. */
+  validate(gameType: string, rawConfig: unknown): GameConfigDocumentDto {
+    return { config: this.parse(gameType, rawConfig) };
+  }
+
+  /** Publishes a new version. Matches already in progress keep the config they started with. */
+  async publish(
+    gameType: string,
+    rawConfig: unknown,
+    options: PublishOptions,
+  ): Promise<AdminGameConfigDto> {
+    const { engine } = this.registry.get(gameType);
+    const config = this.parse(gameType, rawConfig);
 
     const latest = await this.requireLatest(gameType);
+    // The author was looking at an older version: publishing would silently undo what came since.
+    if (latest.version !== options.expectedVersion) throw this.conflict(latest.version);
+
     const record = await this.configs.insert({
       gameType,
       version: latest.version + 1,
-      config: parsed.config,
-      note,
+      config,
+      note: options.note,
+      createdBy: options.authorId,
     });
-    if (!record) {
-      throw new AppError(
-        ErrorCodes.GameConfigConflict,
-        'Someone else just published a config for this game. Reload and try again.',
-        409,
-      );
-    }
+    // Two people published from the same version at the same moment, and this one came second.
+    if (!record) throw this.conflict(latest.version + 1);
 
-    this.logger.log({ event: 'game_config_published', gameType, version: record.version });
-    return toDto(record);
+    this.logger.log({
+      event: 'game_config_published',
+      gameType,
+      version: record.version,
+      byUserId: options.authorId,
+    });
+    return toAdminDto(await this.requireVersion(gameType, record.version), engine);
+  }
+
+  /** Publishes an earlier version's document again as the newest. History is never rewritten. */
+  async restore(
+    gameType: string,
+    version: number,
+    options: PublishOptions,
+  ): Promise<AdminGameConfigDto> {
+    this.registry.get(gameType);
+    const source = await this.requireVersion(gameType, version);
+    return this.publish(gameType, source.config, {
+      ...options,
+      note: options.note ?? `Restored from v${version}.`,
+    });
+  }
+
+  private parse(gameType: string, rawConfig: unknown): unknown {
+    const parsed = this.registry.get(gameType).engine.parseConfig(rawConfig);
+    if (!parsed.ok) throw new AppError(ErrorCodes.InvalidGameConfig, parsed.message, 400);
+    return parsed.config;
+  }
+
+  private conflict(latestVersion: number): AppError {
+    return new AppError(
+      ErrorCodes.GameConfigConflict,
+      'A newer config has been published for this game. Reload and try again.',
+      409,
+      { latestVersion },
+    );
+  }
+
+  private async requireVersion(gameType: string, version: number): Promise<GameConfigWithAuthor> {
+    const record = await this.configs.findVersion(gameType, version);
+    if (!record) {
+      throw new AppError(ErrorCodes.NotFound, `${gameType} has no config v${version}.`, 404);
+    }
+    return record;
   }
 
   private async requireLatest(gameType: string): Promise<GameConfigRecord> {

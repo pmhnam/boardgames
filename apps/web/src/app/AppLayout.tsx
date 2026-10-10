@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useState } from 'react';
 import { HeaderControlsTarget } from '../shared/components/HeaderControls';
 import { useAuthStore } from '../features/auth/auth.store';
+import { isAdmin } from '../features/auth/roles';
 import { ConnectionIndicator } from '../shared/components/ConnectionIndicator';
 import { LanguageSwitcher } from '../shared/i18n/LanguageSwitcher';
 import { useT } from '../shared/i18n/useT';
@@ -24,6 +25,7 @@ export function AppLayout() {
             {session && (
               <nav aria-label={t('nav.label')}>
                 <NavLink to="/history">{t('nav.history')}</NavLink>
+                {isAdmin(session) && <NavLink to="/admin">{t('nav.admin')}</NavLink>}
               </nav>
             )}
             <LanguageSwitcher />

@@ -13,6 +13,13 @@ import type { OpaqueGameState } from '../../infrastructure/database/schema.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { MatchRepository } from './match.repository.js';
 
+export interface AbandonMatchCommand {
+  matchId: string;
+  /** The administrator ending it. From the authenticated request, never from a payload. */
+  byUserId: string;
+  now: Date;
+}
+
 export interface ExecuteGameActionCommand {
   matchId: string;
   /** From the authenticated connection, never from the payload. */
@@ -57,9 +64,7 @@ export class GameActionService {
       return this.accepted(command, match.stateVersion, true);
     }
 
-    if (match.status !== 'playing') {
-      throw new AppError(ErrorCodes.MatchNotPlaying, 'This match is not in progress.', 409);
-    }
+    if (match.status !== 'playing') throw this.notPlaying();
 
     const automated = player.botLevel !== null || player.autoplayLevel !== null;
     if (
@@ -122,6 +127,8 @@ export class GameActionService {
     }
     if (outcome === 'version_conflict') {
       const latest = await this.matches.findById(match.id);
+      // Not a newer move to catch up with: the match ended while this one was being worked out.
+      if (latest && latest.status !== 'playing') throw this.notPlaying();
       throw this.versionConflict(latest?.stateVersion ?? nextVersion);
     }
     if (outcome === 'control_changed') throw this.controlChanged();
@@ -146,6 +153,34 @@ export class GameActionService {
     }
 
     return this.accepted(command, nextVersion, false);
+  }
+
+  /**
+   * Ends a match in progress with no winner, for one that is stuck or should not go on. The
+   * other way a match's status changes, so it lives here beside the first. It never asks the
+   * engine anything, which is what lets it end a match saved by rules that no longer exist.
+   */
+  async abandon(command: AbandonMatchCommand): Promise<void> {
+    const outcome = await this.matches.markAbandoned(command.matchId, command.now);
+    if (outcome.outcome === 'not_found') {
+      throw new AppError(ErrorCodes.MatchNotFound, 'Match not found.', 404);
+    }
+    if (outcome.outcome !== 'abandoned') throw this.notPlaying();
+
+    this.logger.log({
+      event: 'match_abandoned',
+      gameId: command.matchId,
+      byUserId: command.byUserId,
+    });
+
+    // No new state to show anyone. What follows from a match being over (the room reopening,
+    // everyone at the table being told) hangs off this one event.
+    const finished: MatchFinishedEvent = { matchId: command.matchId, roomId: outcome.roomId };
+    await this.events.emitAsync(PlatformEvents.MatchFinished, finished);
+  }
+
+  private notPlaying(): AppError {
+    return new AppError(ErrorCodes.MatchNotPlaying, 'This match is not in progress.', 409);
   }
 
   private accepted(

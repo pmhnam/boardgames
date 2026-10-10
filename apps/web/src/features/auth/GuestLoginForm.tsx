@@ -1,7 +1,8 @@
-import type { AuthSessionDto, GuestLoginRequest } from '@bgp/shared-types';
+import { ErrorCodes, type AuthSessionDto, type GuestLoginRequest } from '@bgp/shared-types';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { api } from '../../shared/api/http';
+import { Link } from 'react-router-dom';
+import { ApiRequestError, api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
 import { useAuthStore } from './auth.store';
@@ -20,6 +21,9 @@ export function GuestLoginForm() {
     event.preventDefault();
     if (displayName.trim()) login.mutate({ displayName: displayName.trim() });
   };
+  // The name is an administrator's: it opens with a password, on its own page.
+  const needsPassword =
+    login.error instanceof ApiRequestError && login.error.code === ErrorCodes.PasswordRequired;
 
   return (
     <form className="card narrow" onSubmit={submit}>
@@ -41,6 +45,7 @@ export function GuestLoginForm() {
           {errorText(t, login.error)}
         </p>
       )}
+      {needsPassword && <Link to="/admin/login">{t('login.adminLink')}</Link>}
     </form>
   );
 }

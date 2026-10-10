@@ -53,9 +53,13 @@ On the server:
    curl -fsSLo deploy.sh https://raw.githubusercontent.com/pmhnam/boardgames/main/deploy/server-deploy.sh
    chmod +x deploy.sh
    umask 077
-   printf 'POSTGRES_PASSWORD=%s\nJWT_SECRET=%s\nADMIN_TOKEN=%s\n' \
-     "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
+   printf 'POSTGRES_PASSWORD=%s\nJWT_SECRET=%s\n' \
+     "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
    ```
+
+   For the admin area at `/admin`, also add `ADMIN_USERNAME` and `ADMIN_PASSWORD` (12 or more
+   characters) to that file. The account is created, or its password updated, the next time the
+   API starts; without them there is no administrator and the admin area is off.
 
 2. **A key for CI**, allowed to run only the deploy script. Generate it anywhere, then add the
    public half to the server's `~/.ssh/authorized_keys` as one line:

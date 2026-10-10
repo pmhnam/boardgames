@@ -79,6 +79,8 @@ export interface GameStartedMessage {
 
 export interface GameFinishedMessage {
   gameId: string;
+  /** `abandoned` when an administrator ended it; there is then no result. */
+  status: 'finished' | 'abandoned';
   result: MatchResultDto | null;
 }
 

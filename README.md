@@ -30,7 +30,9 @@ docker compose up -d
 cp .env.example apps/api/.env   # then set DATABASE_URL
 ```
 
-To be able to change game configs, also set `ADMIN_TOKEN` in `apps/api/.env`.
+To use the admin area at `/admin` (game configs, rooms and matches, players), also set
+`ADMIN_USERNAME` and `ADMIN_PASSWORD` in `apps/api/.env`. That administrator is created when the
+API starts.
 
 Migrations are applied on boot. After changing `apps/api/src/infrastructure/database/schema.ts`,
 run `pnpm db:generate`.
@@ -49,8 +51,8 @@ run `pnpm db:generate`.
 
 ```text
 apps/
-  api/                 NestJS: auth, rooms, matches, realtime gateway, game registry
-  web/                 React: lobby, room, match, replay, per-game renderers
+  api/                 NestJS: auth, rooms, matches, realtime gateway, game registry, admin
+  web/                 React: lobby, room, match, replay, per-game renderers, admin area
 packages/
   game-core/           Engine contract, seeded PRNG, test helpers
   game-avalon/         Avalon: hidden roles, team votes, quests, the assassination
@@ -218,22 +220,47 @@ from the engine's defaults; after that the database is the source of truth.
 curl localhost:3000/api/games/harmonies/config
 ```
 
+Configs are changed from the admin area (`/admin`, the Configs section): edit the JSON, have the
+engine check it, publish. The same can be done over HTTP as an administrator:
+
 ```bash
-curl -X PUT localhost:3000/api/games/harmonies/config \
+TOKEN=$(curl -s localhost:3000/api/auth/admin/login \
   -H 'content-type: application/json' \
-  -H 'x-admin-token: <ADMIN_TOKEN>' \
-  -d '{ "config": { "maps": [], "tokenCounts": {}, "cards": [] }, "note": "why" }'
+  -d '{ "username": "<ADMIN_USERNAME>", "password": "<ADMIN_PASSWORD>" }' | jq -r .accessToken)
+
+curl localhost:3000/api/admin/games/harmonies/configs \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{ "config": { "maps": [], "tokenCounts": {}, "cards": [] }, "note": "why", "expectedVersion": 1 }'
 ```
 
 Send a complete config: the game's engine validates it as a whole and rejects anything it could
-not play, with the reason. Publishing adds a new version; it never edits an old one.
+not play, with the reason. Publishing adds a new version; it never edits an old one, and restoring
+an old version publishes its document again as the newest. `expectedVersion` is the version the
+edit started from: if someone else has published since, the request is refused rather than
+undoing their change.
 
 - New matches use the newest version.
 - Matches in progress keep the config they started with.
 - Matches that finished under an older version can no longer be replayed. Their result and move
   list are still available.
 
+## Admin area
+
+`/admin`, for whoever signs in at `/admin/login` with `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+Everything it does goes through `/api/admin/*`, which only an administrator's token opens.
+
+- **Game configs.** Each game's version history, an editor that has the engine check a draft,
+  publishing, and restoring an earlier version (see above).
+- **Rooms.** Every room, private and closed ones included; remove a member, or close a room.
+- **Matches.** Every match still kept, without its state. A match in progress can be ended with
+  no winner, which is the way out when one is stuck and holding its room.
+- **Players.** Search, see someone's rooms and recent matches, disable or enable an account.
+  Disabling ends their sessions at once; since players sign in with a name alone, it locks out
+  the name rather than the person.
+
 ## What is not built yet
 
-An admin UI for game configs, chat, an LLM opponent, matchmaking, rankings, timers, refresh tokens, abandoning a match in progress, and
+Chat, an LLM opponent, matchmaking, rankings, timers, refresh tokens, a player abandoning their
+own match (an administrator can end one), managing administrators from the admin area, and
 Redis (only needed once there is more than one API instance). See `docs/architecture.md`.

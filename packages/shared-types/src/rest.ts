@@ -1,7 +1,10 @@
+export type UserRole = 'player' | 'admin';
+
 export interface UserDto {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  role: UserRole;
 }
 
 export interface AuthSessionDto {
@@ -29,10 +32,68 @@ export interface GameConfigDto<TConfig = unknown> {
   createdAt: string;
 }
 
-export interface UpdateGameConfigRequest<TConfig = unknown> {
+/** A game as the admin area lists it: what it is, and which config version is in force. */
+export interface AdminGameDto extends GameDefinitionDto {
+  currentVersion: number;
+  currentPublishedAt: string;
+}
+
+export interface ConfigAuthorDto {
+  id: string;
+  displayName: string;
+}
+
+/** A config version without its document, for listing a game's history. */
+export interface GameConfigSummaryDto {
+  gameType: string;
+  version: number;
+  note: string | null;
+  createdAt: string;
+  /** Null for versions the server wrote itself (the seed, or a reset after an engine upgrade). */
+  createdBy: ConfigAuthorDto | null;
+}
+
+export interface AdminGameConfigDto<TConfig = unknown> extends GameConfigDto<TConfig> {
+  createdBy: ConfigAuthorDto | null;
+  /** Why the current engine refuses this document, or null when it still accepts it. */
+  engineError: string | null;
+}
+
+export interface PublishGameConfigRequest<TConfig = unknown> {
   config: TConfig;
   /** Why the config changed. */
   note?: string;
+  /** The version the edit started from. Publishing fails if a newer one exists by now. */
+  expectedVersion: number;
+}
+
+/** Publishes an earlier version's document again, as the newest version. */
+export interface RestoreGameConfigRequest {
+  expectedVersion: number;
+  note?: string;
+}
+
+export interface ValidateGameConfigRequest<TConfig = unknown> {
+  config: TConfig;
+}
+
+/** A config as the engine reads it, with its defaults filled in. */
+export interface GameConfigDocumentDto<TConfig = unknown> {
+  config: TConfig;
+}
+
+/** What publishing a new config for a game would cost. */
+export interface ConfigReplayImpactDto {
+  /** Finished matches that can be replayed now and no longer could afterwards. */
+  replayableMatches: number;
+}
+
+/** One page of an admin list. `total` counts every row the filters match. */
+export interface Page<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 /** How strong a computer player is. */
@@ -65,6 +126,11 @@ export interface RoomDto {
   /** The match currently being played in this room, if any. */
   currentMatchId: string | null;
   createdAt: string;
+}
+
+/** A room as the admin area lists it, whoever it belongs to and whether or not it is public. */
+export interface AdminRoomDto extends RoomDto {
+  hostDisplayName: string;
 }
 
 export type MatchStatus = 'playing' | 'finished' | 'abandoned';
@@ -108,6 +174,15 @@ export interface MatchDto {
   finishedAt: string | null;
 }
 
+/** A match as the admin area lists it. Never carries game state. */
+export interface AdminMatchDto extends MatchDto {
+  roomCode: string;
+  /** When the last move was made; null if nobody has moved yet. */
+  lastActionAt: string | null;
+  /** Saved by rules the server no longer runs, so it cannot be played on. */
+  engineOutdated: boolean;
+}
+
 export interface MatchActionDto {
   sequence: number;
   playerId: string;
@@ -145,6 +220,11 @@ export interface GuestLoginRequest {
   displayName: string;
 }
 
+export interface AdminLoginRequest {
+  username: string;
+  password: string;
+}
+
 export interface UpdateRoomSettingsRequest {
   settings: Record<string, unknown>;
 }
@@ -160,4 +240,26 @@ export interface SetReadyRequest {
 export interface StartRoomResponse {
   room: RoomDto;
   matchId: string;
+}
+
+/** A user as the admin area lists them. */
+export interface AdminUserDto {
+  id: string;
+  displayName: string;
+  role: UserRole;
+  isBot: boolean;
+  /** When an administrator locked the account out, or null while it can sign in. */
+  disabledAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminUserDetailDto {
+  user: AdminUserDto;
+  /** Rooms they have a seat in. */
+  rooms: AdminRoomDto[];
+  recentMatches: MatchDto[];
+}
+
+export interface SetUserDisabledRequest {
+  disabled: boolean;
 }

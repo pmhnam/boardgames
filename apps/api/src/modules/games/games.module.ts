@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AdminGuard } from '../../common/guards/admin.guard.js';
 import { GameConfigRepository } from './game-config.repository.js';
 import { GameConfigService } from './game-config.service.js';
 import { GameRegistry } from './game-registry.js';
@@ -9,7 +8,6 @@ import { registeredGames } from './registered-games.js';
 @Module({
   controllers: [GamesController],
   providers: [
-    AdminGuard,
     GameConfigRepository,
     GameConfigService,
     {

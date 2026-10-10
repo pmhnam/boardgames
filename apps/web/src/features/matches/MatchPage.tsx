@@ -6,9 +6,11 @@ import { getGameUi } from '../../games/registry';
 import { playerName } from '../../games/types';
 import { UnsupportedGame } from '../../games/UnsupportedGame';
 import { api, errorMessage } from '../../shared/api/http';
+import { useT } from '../../shared/i18n/useT';
 import { useMatchState } from './useMatchState';
 
 export function MatchPage() {
+  const t = useT();
   const { matchId = '' } = useParams();
   const { message, loadError, actionError, pending, sendAction, acceptControl } =
     useMatchState(matchId);
@@ -74,9 +76,11 @@ export function MatchPage() {
       {finished && (
         <div className="card result">
           <strong>
-            {winners.length > 0
-              ? `Winner: ${winners.map((id) => playerName(match.data.players, id)).join(' & ')}`
-              : 'Match over'}
+            {message.status === 'abandoned'
+              ? t('match.abandoned')
+              : winners.length > 0
+                ? `Winner: ${winners.map((id) => playerName(match.data.players, id)).join(' & ')}`
+                : 'Match over'}
           </strong>
           <span className="row">
             <Link to={`/rooms/${match.data.roomId}`}>Back to room</Link>

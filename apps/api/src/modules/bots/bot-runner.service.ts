@@ -25,6 +25,19 @@ type StepOutcome = 'acted' | 'retry' | 'idle';
  * Plays the computer players' turns. A bot is not special: it is handed the view of its own
  * seat, and what it chooses goes through GameActionService exactly like a person's action.
  */
+/**
+ * The match moved on while the bot was choosing: someone else acted, control changed hands, or
+ * the match ended. None of these is the bot's mistake; the next look sorts out what to do.
+ */
+function isOvertaken(error: unknown): boolean {
+  return (
+    error instanceof AppError &&
+    (error.code === ErrorCodes.GameVersionConflict ||
+      error.code === ErrorCodes.GameControlChanged ||
+      error.code === ErrorCodes.MatchNotPlaying)
+  );
+}
+
 @Injectable()
 export class BotRunnerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(BotRunnerService.name);
@@ -158,12 +171,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
       return 'acted';
     } catch (error) {
       // Someone else moved first: look again.
-      if (
-        error instanceof AppError &&
-        (error.code === ErrorCodes.GameVersionConflict ||
-          error.code === ErrorCodes.GameControlChanged)
-      )
-        return 'retry';
+      if (isOvertaken(error)) return 'retry';
 
       this.logger.warn(
         `Bot ${bot.playerId} (${level}) failed in match ${matchId}: ${
@@ -178,12 +186,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
       await submit(choose('easy'));
       return 'acted';
     } catch (error) {
-      if (
-        error instanceof AppError &&
-        (error.code === ErrorCodes.GameVersionConflict ||
-          error.code === ErrorCodes.GameControlChanged)
-      )
-        return 'retry';
+      if (isOvertaken(error)) return 'retry';
       this.logger.error(
         `Bot ${bot.playerId} could not move in match ${matchId}: ${
           error instanceof Error ? error.message : String(error)

@@ -13,4 +13,12 @@ describe('RateLimiter', () => {
     expect(limiter.tryConsume(100)).toBe(false);
     expect(limiter.tryConsume(600)).toBe(true);
   });
+
+  it('gives a refunded token back, never beyond capacity', () => {
+    const limiter = new RateLimiter(1, 0, 0);
+    expect(limiter.tryConsume(0)).toBe(true);
+    limiter.refund();
+    limiter.refund();
+    expect([0, 0].map((now) => limiter.tryConsume(now))).toEqual([true, false]);
+  });
 });

@@ -43,6 +43,13 @@
       "when": 1791180848636,
       "tag": "0005_username_login",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791638366067,
+      "tag": "0006_admin_accounts",
+      "breakpoints": true
     }
   ]
 }

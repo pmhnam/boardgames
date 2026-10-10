@@ -4,6 +4,7 @@ import {
   ServerEvents,
   type Ack,
   type ApiError,
+  type GameFinishedMessage,
   type GameStateMessage,
   type GameAutoplayMessage,
   type PlayerAutoplayDto,
@@ -12,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getGameUi } from '../../games/registry';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useGameAction } from '../../shared/websocket/useGameAction';
-import { acceptMatchMessage, mergeAutoplay } from './autoplay';
+import { acceptMatchMessage, applyFinished, mergeAutoplay } from './autoplay';
 
 export interface MatchState {
   message: GameStateMessage | null;
@@ -99,13 +100,20 @@ export function useMatchState(gameId: string): MatchState {
     const onState = (incoming: GameStateMessage) => {
       if (incoming.gameId === gameId) accept(incoming);
     };
+    // Usually a state push has already said the match is over. Not when an administrator ends
+    // it: then this is the only word of it.
+    const onFinished = (finished: GameFinishedMessage) => {
+      if (finished.gameId === gameId) setMessage((current) => applyFinished(current, finished));
+    };
     socket.on('connect', onConnect);
     socket.on(ServerEvents.GameState, onState);
+    socket.on(ServerEvents.GameFinished, onFinished);
     socket.on(ServerEvents.GameAutoplay, acceptControl);
     if (socket.connected) void sync();
     return () => {
       socket.off('connect', onConnect);
       socket.off(ServerEvents.GameState, onState);
+      socket.off(ServerEvents.GameFinished, onFinished);
       socket.off(ServerEvents.GameAutoplay, acceptControl);
     };
   }, [socket, gameId, sync, accept, acceptControl]);

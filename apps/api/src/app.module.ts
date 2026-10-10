@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BotsModule } from './modules/bots/bots.module.js';
 import { GamesModule } from './modules/games/games.module.js';
@@ -24,6 +25,7 @@ import { UsersModule } from './modules/users/users.module.js';
     MatchesModule,
     RealtimeModule,
     BotsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

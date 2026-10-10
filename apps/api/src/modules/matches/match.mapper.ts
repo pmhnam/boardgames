@@ -1,7 +1,15 @@
 import type { MatchActionDto, MatchDto } from '@bgp/shared-types';
-import type { MatchActionRecord, MatchPlayerRecord, MatchRecord } from './match.repository.js';
+import type {
+  MatchActionRecord,
+  MatchPlayerRecord,
+  MatchRecord,
+  MatchSummaryRecord,
+} from './match.repository.js';
 
-export function toMatchDto(match: MatchRecord, players: MatchPlayerRecord[]): MatchDto {
+export function toMatchDto(
+  match: MatchRecord | MatchSummaryRecord,
+  players: MatchPlayerRecord[],
+): MatchDto {
   return {
     id: match.id,
     roomId: match.roomId,

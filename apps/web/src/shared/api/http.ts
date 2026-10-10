@@ -1,5 +1,6 @@
 import { ErrorCodes, type ApiError, type ApiErrorBody } from '@bgp/shared-types';
 import { useAuthStore } from '../../features/auth/auth.store';
+import { shouldSignOut } from './sign-out-policy';
 
 export class ApiRequestError extends Error {
   constructor(
@@ -35,7 +36,7 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
     .then((parsed: Partial<ApiErrorBody>) => parsed.error ?? fallback)
     .catch(() => fallback);
   // The token no longer maps to a user (expired, or the dev database was reset).
-  if (response.status === 401 && token === useAuthStore.getState().session?.accessToken)
+  if (shouldSignOut(error.code, token, useAuthStore.getState().session?.accessToken))
     useAuthStore.getState().signOut();
   throw new ApiRequestError(response.status, error);
 }

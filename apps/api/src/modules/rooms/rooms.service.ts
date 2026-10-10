@@ -1,9 +1,11 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   ErrorCodes,
+  type AdminRoomDto,
   type BotLevel,
+  type Page,
   type RoomDto,
   type RoomVisibility,
   type StartRoomResponse,
@@ -20,7 +22,13 @@ import { GameConfigService } from '../games/game-config.service.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { MatchesService } from '../matches/matches.service.js';
 import { UsersRepository } from '../users/users.repository.js';
-import { RoomsRepository, type RoomMemberRecord, type RoomRecord } from './rooms.repository.js';
+import {
+  RoomsRepository,
+  type RoomListFilter,
+  type RoomMemberRecord,
+  type RoomRecord,
+  type RoomWithHost,
+} from './rooms.repository.js';
 
 // No 0/O/1/I: codes get read aloud and typed by hand.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -40,6 +48,8 @@ function generateRoomCode(): string {
 
 @Injectable()
 export class RoomsService {
+  private readonly logger = new Logger(RoomsService.name);
+
   constructor(
     private readonly rooms: RoomsRepository,
     private readonly users: UsersRepository,
@@ -128,17 +138,107 @@ export class RoomsService {
     const members = await this.requireMember(roomId, userId);
     this.requireOpen(room);
 
-    await this.rooms.removeMember(roomId, userId);
+    await this.removeAndRebalance(room, members, userId);
+    return this.changed(roomId);
+  }
+
+  /** Every room there is, for the admin area: private and closed ones included. */
+  async listForAdmin(
+    filter: RoomListFilter,
+    page: { limit: number; offset: number },
+  ): Promise<Page<AdminRoomDto>> {
+    const [records, total] = await Promise.all([
+      this.rooms.listPage(filter, page),
+      this.rooms.countPage(filter),
+    ]);
+    return { items: await this.toAdminDtos(records), total, ...page };
+  }
+
+  async getForAdmin(roomId: string): Promise<AdminRoomDto> {
+    const room = await this.rooms.findWithHost(roomId);
+    if (!room) throw new AppError(ErrorCodes.RoomNotFound, 'Room not found.', 404);
+    const [dto] = await this.toAdminDtos([room]);
+    return dto!;
+  }
+
+  /** The rooms someone has a seat in, as the admin area shows them. */
+  async listForMember(userId: string): Promise<AdminRoomDto[]> {
+    return this.toAdminDtos(await this.rooms.listForMember(userId));
+  }
+
+  /**
+   * An administrator takes someone out of a room, host or not. What follows is what follows
+   * anyone leaving: the next person hosts, and a room with no people left closes.
+   */
+  async adminRemoveMember(
+    roomId: string,
+    memberUserId: string,
+    byUserId: string,
+  ): Promise<AdminRoomDto> {
+    const room = await this.requireRoom(roomId);
+    this.requireNotInMatch(room);
+    this.requireOpen(room);
+    const members = await this.rooms.listMembers(roomId);
+    if (!members.some((member) => member.userId === memberUserId)) {
+      throw new AppError(ErrorCodes.NotRoomMember, 'There is no such player here.', 404);
+    }
+    await this.removeAndRebalance(room, members, memberUserId);
+    this.logger.log({ event: 'room_member_removed', roomId, userId: memberUserId, byUserId });
+    await this.changed(roomId);
+    return this.getForAdmin(roomId);
+  }
+
+  /** An administrator closes a room for good and empties it. Closing a closed room is a no-op. */
+  async adminClose(roomId: string, byUserId: string): Promise<AdminRoomDto> {
+    const outcome = await this.rooms.closeAndClear(roomId);
+    if (outcome === 'not_found') {
+      throw new AppError(ErrorCodes.RoomNotFound, 'Room not found.', 404);
+    }
+    if (outcome === 'in_match') this.requireNotInMatch({ status: 'in_match' });
+    if (outcome === 'closed') {
+      this.logger.log({ event: 'room_closed', roomId, byUserId });
+      await this.changed(roomId);
+    }
+    return this.getForAdmin(roomId);
+  }
+
+  /** Takes a member out and keeps the room sound: a person hosting, or closed if none is left. */
+  private async removeAndRebalance(
+    room: RoomRecord,
+    members: RoomMemberRecord[],
+    userId: string,
+  ): Promise<void> {
+    await this.rooms.removeMember(room.id, userId);
     const remaining = members.filter((member) => member.userId !== userId);
     // Only a person can host. A room with nobody but computer players left is closed.
     const nextHost = remaining.find((member) => member.botLevel === null);
     if (!nextHost) {
-      for (const bot of remaining) await this.rooms.removeMember(roomId, bot.userId);
-      await this.rooms.update(roomId, { status: 'closed' });
+      for (const bot of remaining) await this.rooms.removeMember(room.id, bot.userId);
+      await this.rooms.update(room.id, { status: 'closed' });
     } else if (room.hostUserId === userId) {
-      await this.rooms.update(roomId, { hostUserId: nextHost.userId });
+      await this.rooms.update(room.id, { hostUserId: nextHost.userId });
     }
-    return this.changed(roomId);
+  }
+
+  private async toAdminDtos(records: RoomWithHost[]): Promise<AdminRoomDto[]> {
+    const ids = records.map((record) => record.id);
+    const [members, currentMatches] = await Promise.all([
+      this.rooms.listMembersForRooms(ids),
+      this.rooms.findCurrentMatchIds(ids),
+    ]);
+    return records.map((room) => ({
+      id: room.id,
+      code: room.code,
+      gameType: room.gameType,
+      hostUserId: room.hostUserId,
+      hostDisplayName: room.hostDisplayName,
+      status: room.status,
+      visibility: room.visibility,
+      settings: room.settings,
+      members: members.get(room.id) ?? [],
+      currentMatchId: room.status === 'in_match' ? (currentMatches.get(room.id) ?? null) : null,
+      createdAt: room.createdAt.toISOString(),
+    }));
   }
 
   async kick(roomId: string, userId: string, memberUserId: string): Promise<RoomDto> {
@@ -276,6 +376,9 @@ export class RoomsService {
   /** The room outlives its matches: reopen it so the same group can play again. */
   @OnEvent(PlatformEvents.MatchFinished)
   async onMatchFinished(event: MatchFinishedEvent): Promise<void> {
+    const room = await this.rooms.findById(event.roomId);
+    // Only a room that was waiting on this match is reopened; a closed one stays closed.
+    if (room?.status !== 'in_match') return;
     await this.rooms.resetMemberStatuses(event.roomId);
     await this.rooms.update(event.roomId, { status: 'open' });
     await this.changed(event.roomId);
@@ -313,6 +416,17 @@ export class RoomsService {
     );
     if (seat === undefined) throw new AppError(ErrorCodes.RoomFull, 'The room is full.', 409);
     return seat;
+  }
+
+  /** A room cannot be changed under a match. An administrator ends the match first. */
+  private requireNotInMatch(room: Pick<RoomRecord, 'status'>): void {
+    if (room.status === 'in_match') {
+      throw new AppError(
+        ErrorCodes.RoomInMatch,
+        'A match is in progress in this room. End the match first.',
+        409,
+      );
+    }
   }
 
   private requireOpen(room: RoomRecord): void {

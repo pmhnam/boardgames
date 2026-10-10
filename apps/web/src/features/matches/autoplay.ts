@@ -1,4 +1,4 @@
-import type { GameStateMessage, PlayerAutoplayDto } from '@bgp/shared-types';
+import type { GameFinishedMessage, GameStateMessage, PlayerAutoplayDto } from '@bgp/shared-types';
 
 /** Control updates may overtake HTTP replies or game snapshots. Never regress a handoff. */
 export function mergeAutoplay(
@@ -23,4 +23,18 @@ export function acceptMatchMessage(
       ? current
       : incoming;
   return { ...state, autoplay };
+}
+
+/**
+ * A match can end without a new state to show, when an administrator ends it. The board stays
+ * as it was; only the status moves on.
+ */
+export function applyFinished(
+  current: GameStateMessage | null,
+  finished: GameFinishedMessage,
+): GameStateMessage | null {
+  if (!current || current.gameId !== finished.gameId || current.status === finished.status) {
+    return current;
+  }
+  return { ...current, status: finished.status };
 }

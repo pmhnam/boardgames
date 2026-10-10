@@ -1,0 +1,271 @@
+/* Admin area. Built from the shared tokens and primitives in styles.css. */
+
+.admin-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-head h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+/* Sections */
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.admin-tabs a {
+  padding: var(--space-1) var(--space-3);
+  color: var(--muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+}
+
+.admin-tabs a:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.admin-tabs a[aria-current='page'] {
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.admin-lead {
+  max-width: 46rem;
+  margin: 0;
+}
+
+/* Tables. Shared rules keep cells on one line; a note may wrap. */
+
+.admin-wrap {
+  min-width: 12rem;
+  max-width: 28rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+thead th {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+tbody th {
+  font-weight: 600;
+}
+
+.admin-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.admin-pagination .muted {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The config document */
+
+.admin-code {
+  width: 100%;
+  min-height: 12rem;
+  padding: var(--space-3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: inherit;
+  tab-size: 2;
+  white-space: pre;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.admin-code[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.admin-status {
+  min-height: 1.5em;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.admin-ok {
+  color: var(--success);
+}
+
+.admin-warning {
+  color: var(--warning);
+}
+
+button.admin-danger {
+  background: var(--danger);
+}
+
+button.admin-danger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--danger) 85%, black);
+}
+
+/* Confirming an action */
+
+.admin-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  /* None, so that a click that lands on the dialog itself can only be on the backdrop. */
+  padding: 0;
+  overflow: auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 30%);
+}
+
+.admin-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
+.admin-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.admin-dialog-body h2,
+.admin-dialog-body p {
+  margin: 0;
+}
+
+.admin-dialog-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
+/* Filters above a list */
+
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+}
+
+.admin-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.admin-filters select,
+.admin-filters input {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text);
+}
+
+/* One thing in detail */
+
+.admin-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.admin-facts dt {
+  color: var(--muted);
+}
+
+.admin-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+}
+
+.card h3 {
+  margin: var(--space-2) 0 0;
+  font-size: 1rem;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 40rem) {
+  .admin-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-facts dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+.admin-search {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.admin-search input {
+  width: 13rem;
+  max-width: 100%;
+}
+
+.admin-filters label.admin-check {
+  flex-direction: row;
+  gap: var(--space-2);
+  align-items: center;
+  /* Lines up with the inputs beside it, which have a label above them. */
+  padding-bottom: 0.55rem;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.admin-check input {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+}
+
+/* Room codes are read aloud and typed by hand. */
+.admin-code-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+}
