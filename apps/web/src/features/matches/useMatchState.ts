@@ -120,7 +120,8 @@ export function useMatchState(gameId: string): MatchState {
 
   const sendAction = useCallback(
     (action: unknown) => {
-      if (!message || pending) return;
+      // Nothing can be sent while offline; the page says so, and the board waits.
+      if (!message || pending || !socket?.connected) return;
       if (
         message.autoplay?.some(
           (player) => player.playerId === message.viewerPlayerId && player.level !== null,
@@ -144,9 +145,13 @@ export function useMatchState(gameId: string): MatchState {
         if (resend && fresh?.status === 'playing') return attempt(fresh.version, resendsLeft - 1);
         setActionError(ack.error);
       };
-      void attempt(message.version, MAX_RESENDS).finally(() => setPending(false));
+      void attempt(message.version, MAX_RESENDS)
+        // The connection dropped before the answer came. Whether the move was made is told by
+        // the sync on reconnecting.
+        .catch(() => undefined)
+        .finally(() => setPending(false));
     },
-    [message, pending, send, gameId, sync],
+    [message, pending, socket, send, gameId, sync],
   );
 
   return {

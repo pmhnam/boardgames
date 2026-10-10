@@ -9,6 +9,7 @@ export const vi = {
   'nav.language': 'Ngôn ngữ',
   'connection.online': 'Trực tuyến',
   'connection.reconnecting': 'Đang kết nối lại…',
+  'connection.lost': 'Mất kết nối tới máy chủ. Đang thử kết nối lại…',
 
   'login.title': 'Đăng nhập bằng username',
   'login.intro':
@@ -246,6 +247,7 @@ export const vi = {
 
   'common.you': 'bạn',
   'common.loading': 'Đang tải…',
+  'common.close': 'Đóng',
 
   'roomPage.loading': 'Đang tải phòng…',
   'roomPage.title': 'Phòng {code}',
