@@ -7,198 +7,195 @@ import {
 } from '@bgp/game-catan';
 import { useState } from 'react';
 import { RESOURCE_LABEL } from '../layout';
-import { NO_RESOURCES, ResourceList, ResourcePicker, compact, totalOf } from './ResourcePicker';
+import { Icon } from './Icon';
+import { resourceStyle } from './ResourceChip';
+import { NO_RESOURCES, ResourcePicker, compact, totalOf } from './ResourcePicker';
 
 /** The most of one resource an offer may ask for: more than anyone is likely to hold. */
 const MAX_ASK = 9;
 
+/** Who the trade is with. UI state only. */
+type Partner = 'supply' | 'players';
+
+/**
+ * Where the viewer puts a trade together. On a wide screen it is always beside the table; on
+ * a narrow one it is a sheet over it, shown while `open`.
+ */
 export function TradePanel({
   view,
   me,
-  nameOf,
   disabled,
   sendAction,
+  open,
+  onClose,
 }: {
   view: CatanView;
   /** The viewer's seat, or null when they are only watching. */
   me: string | null;
-  nameOf(playerId: string): string;
   disabled: boolean;
   sendAction(action: CatanAction): void;
+  open: boolean;
+  onClose(): void;
 }) {
   const { legal, turn, supply } = view;
-  const { offer } = turn;
   const seat = me === null ? undefined : view.players[me];
   const hand = seat?.resources ?? NO_RESOURCES;
-  const proposing = turn.activePlayerId === me;
 
-  const [give, setGive] = useState<Resource>('brick');
-  const [receive, setReceive] = useState<Resource>('wood');
+  const [partner, setPartner] = useState<Partner>('supply');
+  const [give, setGive] = useState<Resource | null>(null);
+  const [receive, setReceive] = useState<Resource | null>(null);
   const [offered, setOffered] = useState<ResourceCounts>(NO_RESOURCES);
   const [asked, setAsked] = useState<ResourceCounts>(NO_RESOURCES);
+
+  // Someone only watching has nothing to trade; an offer on the table is shown by the board.
+  if (!seat) return null;
 
   // Never more than is held, whatever happened to the hand since it was picked.
   const giving = Object.fromEntries(
     RESOURCES.map((resource) => [resource, Math.min(offered[resource], hand[resource])]),
   ) as ResourceCounts;
-  const rate = seat?.supplyRates[give] ?? 0;
   const canTrade = !disabled && legal.canTrade;
-  const canSupplyTrade = canTrade && give !== receive && hand[give] >= rate && supply[receive] > 0;
+  const rate = give === null ? 0 : seat.supplyRates[give];
+  const canSupplyTrade =
+    canTrade &&
+    give !== null &&
+    receive !== null &&
+    give !== receive &&
+    hand[give] >= rate &&
+    supply[receive] > 0;
   const canOffer = canTrade && totalOf(giving) > 0 && totalOf(asked) > 0;
 
-  const waitingOn = view.turnOrder.filter(
-    (playerId) => playerId !== turn.activePlayerId && offer?.responses[playerId] === undefined,
+  const partnerTab = (kind: Partner, icon: 'swap' | 'handshake', label: string) => (
+    <button
+      type="button"
+      className={partner === kind ? 'catan-tab selected' : 'catan-tab'}
+      aria-pressed={partner === kind}
+      onClick={() => setPartner(kind)}
+    >
+      <Icon name={icon} />
+      {label}
+    </button>
   );
 
   return (
-    <section className="card catan-trade">
-      <h2>Trade</h2>
-
-      {offer && (
-        <div className="catan-offer">
-          <p>
-            <strong>{proposing ? 'You offer' : `${nameOf(turn.activePlayerId)} offers`}</strong>{' '}
-            <ResourceList counts={offer.give} /> for <ResourceList counts={offer.receive} />
-          </p>
-          {proposing ? (
-            <div className="row wrap">
-              {legal.accepters.map((playerId) => (
-                <button
-                  key={playerId}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => sendAction({ type: 'CONFIRM_TRADE', playerId })}
-                >
-                  Trade with {nameOf(playerId)}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="secondary"
-                disabled={disabled || !legal.canCancelTrade}
-                onClick={() => sendAction({ type: 'CANCEL_TRADE' })}
-              >
-                Withdraw offer
-              </button>
-              <span className="muted">
-                {waitingOn.length > 0
-                  ? `Waiting for ${waitingOn.map(nameOf).join(', ')}.`
-                  : legal.accepters.length === 0
-                    ? 'Everyone declined.'
-                    : 'Everyone has answered.'}
-              </span>
-            </div>
-          ) : legal.canRespond ? (
-            <div className="row wrap">
-              <button
-                type="button"
-                disabled={disabled || !legal.canAccept}
-                onClick={() =>
-                  sendAction({ type: 'RESPOND_TRADE', offerId: offer.id, accept: true })
-                }
-              >
-                Accept
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                disabled={disabled}
-                onClick={() =>
-                  sendAction({ type: 'RESPOND_TRADE', offerId: offer.id, accept: false })
-                }
-              >
-                Decline
-              </button>
-              {!legal.canAccept && <span className="muted">You do not hold those cards.</span>}
-            </div>
-          ) : (
-            me !== null &&
-            offer.responses[me] && (
-              <p className="muted">
-                You {offer.responses[me] === 'accepted' ? 'accepted' : 'declined'}. It is up to{' '}
-                {nameOf(turn.activePlayerId)} now.
-              </p>
-            )
-          )}
-        </div>
+    <section className={open ? 'card catan-trade open' : 'card catan-trade'} aria-label="Trade">
+      <header className="catan-trade-head">
+        <h2>Trade</h2>
+        <button
+          type="button"
+          className="secondary catan-sheet-close"
+          aria-label="Close trade"
+          onClick={onClose}
+        >
+          ✕
+        </button>
+      </header>
+      <div className="catan-tabs" role="group" aria-label="Who to trade with">
+        {partnerTab('supply', 'swap', 'Bank & ports')}
+        {partnerTab('players', 'handshake', 'Players')}
+      </div>
+      {!legal.canTrade && (
+        <p className="muted hint">
+          {turn.offer
+            ? 'One offer at a time: this one has to be closed first.'
+            : 'Trading opens on your own turn, once the dice are rolled.'}
+        </p>
       )}
 
-      {seat ? (
-        <>
-          <div className="catan-trade-form">
-            <span className="catan-trade-title">With the supply</span>
-            <label>
-              <span className="sr-only">Give</span>
-              <select value={give} onChange={(event) => setGive(event.target.value as Resource)}>
-                {RESOURCES.map((resource) => (
-                  <option key={resource} value={resource}>
-                    {seat.supplyRates[resource]} {RESOURCE_LABEL[resource].toLowerCase()}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span>for 1</span>
-            <label>
-              <span className="sr-only">Receive</span>
-              <select
-                value={receive}
-                onChange={(event) => setReceive(event.target.value as Resource)}
-              >
-                {RESOURCES.map((resource) => (
-                  <option key={resource} value={resource}>
-                    {RESOURCE_LABEL[resource].toLowerCase()}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              disabled={!canSupplyTrade}
-              onClick={() => sendAction({ type: 'SUPPLY_TRADE', give, receive })}
-            >
-              Trade
-            </button>
+      {partner === 'supply' ? (
+        <div className="catan-trade-form">
+          <div className="catan-trade-side">
+            <span className="catan-trade-title">You give</span>
+            <div className="catan-options" role="radiogroup" aria-label="Resource to give">
+              {RESOURCES.map((resource) => (
+                <button
+                  key={resource}
+                  type="button"
+                  role="radio"
+                  aria-checked={give === resource}
+                  aria-label={`${seat.supplyRates[resource]} ${RESOURCE_LABEL[resource].toLowerCase()}`}
+                  className="catan-option"
+                  style={resourceStyle(resource)}
+                  disabled={!canTrade || hand[resource] < seat.supplyRates[resource]}
+                  onClick={() => setGive(resource)}
+                >
+                  <Icon name={resource} />
+                  <span className="catan-option-note">{seat.supplyRates[resource]} : 1</span>
+                </button>
+              ))}
+            </div>
           </div>
-
-          <div className="catan-trade-form">
-            <span className="catan-trade-title">With the other players</span>
-            <div className="catan-trade-side">
-              <span>You give</span>
-              <ResourcePicker
-                label="Cards you give"
-                value={giving}
-                onChange={setOffered}
-                max={(resource) => (asked[resource] > 0 ? 0 : hand[resource])}
-                disabled={!canTrade}
-              />
+          <div className="catan-trade-side">
+            <span className="catan-trade-title">You get</span>
+            <div className="catan-options" role="radiogroup" aria-label="Resource to get">
+              {RESOURCES.map((resource) => (
+                <button
+                  key={resource}
+                  type="button"
+                  role="radio"
+                  aria-checked={receive === resource}
+                  aria-label={`1 ${RESOURCE_LABEL[resource].toLowerCase()}, ${supply[resource]} left in the supply`}
+                  className="catan-option"
+                  style={resourceStyle(resource)}
+                  disabled={!canTrade || resource === give || supply[resource] === 0}
+                  onClick={() => setReceive(resource)}
+                >
+                  <Icon name={resource} />
+                  <span className="catan-option-note">{supply[resource]} left</span>
+                </button>
+              ))}
             </div>
-            <div className="catan-trade-side">
-              <span>You get</span>
-              <ResourcePicker
-                label="Cards you get"
-                value={asked}
-                onChange={setAsked}
-                max={(resource) => (giving[resource] > 0 ? 0 : MAX_ASK)}
-                disabled={!canTrade}
-              />
-            </div>
-            <button
-              type="button"
-              disabled={!canOffer}
-              onClick={() =>
-                sendAction({
-                  type: 'PROPOSE_TRADE',
-                  give: compact(giving),
-                  receive: compact(asked),
-                })
+          </div>
+          <button
+            type="button"
+            disabled={!canSupplyTrade}
+            onClick={() => {
+              if (give !== null && receive !== null) {
+                sendAction({ type: 'SUPPLY_TRADE', give, receive });
               }
-            >
-              Offer
-            </button>
-          </div>
-        </>
+            }}
+          >
+            {give !== null && receive !== null && give !== receive
+              ? `Trade ${rate} ${RESOURCE_LABEL[give].toLowerCase()} for 1 ${RESOURCE_LABEL[receive].toLowerCase()}`
+              : 'Pick what to give and get'}
+          </button>
+        </div>
       ) : (
-        !offer && <p className="muted hint">No trade is on offer.</p>
+        <div className="catan-trade-form">
+          <div className="catan-trade-side">
+            <span className="catan-trade-title">You give</span>
+            <ResourcePicker
+              label="Cards you give"
+              value={giving}
+              onChange={setOffered}
+              max={(resource) => (asked[resource] > 0 ? 0 : hand[resource])}
+              disabled={!canTrade}
+            />
+          </div>
+          <div className="catan-trade-side">
+            <span className="catan-trade-title">You want</span>
+            <ResourcePicker
+              label="Cards you want"
+              value={asked}
+              onChange={setAsked}
+              max={(resource) => (giving[resource] > 0 ? 0 : MAX_ASK)}
+              disabled={!canTrade}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={!canOffer}
+            onClick={() =>
+              sendAction({
+                type: 'PROPOSE_TRADE',
+                give: compact(giving),
+                receive: compact(asked),
+              })
+            }
+          >
+            Offer to the table
+          </button>
+        </div>
       )}
     </section>
   );

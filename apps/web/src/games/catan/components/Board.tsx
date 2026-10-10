@@ -1,14 +1,15 @@
-import { hexKey, type CatanView } from '@bgp/game-catan';
-import { useMemo, type KeyboardEvent } from 'react';
+import { TERRAINS, hexKey, type CatanView, type Terrain } from '@bgp/game-catan';
+import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
 import {
   RESOURCE_FILL,
-  RESOURCE_LABEL,
+  RESOURCE_INK,
   SIZE,
-  TERRAIN_FILL,
+  TERRAIN_ART,
   TERRAIN_LABEL,
   boundsOf,
   edgePoints,
   portLabel,
+  portSpot,
   hexCentre,
   hexPoints,
   pips,
@@ -16,20 +17,52 @@ import {
   vertexPoint,
   type Point,
 } from '../layout';
+import { Glyph } from './Icon';
 
-/** Room around the island for the ports. */
-const PADDING = SIZE * 1.5;
+/** Sea around the island: enough for the ports, and no more, so the tiles stay large. */
+const PAD_X = SIZE * 1.05;
+const PAD_Y = SIZE * 0.85;
+/** How far out to sea a port's marker floats from its edge. */
+const PORT_REACH = SIZE * 0.62;
 const TOKEN_RADIUS = 13;
+/** A tile's artwork takes its top half, and its number token sits just below the middle. */
+const ART_RISE = 19;
+const TOKEN_DROP = 8;
 /** How far a road stops short of the corners at its ends, as a share of the edge. */
 const ROAD_INSET = 0.16;
-const SETTLEMENT = '-7,6 -7,-2 0,-9 7,-2 7,6';
-const CITY = '-11,7 -11,-3 -3,-3 -3,-8 3,-13 9,-8 9,7';
+const SETTLEMENT = '-7.5,7 -7.5,-1.5 0,-9 7.5,-1.5 7.5,7';
+const SETTLEMENT_ROOF = '-7.5,-1.5 0,-9 7.5,-1.5';
+const CITY = '-11,8 -11,-2 -3,-2 -3,-8 3,-14 9,-8 9,8';
+const CITY_ROOF = '-3,-8 3,-14 9,-8';
+/** The marker of a port that takes any resource: plain, where the others wear their resource. */
+const PORT_FILL = '#fbf3dc';
+const PORT_INK = '#3d2a12';
+
+/** What grows on a tile, drawn around its own middle in a tone of the tile's colour. */
+const ART: Record<Terrain, (ink: string) => ReactNode> = {
+  forest: (ink) => (
+    <>
+      <Glyph name="pine" size={20} x={-12} y={3} fill={ink} opacity={0.7} />
+      <Glyph name="pine" size={20} x={12} y={3} fill={ink} opacity={0.7} />
+      <Glyph name="pine" size={26} y={-1} fill={ink} />
+    </>
+  ),
+  hills: (ink) => <Glyph name="brick" size={31} fill={ink} />,
+  pasture: (ink) => <Glyph name="wool" size={28} fill={ink} className="catan-art-outlined" />,
+  fields: (ink) => <Glyph name="wheat" size={27} fill={ink} />,
+  mountains: (ink) => <Glyph name="peaks" size={36} fill={ink} />,
+  desert: (ink) => <Glyph name="cactus" size={30} fill={ink} />,
+};
 
 interface BoardProps {
   view: Pick<CatanView, 'board' | 'buildings' | 'roads'>;
   colors: Record<string, string>;
   /** Who owns a piece, for its tooltip. */
   nameOf(playerId: string): string;
+  /** The total of the dice this turn: the tiles it pays out on are lit. */
+  rolled?: number | null;
+  /** The viewer's own colour, shown on the places they may build. */
+  accent?: string;
   /** What the viewer may click right now. */
   vertexTargets?: readonly string[];
   edgeTargets?: readonly string[];
@@ -58,10 +91,22 @@ function clickable(label: string, onActivate: () => void) {
 
 const at = (point: Point) => `translate(${point.x.toFixed(1)} ${point.y.toFixed(1)})`;
 
+function RobberPiece() {
+  return (
+    <>
+      <ellipse className="catan-shadow" cy={11} rx={9.5} ry={2.8} />
+      <circle r={11} />
+      <Glyph name="robber" size={15} />
+    </>
+  );
+}
+
 export function Board({
   view,
   colors,
   nameOf,
+  rolled = null,
+  accent = '#ffffff',
   vertexTargets = [],
   edgeTargets = [],
   hexTargets = [],
@@ -71,7 +116,16 @@ export function Board({
   onHex,
 }: BoardProps) {
   const { hexes, ports, robber } = view.board;
-  const bounds = useMemo(() => boundsOf(hexes, PADDING), [hexes]);
+  const bounds = useMemo(() => boundsOf(hexes, PAD_X, PAD_Y), [hexes]);
+  /** Where the robber stands on a tile: over its artwork, leaving the number in sight. */
+  const robberSpot = (key: string): Point | null => {
+    const hex = hexes.find((candidate) => hexKey(candidate) === key);
+    if (!hex) return null;
+    const centre = hexCentre(hex);
+    return { x: centre.x, y: centre.y - (hex.number === null ? 0 : ART_RISE) };
+  };
+  const robberAt = robberSpot(robber);
+  const pendingAt = selectedHex !== null && selectedHex !== robber ? robberSpot(selectedHex) : null;
 
   return (
     <svg
@@ -80,29 +134,99 @@ export function Board({
       aria-label="The island"
       viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
     >
+      <defs>
+        {TERRAINS.map((terrain) => (
+          <linearGradient key={terrain} id={`catan-terrain-${terrain}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={TERRAIN_ART[terrain].light} />
+            <stop offset="1" stopColor={TERRAIN_ART[terrain].dark} />
+          </linearGradient>
+        ))}
+        <radialGradient id="catan-light" cx="0.3" cy="0.18" r="0.8">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.34" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="catan-token-face" cx="0.4" cy="0.3" r="0.85">
+          <stop offset="0" stopColor="#fffaea" />
+          <stop offset="1" stopColor="#ead9ae" />
+        </radialGradient>
+        <pattern id="catan-speckle" width="9" height="9" patternUnits="userSpaceOnUse">
+          <circle cx="2" cy="2.5" r="0.7" />
+          <circle cx="6.5" cy="6.8" r="0.55" />
+        </pattern>
+        <pattern
+          id="catan-furrows"
+          width="6"
+          height="6"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(24)"
+        >
+          <line x1="0" y1="0" x2="0" y2="6" />
+        </pattern>
+        <filter id="catan-island-shadow" x="-10%" y="-10%" width="120%" height="125%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3.5" floodColor="#07243f" floodOpacity="0.5" />
+        </filter>
+      </defs>
+
+      <g className="catan-shallows">
+        {hexes.map((hex) => (
+          <polygon key={hexKey(hex)} points={hexPoints(hexCentre(hex), SIZE + 12)} />
+        ))}
+      </g>
+      <g className="catan-coast" filter="url(#catan-island-shadow)">
+        {hexes.map((hex) => (
+          <polygon key={hexKey(hex)} points={hexPoints(hexCentre(hex), SIZE + 4)} />
+        ))}
+      </g>
+
       {hexes.map((hex) => {
         const centre = hexCentre(hex);
         const key = hexKey(hex);
-        const red = hex.number === 6 || hex.number === 8;
+        const outline = hexPoints({ x: 0, y: 0 }, SIZE - 1.2);
+        const classes = ['catan-token'];
+        if (hex.number === 6 || hex.number === 8) classes.push('red');
+        if (key === robber) classes.push('blocked');
+        else if (hex.number === rolled) classes.push('rolled');
         const description =
           hex.number === null
             ? TERRAIN_LABEL[hex.terrain]
             : `${TERRAIN_LABEL[hex.terrain]}, produces on ${hex.number}`;
         return (
-          <g key={key} className="catan-hex">
+          <g key={key} className={`catan-hex ${hex.terrain}`} transform={at(centre)}>
             <title>{key === robber ? `${description}. The robber is here.` : description}</title>
-            <polygon points={hexPoints(centre, SIZE - 1)} fill={TERRAIN_FILL[hex.terrain]} />
+            <polygon
+              className="catan-hex-ground"
+              points={outline}
+              fill={`url(#catan-terrain-${hex.terrain})`}
+            />
+            <polygon
+              className="catan-hex-texture"
+              points={outline}
+              fill={hex.terrain === 'fields' ? 'url(#catan-furrows)' : 'url(#catan-speckle)'}
+            />
+            <polygon className="catan-hex-light" points={outline} fill="url(#catan-light)" />
+            <polygon className="catan-hex-bevel" points={hexPoints({ x: 0, y: 0 }, SIZE - 3.6)} />
+            <g
+              className="catan-art"
+              transform={hex.number === null ? 'scale(1.3)' : `translate(0 ${-ART_RISE})`}
+            >
+              {ART[hex.terrain](TERRAIN_ART[hex.terrain].ink)}
+            </g>
             {hex.number !== null && (
-              <g transform={at(centre)} className={red ? 'catan-token red' : 'catan-token'}>
-                <circle r={TOKEN_RADIUS} />
-                <text y={2}>{hex.number}</text>
+              <g transform={`translate(0 ${TOKEN_DROP})`} className={classes.join(' ')}>
+                <ellipse className="catan-shadow" cy={2.2} rx={TOKEN_RADIUS} ry={TOKEN_RADIUS} />
+                <circle
+                  className="catan-token-face"
+                  r={TOKEN_RADIUS}
+                  fill="url(#catan-token-face)"
+                />
+                <text y={2.4}>{hex.number}</text>
                 {Array.from({ length: pips(hex.number) }, (_, index) => (
                   <circle
                     key={index}
                     className="catan-pip"
-                    cx={(index - (pips(hex.number as number) - 1) / 2) * 3.6}
-                    cy={8.5}
-                    r={1.1}
+                    cx={(index - (pips(hex.number as number) - 1) / 2) * 3.5}
+                    cy={8.4}
+                    r={1.15}
                   />
                 ))}
               </g>
@@ -113,22 +237,45 @@ export function Board({
 
       {ports.map((port) => {
         const [a, b] = edgePoints(port.edge);
-        const middle = towards(a, b, 0.5);
-        // Out to sea: away from the middle of the island.
-        const spot = towards(bounds.centre, middle, 1.24);
+        const spot = portSpot(port.edge, hexes, PORT_REACH);
         const label =
           port.type === 'any' ? 'Port: any 3 of a kind for 1' : `Port: 2 ${port.type} for 1`;
         return (
           <g key={port.edge} className="catan-port">
             <title>{label}</title>
-            <line x1={a.x} y1={a.y} x2={spot.x} y2={spot.y} />
-            <line x1={b.x} y1={b.y} x2={spot.x} y2={spot.y} />
+            {[a, b].map((corner, index) => (
+              <g key={index}>
+                <line className="catan-pier" x1={corner.x} y1={corner.y} x2={spot.x} y2={spot.y} />
+                <line
+                  className="catan-pier-top"
+                  x1={corner.x}
+                  y1={corner.y}
+                  x2={spot.x}
+                  y2={spot.y}
+                />
+              </g>
+            ))}
             <g transform={at(spot)}>
-              <circle r={11} fill={port.type === 'any' ? undefined : RESOURCE_FILL[port.type]} />
-              <text y={-0.5}>{portLabel(port.type)}</text>
-              <text className="catan-port-kind" y={6.5}>
-                {port.type === 'any' ? 'any' : RESOURCE_LABEL[port.type].toLowerCase()}
-              </text>
+              <ellipse className="catan-shadow" cy={1.8} rx={10.5} ry={10.5} />
+              {port.type === 'any' ? (
+                <g style={{ color: PORT_INK }}>
+                  <circle className="catan-port-buoy" r={10.5} fill={PORT_FILL} />
+                  <text className="catan-port-rate" y={1.4}>
+                    {portLabel(port.type)}
+                  </text>
+                  <text className="catan-port-kind" y={6.8}>
+                    any
+                  </text>
+                </g>
+              ) : (
+                <g style={{ color: RESOURCE_INK[port.type] }}>
+                  <circle className="catan-port-buoy" r={10.5} fill={RESOURCE_FILL[port.type]} />
+                  <Glyph name={port.type} size={11.5} y={-2.6} fill="currentColor" />
+                  <text className="catan-port-kind" y={7.2}>
+                    {portLabel(port.type)}
+                  </text>
+                </g>
+              )}
             </g>
           </g>
         );
@@ -141,7 +288,7 @@ export function Board({
           <polygon
             key={key}
             className="catan-target hex"
-            points={hexPoints(hexCentre(hex), SIZE - 6)}
+            points={hexPoints(hexCentre(hex), SIZE - 4)}
             {...clickable(`Move the robber to the ${TERRAIN_LABEL[hex.terrain]} at ${key}`, () =>
               onHex?.(key),
             )}
@@ -153,11 +300,13 @@ export function Board({
         const [a, b] = edgePoints(edge);
         const from = towards(a, b, ROAD_INSET);
         const to = towards(b, a, ROAD_INSET);
+        const line = { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
         return (
           <g key={edge} className="catan-road">
             <title>{`Road of ${nameOf(playerId)}`}</title>
-            <line className="catan-road-edge" x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
-            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={colors[playerId]} />
+            <line className="catan-road-edge" {...line} />
+            <line className="catan-road-body" {...line} stroke={colors[playerId]} />
+            <line className="catan-road-shine" {...line} />
           </g>
         );
       })}
@@ -166,6 +315,7 @@ export function Board({
         const [a, b] = edgePoints(edge);
         const from = towards(a, b, ROAD_INSET);
         const to = towards(b, a, ROAD_INSET);
+        const line = { x1: from.x, y1: from.y, x2: to.x, y2: to.y };
         return (
           <g
             key={edge}
@@ -173,54 +323,73 @@ export function Board({
             {...clickable('Build a road here', () => onEdge?.(edge))}
           >
             <line className="catan-hit" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            <line className="catan-target-edge" {...line} />
+            <line className="catan-target-bed" {...line} />
+            <line className="catan-target-core" {...line} stroke={accent} />
           </g>
         );
       })}
 
-      {Object.entries(view.buildings).map(([vertex, building]) => (
-        <g key={vertex} className="catan-building" transform={at(vertexPoint(vertex))}>
-          <title>{`${building.kind === 'city' ? 'City' : 'Settlement'} of ${nameOf(building.playerId)}`}</title>
-          <polygon
-            points={building.kind === 'city' ? CITY : SETTLEMENT}
-            fill={colors[building.playerId]}
-          />
-        </g>
-      ))}
-
-      {vertexTargets.map((vertex) => {
-        const point = vertexPoint(vertex);
-        const upgrade = view.buildings[vertex] !== undefined;
+      {Object.entries(view.buildings).map(([vertex, building]) => {
+        const city = building.kind === 'city';
         return (
-          <circle
-            key={vertex}
-            className="catan-target vertex"
-            cx={point.x}
-            cy={point.y}
-            r={upgrade ? 13 : 9}
-            {...clickable(upgrade ? 'Build a city here' : 'Build a settlement here', () =>
-              onVertex?.(vertex),
-            )}
-          />
+          <g key={vertex} className="catan-building" transform={at(vertexPoint(vertex))}>
+            <title>{`${city ? 'City' : 'Settlement'} of ${nameOf(building.playerId)}`}</title>
+            {/* Keyed by kind, so a settlement growing into a city arrives like a new piece. */}
+            <g key={building.kind} className="catan-pop">
+              <ellipse className="catan-shadow" cy={7.4} rx={city ? 12.5 : 9.5} ry={2.8} />
+              <polygon
+                className="catan-piece"
+                points={city ? CITY : SETTLEMENT}
+                fill={colors[building.playerId]}
+              />
+              <polygon className="catan-piece-shade" points={city ? CITY_ROOF : SETTLEMENT_ROOF} />
+              {city ? (
+                <>
+                  <rect className="catan-piece-shade" x={-11} y={-2} width={8} height={2.4} />
+                  <rect className="catan-piece-window" x={1.4} y={-5.4} width={3.2} height={4.4} />
+                  <rect className="catan-piece-window" x={-8.6} y={2.6} width={3.2} height={3.4} />
+                </>
+              ) : (
+                <rect className="catan-piece-window" x={-1.6} y={1.4} width={3.2} height={5.6} />
+              )}
+            </g>
+          </g>
         );
       })}
 
-      {hexes
-        .filter((hex) => hexKey(hex) === robber || hexKey(hex) === selectedHex)
-        .map((hex) => {
-          const centre = hexCentre(hex);
-          const pending = hexKey(hex) !== robber;
-          return (
-            <g
-              key={hexKey(hex)}
-              className={pending ? 'catan-robber pending' : 'catan-robber'}
-              transform={at({ x: centre.x, y: centre.y - 22 })}
-            >
-              <circle cy={-4} r={4.5} />
-              <path d="M-6 8a6 8 0 0 1 12 0z" />
-            </g>
-          );
-        })}
+      {vertexTargets.map((vertex) => {
+        const upgrade = view.buildings[vertex] !== undefined;
+        return (
+          <g
+            key={vertex}
+            className={upgrade ? 'catan-target vertex upgrade' : 'catan-target vertex'}
+            transform={at(vertexPoint(vertex))}
+            {...clickable(upgrade ? 'Build a city here' : 'Build a settlement here', () =>
+              onVertex?.(vertex),
+            )}
+          >
+            <circle className="catan-hit" r={15} />
+            <circle className="catan-target-ring" r={upgrade ? 14.5 : 8} />
+            {!upgrade && <circle className="catan-target-dot" r={4} fill={accent} />}
+          </g>
+        );
+      })}
+
+      {robberAt && (
+        // One piece that slides: its place is a style, so the move can be animated.
+        <g
+          className="catan-robber"
+          style={{ transform: `translate(${robberAt.x.toFixed(1)}px, ${robberAt.y.toFixed(1)}px)` }}
+        >
+          <RobberPiece />
+        </g>
+      )}
+      {pendingAt && (
+        <g className="catan-robber pending" transform={at(pendingAt)}>
+          <RobberPiece />
+        </g>
+      )}
     </svg>
   );
 }

@@ -1,6 +1,6 @@
 import { RESOURCES, type Resource, type ResourceCounts } from '@bgp/game-catan';
 import { RESOURCE_LABEL } from '../layout';
-import { ResourceChip } from './ResourceChip';
+import { ResourceCard, ResourceChip } from './ResourceChip';
 
 export const NO_RESOURCES: ResourceCounts = { brick: 0, wood: 0, wool: 0, wheat: 0, ore: 0 };
 
@@ -37,25 +37,27 @@ export function ResourcePicker({
         const limit = max ? max(resource) : Infinity;
         return (
           <span key={resource} className="catan-stepper">
-            <button
-              type="button"
-              className="secondary"
-              disabled={disabled || value[resource] === 0}
-              aria-label={`One ${RESOURCE_LABEL[resource].toLowerCase()} fewer`}
-              onClick={() => step(resource, -1)}
-            >
-              −
-            </button>
-            <ResourceChip resource={resource} count={value[resource]} dim={value[resource] === 0} />
-            <button
-              type="button"
-              className="secondary"
-              disabled={disabled || value[resource] >= limit}
-              aria-label={`One ${RESOURCE_LABEL[resource].toLowerCase()} more`}
-              onClick={() => step(resource, 1)}
-            >
-              +
-            </button>
+            <ResourceCard resource={resource} count={value[resource]} />
+            <span className="catan-stepper-buttons">
+              <button
+                type="button"
+                className="secondary"
+                disabled={disabled || value[resource] === 0}
+                aria-label={`One ${RESOURCE_LABEL[resource].toLowerCase()} fewer`}
+                onClick={() => step(resource, -1)}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                disabled={disabled || value[resource] >= limit}
+                aria-label={`One ${RESOURCE_LABEL[resource].toLowerCase()} more`}
+                onClick={() => step(resource, 1)}
+              >
+                +
+              </button>
+            </span>
           </span>
         );
       })}

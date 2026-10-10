@@ -7,6 +7,7 @@ import {
   type Resource,
   type Terrain,
 } from '@bgp/game-catan';
+import type { IconName } from './art/icons';
 
 export const TERRAIN_FILL: Record<Terrain, string> = {
   hills: '#c56a43',
@@ -15,6 +16,16 @@ export const TERRAIN_FILL: Record<Terrain, string> = {
   fields: '#e6c34a',
   mountains: '#8b919c',
   desert: '#dccba0',
+};
+
+/** How a tile is painted: lit from the top, with its artwork in a tone of its own colour. */
+export const TERRAIN_ART: Record<Terrain, { light: string; dark: string; ink: string }> = {
+  hills: { light: '#dc8052', dark: '#b4552f', ink: '#7d3118' },
+  forest: { light: '#4f9d5c', dark: '#2c6e3d', ink: '#164a27' },
+  pasture: { light: '#b7e07a', dark: '#86bf50', ink: '#fbf8ec' },
+  fields: { light: '#f7da6b', dark: '#e0b233', ink: '#a2760d' },
+  mountains: { light: '#aab0bb', dark: '#757c8a', ink: '#474d59' },
+  desert: { light: '#eedfb6', dark: '#d6bf86', ink: '#a48a4e' },
 };
 
 export const TERRAIN_LABEL: Record<Terrain, string> = {
@@ -57,6 +68,14 @@ export const CARD_LABEL: Record<DevelopmentCardType, string> = {
   roadBuilding: 'Road Building',
   invention: 'Invention',
   monopoly: 'Monopoly',
+};
+
+export const CARD_ICON: Record<DevelopmentCardType, IconName> = {
+  knight: 'knight',
+  victoryPoint: 'star',
+  roadBuilding: 'road',
+  invention: 'invention',
+  monopoly: 'monopoly',
 };
 
 export const CARD_HINT: Record<DevelopmentCardType, string> = {
@@ -131,23 +150,39 @@ export function towards(from: Point, to: Point, share: number): Point {
   return { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share };
 }
 
-export function boundsOf(hexes: readonly Hex[], padding: number) {
+/** The box around the island, with room left around it for the ports. */
+export function boundsOf(hexes: readonly Hex[], padX: number, padY = padX) {
   const centres = hexes.map(hexCentre);
   const xs = centres.map((centre) => centre.x);
   const ys = centres.map((centre) => centre.y);
   const halfWidth = (SIZE * SQRT3) / 2;
-  const minX = Math.min(...xs) - halfWidth - padding;
-  const minY = Math.min(...ys) - SIZE - padding;
+  const minX = Math.min(...xs) - halfWidth - padX;
+  const minY = Math.min(...ys) - SIZE - padY;
   return {
     minX,
     minY,
-    width: Math.max(...xs) + halfWidth + padding - minX,
-    height: Math.max(...ys) + SIZE + padding - minY,
+    width: Math.max(...xs) + halfWidth + padX - minX,
+    height: Math.max(...ys) + SIZE + padY - minY,
     centre: {
       x: (Math.min(...xs) + Math.max(...xs)) / 2,
       y: (Math.min(...ys) + Math.max(...ys)) / 2,
     },
   };
+}
+
+/**
+ * Where a port's marker floats: straight out to sea from the middle of its edge, away from
+ * the tile the edge belongs to.
+ */
+export function portSpot(edge: string, hexes: readonly Hex[], distance: number): Point {
+  const [a, b] = edgePoints(edge);
+  const middle = towards(a, b, 0.5);
+  const land = hexes
+    .map(hexCentre)
+    .find((centre) => Math.hypot(centre.x - middle.x, centre.y - middle.y) < SIZE);
+  if (!land) return middle;
+  const reach = Math.hypot(middle.x - land.x, middle.y - land.y);
+  return towards(land, middle, 1 + distance / reach);
 }
 
 /** How many of the 36 rolls make a number: the dots under it on its token. */

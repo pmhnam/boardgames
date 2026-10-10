@@ -5,17 +5,24 @@ import {
   type CatanView,
   type PlayableCardType,
   type Resource,
+  type ResourceCounts,
 } from '@bgp/game-catan';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { playerName, type GameViewProps } from '../types';
+import type { IconName } from './art/icons';
 import { Board } from './components/Board';
 import { CostsGuide } from './components/CostsGuide';
+import { Dice } from './components/Dice';
 import { DiscardPrompt } from './components/DiscardPrompt';
+import { Icon } from './components/Icon';
+import { OfferBanner } from './components/OfferBanner';
 import { PlayerPanel } from './components/PlayerPanel';
-import { ResourceChip } from './components/ResourceChip';
+import { ResourceCard, ResourceChip, resourceStyle } from './components/ResourceChip';
 import { NO_RESOURCES } from './components/ResourcePicker';
 import { TradePanel } from './components/TradePanel';
-import { CARD_HINT, CARD_LABEL, RESOURCE_LABEL, playerColors } from './layout';
+import { CARD_HINT, CARD_ICON, CARD_LABEL, RESOURCE_LABEL, playerColors } from './layout';
+import { useHandChange } from './useHandChange';
+import './catan.css';
 
 /** What the player is about to place on the board. UI state only. */
 type Tool = 'road' | 'settlement' | 'city';
@@ -28,6 +35,35 @@ const TOOL_HINT: Record<Tool, string> = {
   settlement: 'Pick a highlighted corner for your settlement.',
   city: 'Pick one of your settlements to make it a city.',
 };
+
+function describeCost(cost: Readonly<ResourceCounts>): string {
+  return RESOURCES.filter((resource) => cost[resource] > 0)
+    .map((resource) => `${cost[resource]} ${resource}`)
+    .join(', ');
+}
+
+/** A price as one dot per card, hollow for each card the hand is short of. */
+function CostPips({
+  cost,
+  hand,
+}: {
+  cost: Readonly<ResourceCounts>;
+  hand: Readonly<ResourceCounts>;
+}) {
+  return (
+    <span className="catan-cost" aria-hidden="true">
+      {RESOURCES.flatMap((resource) =>
+        Array.from({ length: cost[resource] }, (_, index) => (
+          <span
+            key={`${resource}-${index}`}
+            className={index < hand[resource] ? 'catan-cost-pip' : 'catan-cost-pip missing'}
+            style={resourceStyle(resource)}
+          />
+        )),
+      )}
+    </span>
+  );
+}
 
 export function CatanGameView({
   message,
@@ -50,6 +86,9 @@ export function CatanGameView({
   const [tool, setTool] = useState<Tool | null>(null);
   const [robberHex, setRobberHex] = useState<string | null>(null);
   const [cardPick, setCardPick] = useState<CardPick>(null);
+  /** The trade sheet of a narrow screen. A wide one shows the trade panel all the time. */
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const handChange = useHandChange(hand, message.version);
 
   const toolTargets: Record<Tool, string[]> = {
     road: legal.roadEdges,
@@ -64,7 +103,15 @@ export function CatanGameView({
     setRobberHex(null);
     setCardPick(null);
     if (!toolStillUsable) setTool(null);
+    if (!legal.canTrade) setTradeOpen(false);
   }, [message.version]);
+
+  useEffect(() => {
+    if (!tradeOpen) return;
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setTradeOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [tradeOpen]);
 
   const opening = turn.step === 'SETUP_SETTLEMENT' || turn.step === 'SETUP_ROAD';
   const robbing = Object.keys(legal.robberTargets).length > 0;
@@ -120,12 +167,16 @@ export function CatanGameView({
   const activeName = nameOf(turn.activePlayerId);
   const discarding = Object.keys(turn.pendingDiscards);
   const status = (() => {
-    if (!playing) return 'Game over.';
+    if (!playing) {
+      return view.winnerPlayerIds.length > 0
+        ? `${view.winnerPlayerIds.map(nameOf).join(' & ')} won the game.`
+        : 'Game over.';
+    }
     if (legal.mustDiscard > 0) return `A 7 was rolled. Discard ${legal.mustDiscard} of your cards.`;
     if (turn.step === 'DISCARD') {
       return `A 7 was rolled. Waiting for ${discarding.map(nameOf).join(', ')} to discard.`;
     }
-    if (legal.canRespond) return `${activeName} offers you a trade. Answer it under Trade.`;
+    if (legal.canRespond) return `${activeName} offers you a trade. Accept or decline it.`;
     if (!mine) {
       if (turn.offer) return `${activeName} has a trade on offer.`;
       if (turn.step === 'SETUP_SETTLEMENT') return `${activeName} is placing a settlement.`;
@@ -134,7 +185,7 @@ export function CatanGameView({
       if (turn.step === 'ROLL') return `${activeName} is about to roll.`;
       return `${activeName} is building and trading.`;
     }
-    if (turn.offer) return 'Your offer is on the table. Close it or withdraw it under Trade.';
+    if (turn.offer) return 'Your offer is on the table. Close it with a player, or withdraw it.';
     if (turn.step === 'SETUP_SETTLEMENT') return 'Place a settlement on a highlighted corner.';
     if (turn.step === 'SETUP_ROAD') return 'Place a road from that settlement.';
     if (turn.step === 'ROBBER') {
@@ -160,19 +211,24 @@ export function CatanGameView({
     cards: seat?.developmentCards?.filter((card) => card.type === type) ?? [],
   })).filter((group) => group.cards.length > 0);
 
-  const toolButton = (kind: Tool, label: string) => (
+  const toolButton = (kind: Tool, icon: IconName, label: string) => (
     <button
       type="button"
-      className={tool === kind ? 'catan-tool selected' : 'catan-tool secondary'}
+      className={tool === kind ? 'catan-build selected' : 'catan-build secondary'}
       disabled={!canAct || forced || toolTargets[kind].length === 0}
       aria-pressed={tool === kind}
+      aria-label={`${label}: costs ${describeCost(view.costs[kind])}`}
+      title={`Costs ${describeCost(view.costs[kind])}`}
       onClick={() => setTool(tool === kind ? null : kind)}
     >
-      {label}
+      <Icon name={icon} />
+      <span>{label}</span>
+      <CostPips cost={view.costs[kind]} hand={hand} />
     </button>
   );
 
-  // Always there and always the same height: whatever needs a choice right now goes here.
+  // Whatever needs a choice right now. It sits at the head of the viewer's hand, where it is
+  // always in sight; someone only watching sees it over the foot of the board.
   const prompt = (() => {
     if (seat && legal.mustDiscard > 0) {
       return (
@@ -184,10 +240,12 @@ export function CatanGameView({
         />
       );
     }
-    if (robberHex !== null) {
+    // Only while the choice is still open: the hex outlives it by a moment once it is sent.
+    const victims = robberHex === null ? undefined : legal.robberTargets[robberHex];
+    if (robberHex !== null && victims) {
       return (
         <div className="catan-prompt-body">
-          {(legal.robberTargets[robberHex] ?? []).map((victimId) => (
+          {victims.map((victimId) => (
             <button
               key={victimId}
               type="button"
@@ -231,157 +289,75 @@ export function CatanGameView({
         </div>
       );
     }
+    if (turn.offer) {
+      return (
+        <OfferBanner
+          view={view}
+          me={me}
+          nameOf={nameOf}
+          disabled={disabled}
+          sendAction={sendAction}
+        />
+      );
+    }
     return null;
   })();
 
   return (
-    <div className="stack catan">
-      <header className="catan-banner">
-        <p className="catan-turn">
-          {!playing ? 'Game over' : mine ? 'Your turn' : `${activeName}’s turn`}
-        </p>
-        <p className="muted">
-          Turn {turn.number} · first to {view.victoryPointsToWin} points ·{' '}
-          {view.developmentDeckCount} development cards left
-        </p>
-      </header>
-
+    <div className="catan">
       <div className="catan-table">
-        <div className="catan-main">
-          <section className={mine ? 'card catan-island active' : 'card catan-island'}>
-            <div className="catan-status">
-              <p className="catan-step" aria-live="polite">
-                {status}
-              </p>
-              <span
-                className="catan-dice"
-                aria-label={
-                  turn.roll ? `Rolled ${turn.roll[0]} and ${turn.roll[1]}` : 'Not rolled yet'
-                }
-              >
-                <span className="catan-die">{turn.roll?.[0] ?? '–'}</span>
-                <span className="catan-die">{turn.roll?.[1] ?? '–'}</span>
-              </span>
-            </div>
-            {seat && me !== null && (
-              <div className="catan-hand">
-                <div className="catan-chips">
-                  {RESOURCES.map((resource) => (
-                    <ResourceChip
-                      key={resource}
-                      resource={resource}
-                      count={hand[resource]}
-                      dim={hand[resource] === 0}
-                    />
-                  ))}
-                </div>
-                {heldCards.length > 0 && (
-                  <ul className="catan-cards">
-                    {heldCards.map(({ type, cards }) => {
-                      const playable =
-                        type !== 'victoryPoint' && legal.playableCards.includes(type);
-                      return (
-                        <li key={type} title={CARD_HINT[type]}>
-                          <span>
-                            {CARD_LABEL[type]}
-                            {cards.length > 1 && ` ×${cards.length}`}
-                            {cards.every((card) => card.fresh) && (
-                              <span className="muted"> (bought this turn)</span>
-                            )}
-                          </span>
-                          {type !== 'victoryPoint' && (
-                            <button
-                              type="button"
-                              className="secondary"
-                              disabled={!canAct || !playable || forced}
-                              onClick={() => playCard(type)}
-                            >
-                              Play
-                            </button>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                <div className="catan-prompt">{prompt}</div>
-                <div className="catan-actions">
-                  <button
-                    type="button"
-                    disabled={!canAct || !legal.canRoll}
-                    onClick={() => sendAction({ type: 'ROLL_DICE' })}
-                  >
-                    Roll dice
-                  </button>
-                  {toolButton('road', 'Road')}
-                  {toolButton('settlement', 'Settlement')}
-                  {toolButton('city', 'City')}
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={!canAct || !legal.canBuyDevelopmentCard}
-                    onClick={() => sendAction({ type: 'BUY_DEVELOPMENT_CARD' })}
-                  >
-                    Buy development card
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canAct || !legal.canEndTurn}
-                    onClick={() => sendAction({ type: 'END_TURN' })}
-                  >
-                    End turn
-                  </button>
-                </div>
-              </div>
-            )}
-            <Board
-              view={view}
-              colors={colors}
-              nameOf={nameOf}
-              vertexTargets={vertexTargets}
-              edgeTargets={edgeTargets}
-              hexTargets={hexTargets}
-              selectedHex={robberHex}
-              onVertex={onVertex}
-              onEdge={onEdge}
-              onHex={onHex}
-            />
-          </section>
+        <header
+          className={mine ? 'catan-status mine' : 'catan-status'}
+          style={{ '--seat': colors[turn.activePlayerId] } as CSSProperties}
+        >
+          <div className="catan-status-text">
+            <p className="catan-turn">
+              {playing && <span className="catan-seat" aria-hidden="true" />}
+              {!playing ? 'Game over' : mine ? 'Your turn' : `${activeName}’s turn`}
+              <span className="catan-turn-number">Turn {turn.number}</span>
+            </p>
+            <p className="catan-step" aria-live="polite">
+              {status}
+            </p>
+          </div>
+          <Dice roll={turn.roll} turn={turn.number} />
+        </header>
 
+        <div className="catan-side">
+          <div className="catan-players">
+            {view.turnOrder.map((playerId) => {
+              const player = view.players[playerId];
+              if (!player) return null;
+              return (
+                <PlayerPanel
+                  key={playerId}
+                  name={nameOf(playerId)}
+                  player={player}
+                  color={colors[playerId] ?? 'transparent'}
+                  target={view.victoryPointsToWin}
+                  mine={playerId === me}
+                  active={playing && turn.activePlayerId === playerId}
+                  winner={view.winnerPlayerIds.includes(playerId)}
+                  longestRoute={view.longestRoutePlayerId === playerId}
+                  largestArmy={view.largestArmyPlayerId === playerId}
+                  owes={turn.pendingDiscards[playerId] ?? 0}
+                  response={turn.offer?.responses[playerId]}
+                />
+              );
+            })}
+          </div>
           {playing && (
             <TradePanel
               view={view}
               me={me}
-              nameOf={nameOf}
               disabled={disabled}
               sendAction={sendAction}
+              open={tradeOpen}
+              onClose={() => setTradeOpen(false)}
             />
           )}
-        </div>
-
-        <div className="catan-side">
-          {view.turnOrder.map((playerId) => {
-            const player = view.players[playerId];
-            if (!player) return null;
-            return (
-              <PlayerPanel
-                key={playerId}
-                name={nameOf(playerId)}
-                player={player}
-                color={colors[playerId] ?? 'transparent'}
-                target={view.victoryPointsToWin}
-                mine={playerId === me}
-                active={playing && turn.activePlayerId === playerId}
-                winner={view.winnerPlayerIds.includes(playerId)}
-                longestRoute={view.longestRoutePlayerId === playerId}
-                largestArmy={view.largestArmyPlayerId === playerId}
-                owes={turn.pendingDiscards[playerId] ?? 0}
-                response={turn.offer?.responses[playerId]}
-              />
-            );
-          })}
-          <section className="card">
-            <h2>Supply</h2>
+          <section className="card catan-bank">
+            <h2>Bank</h2>
             <div className="catan-chips">
               {RESOURCES.map((resource) => (
                 <ResourceChip
@@ -391,12 +367,142 @@ export function CatanGameView({
                   dim={view.supply[resource] === 0}
                 />
               ))}
+              <span
+                className={
+                  view.developmentDeckCount === 0 ? 'catan-chip deck dim' : 'catan-chip deck'
+                }
+                title={`${view.developmentDeckCount} development cards left`}
+              >
+                <Icon name="card" />
+                <span className="catan-chip-count">{view.developmentDeckCount}</span>
+                <span className="sr-only">development cards left</span>
+              </span>
             </div>
+            <p className="muted hint">First to {view.victoryPointsToWin} points wins.</p>
           </section>
         </div>
+
+        <div className="catan-stage">
+          <Board
+            view={view}
+            colors={colors}
+            nameOf={nameOf}
+            rolled={turn.roll ? turn.roll[0] + turn.roll[1] : null}
+            accent={me === null ? undefined : colors[me]}
+            vertexTargets={vertexTargets}
+            edgeTargets={edgeTargets}
+            hexTargets={hexTargets}
+            selectedHex={robberHex}
+            onVertex={onVertex}
+            onEdge={onEdge}
+            onHex={onHex}
+          />
+          {prompt && !seat && <div className="catan-prompt">{prompt}</div>}
+        </div>
+
+        {seat && me !== null && (
+          <section className="card catan-dock" aria-label="Your hand and what you can do">
+            {prompt && <div className="catan-prompt">{prompt}</div>}
+            <div className="catan-hand">
+              <div className="catan-hand-cards">
+                {RESOURCES.map((resource) => (
+                  <ResourceCard
+                    key={resource}
+                    resource={resource}
+                    count={hand[resource]}
+                    change={handChange?.counts[resource]}
+                    changeKey={handChange?.key}
+                  />
+                ))}
+              </div>
+              {heldCards.length > 0 && (
+                <ul className="catan-cards">
+                  {heldCards.map(({ type, cards }) => {
+                    const playable = type !== 'victoryPoint' && legal.playableCards.includes(type);
+                    return (
+                      <li key={type} title={CARD_HINT[type]}>
+                        <Icon name={CARD_ICON[type]} />
+                        <span>
+                          {CARD_LABEL[type]}
+                          {cards.length > 1 && ` ×${cards.length}`}
+                        </span>
+                        {cards.every((card) => card.fresh) && (
+                          <span
+                            className="catan-card-fresh"
+                            title="Bought this turn: it can be played from your next turn."
+                          >
+                            new
+                          </span>
+                        )}
+                        {type !== 'victoryPoint' && (
+                          <button
+                            type="button"
+                            className="secondary"
+                            disabled={!canAct || !playable || forced}
+                            onClick={() => playCard(type)}
+                          >
+                            Play
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <div className="catan-actions">
+              <button
+                type="button"
+                className="catan-action roll"
+                disabled={!canAct || !legal.canRoll}
+                onClick={() => sendAction({ type: 'ROLL_DICE' })}
+              >
+                <Icon name="dice" />
+                Roll dice
+              </button>
+              <div className="catan-builds" role="group" aria-label="Build">
+                {toolButton('road', 'road', 'Road')}
+                {toolButton('settlement', 'settlement', 'Settlement')}
+                {toolButton('city', 'city', 'City')}
+                <button
+                  type="button"
+                  className="catan-build secondary"
+                  disabled={!canAct || !legal.canBuyDevelopmentCard}
+                  aria-label={`Buy a development card: costs ${describeCost(view.costs.developmentCard)}`}
+                  title={`Costs ${describeCost(view.costs.developmentCard)}`}
+                  onClick={() => sendAction({ type: 'BUY_DEVELOPMENT_CARD' })}
+                >
+                  <Icon name="card" />
+                  <span>Dev card</span>
+                  <CostPips cost={view.costs.developmentCard} hand={hand} />
+                </button>
+              </div>
+              {playing && (
+                <button
+                  type="button"
+                  className="secondary catan-action trade"
+                  aria-expanded={tradeOpen}
+                  onClick={() => setTradeOpen(true)}
+                >
+                  <Icon name="swap" />
+                  Trade
+                </button>
+              )}
+              <button
+                type="button"
+                className="catan-action end"
+                disabled={!canAct || !legal.canEndTurn}
+                onClick={() => sendAction({ type: 'END_TURN' })}
+              >
+                End turn
+              </button>
+            </div>
+          </section>
+        )}
       </div>
 
       <CostsGuide view={view} />
+      {tradeOpen && <div className="catan-backdrop" onClick={() => setTradeOpen(false)} />}
     </div>
   );
 }
