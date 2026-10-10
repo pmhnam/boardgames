@@ -5,12 +5,15 @@ import { useParams } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { playerName } from '../../games/types';
 import { UnsupportedGame } from '../../games/UnsupportedGame';
-import { api, errorMessage } from '../../shared/api/http';
+import { api } from '../../shared/api/http';
+import { errorText } from '../../shared/i18n/errors';
+import { useT } from '../../shared/i18n/useT';
 
 const noop = () => undefined;
 
 /** Steps through the states the server rebuilt from the seed and the action log. */
 export function ReplayPage() {
+  const t = useT();
   const { matchId = '' } = useParams();
   const [index, setIndex] = useState(0);
 
@@ -19,12 +22,12 @@ export function ReplayPage() {
     queryFn: () => api<MatchReplayDto>('GET', `/matches/${matchId}/replay`),
   });
 
-  if (replay.isLoading) return <p className="muted">Loading replay…</p>;
-  if (replay.isError || !replay.data) return <p className="error">{errorMessage(replay.error)}</p>;
+  if (replay.isLoading) return <p className="muted">{t('replay.loading')}</p>;
+  if (replay.isError || !replay.data) return <p className="error">{errorText(t, replay.error)}</p>;
 
   const { match, frames } = replay.data;
   const frame = frames[Math.min(index, frames.length - 1)];
-  if (!frame) return <p className="muted">Nothing to replay.</p>;
+  if (!frame) return <p className="muted">{t('replay.empty')}</p>;
 
   const GameComponent = getGameUi(match.gameType)?.component;
   const message: GameStateMessage = {
@@ -40,21 +43,31 @@ export function ReplayPage() {
   return (
     <div className="stack">
       <div className="card row">
-        <button type="button" disabled={index === 0} onClick={() => setIndex(0)}>
+        <button
+          type="button"
+          aria-label={t('replay.first')}
+          disabled={index === 0}
+          onClick={() => setIndex(0)}
+        >
           ⏮
         </button>
         <button type="button" disabled={index === 0} onClick={() => setIndex(index - 1)}>
-          Previous
+          {t('replay.previous')}
         </button>
         <span>
-          Move {frame.version} / {last}
+          {t('replay.move', { current: frame.version, total: last })}
           {frame.action &&
             ` · ${playerName(match.players, frame.action.playerId)}: ${frame.action.actionType}`}
         </span>
         <button type="button" disabled={index >= last} onClick={() => setIndex(index + 1)}>
-          Next
+          {t('replay.next')}
         </button>
-        <button type="button" disabled={index >= last} onClick={() => setIndex(last)}>
+        <button
+          type="button"
+          aria-label={t('replay.last')}
+          disabled={index >= last}
+          onClick={() => setIndex(last)}
+        >
           ⏭
         </button>
       </div>

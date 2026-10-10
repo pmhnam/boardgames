@@ -5,7 +5,8 @@ import { Link, useParams } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { playerName } from '../../games/types';
 import { UnsupportedGame } from '../../games/UnsupportedGame';
-import { api, errorMessage } from '../../shared/api/http';
+import { api } from '../../shared/api/http';
+import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
 import { useMatchState } from './useMatchState';
 
@@ -27,9 +28,9 @@ export function MatchPage() {
     queryFn: () => api<MatchDto>('GET', `/matches/${matchId}`),
   });
 
-  if (loadError) return <p className="error">{loadError.message}</p>;
-  if (match.isError) return <p className="error">{errorMessage(match.error)}</p>;
-  if (!message || !match.data) return <p className="muted">Loading match…</p>;
+  if (loadError) return <p className="error">{errorText(t, loadError)}</p>;
+  if (match.isError) return <p className="error">{errorText(t, match.error)}</p>;
+  if (!message || !match.data) return <p className="muted">{t('match.loading')}</p>;
 
   const definition = getGameUi(message.gameType);
   const GameComponent = definition?.component;
@@ -63,7 +64,7 @@ export function MatchPage() {
               .catch((error: unknown) =>
                 setControlRequest((current) =>
                   current?.gameId === matchId
-                    ? { gameId: matchId, pending: false, error: errorMessage(error) }
+                    ? { gameId: matchId, pending: false, error: errorText(t, error) }
                     : current,
                 ),
               );
@@ -79,17 +80,19 @@ export function MatchPage() {
             {message.status === 'abandoned'
               ? t('match.abandoned')
               : winners.length > 0
-                ? `Winner: ${winners.map((id) => playerName(match.data.players, id)).join(' & ')}`
-                : 'Match over'}
+                ? t('history.wonBy', {
+                    names: winners.map((id) => playerName(match.data.players, id)).join(' & '),
+                  })
+                : t('match.over')}
           </strong>
           <span className="row">
-            <Link to={`/rooms/${match.data.roomId}`}>Back to room</Link>
-            <Link to={`/matches/${matchId}/replay`}>Watch replay</Link>
+            <Link to={`/rooms/${match.data.roomId}`}>{t('match.backToRoom')}</Link>
+            <Link to={`/matches/${matchId}/replay`}>{t('history.replay')}</Link>
           </span>
         </div>
       )}
-      {message.viewerPlayerId === null && <p className="muted">You are watching this match.</p>}
-      {actionError && <p className="error">{actionError.message}</p>}
+      {message.viewerPlayerId === null && <p className="muted">{t('match.watching')}</p>}
+      {actionError && <p className="error">{errorText(t, actionError)}</p>}
       {GameComponent ? (
         <GameComponent
           key={matchId}

@@ -276,6 +276,18 @@ export const en: Messages = {
   'history.replay': 'Replay',
 
   'match.abandoned': 'An administrator ended this match.',
+  'match.loading': 'Loading match…',
+  'match.over': 'Match over',
+  'match.backToRoom': 'Back to room',
+  'match.watching': 'You are watching this match.',
+
+  'replay.loading': 'Loading replay…',
+  'replay.empty': 'Nothing to replay.',
+  'replay.first': 'First move',
+  'replay.previous': 'Previous',
+  'replay.next': 'Next',
+  'replay.last': 'Last move',
+  'replay.move': 'Move {current} / {total}',
 
   'error.unknown': 'Something went wrong.',
   'error.network': 'Could not reach the server. Check your connection and try again.',
@@ -296,6 +308,14 @@ export const en: Messages = {
   'error.notRoomMember': 'This person is not in the room.',
   'error.matchNotFound': 'This match could not be found.',
   'error.matchNotPlaying': 'This match is no longer in progress.',
+  'error.matchNotFinished': 'This match has not finished, so it cannot be replayed yet.',
+  'error.matchOutdated': 'This match was started under older rules and can no longer be opened.',
+  'error.replayUnavailable':
+    'The rules or config of this game have changed, so this match can no longer be replayed.',
+  'error.invalidAction': 'That move is not allowed.',
+  'error.notYourTurn': 'It is not your turn.',
+  'error.gameVersionConflict': 'The game has moved on. Try again.',
+  'error.gameControlChanged': 'The computer is playing for you. Turn that off to play yourself.',
   'error.roomNotFound': 'That room could not be found.',
   'error.roomFull': 'That room is full.',
   'error.roomNotOpen': 'That room is no longer taking players.',
