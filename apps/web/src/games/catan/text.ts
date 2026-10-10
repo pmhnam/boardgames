@@ -1,7 +1,10 @@
 import type { DevelopmentCardType, Resource, Terrain } from '@bgp/game-catan';
 import type { Locale } from '../../shared/i18n/locales';
 
-/** Everything the CATAN table says, one set per language of `shared/i18n/locales.ts`. */
+/**
+ * Everything the CATAN table says, one set per language of `shared/i18n/locales.ts`. What it
+ * explains to a newcomer on top of that is in `hints.ts`.
+ */
 
 const EN_RESOURCE: Record<Resource, string> = {
   brick: 'Brick',

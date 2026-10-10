@@ -1,8 +1,10 @@
 import type { Resource } from '@bgp/game-catan';
 import type { CSSProperties } from 'react';
+import { useHints } from '../hints';
 import { RESOURCE_FILL, RESOURCE_INK } from '../layout';
 import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
+import { HintText, Tip } from './Tip';
 
 /** The resource's own colour, for the stylesheet to paint with. */
 export function resourceStyle(resource: Resource): CSSProperties {
@@ -24,17 +26,16 @@ export function ResourceChip({
   dim?: boolean;
 }) {
   const text = useCatanText();
+  const hints = useHints();
   const label = count === undefined ? text.resource[resource] : text.amount(count, resource);
   return (
-    <span
-      className={dim ? 'catan-chip dim' : 'catan-chip'}
-      style={resourceStyle(resource)}
-      title={label}
-    >
-      <Icon name={resource} />
-      {count !== undefined && <span className="catan-chip-count">{count}</span>}
-      <span className="sr-only">{label}</span>
-    </span>
+    <Tip hint={<HintText hint={hints.resource(resource)} />}>
+      <span className={dim ? 'catan-chip dim' : 'catan-chip'} style={resourceStyle(resource)}>
+        <Icon name={resource} />
+        {count !== undefined && <span className="catan-chip-count">{count}</span>}
+        <span className="sr-only">{label}</span>
+      </span>
+    </Tip>
   );
 }
 
@@ -55,22 +56,24 @@ export function ResourceCard({
   changeKey?: number;
 }) {
   const label = useCatanText().amount(count, resource);
+  const hints = useHints();
   return (
-    <span
-      className={count === 0 ? 'catan-card-tile empty' : 'catan-card-tile'}
-      style={resourceStyle(resource)}
-      title={label}
-    >
-      <Icon name={resource} />
-      <span className="catan-card-count" aria-hidden="true">
-        {count}
-      </span>
-      <span className="sr-only">{label}</span>
-      {change !== 0 && (
-        <span key={changeKey} className={change > 0 ? 'catan-change gain' : 'catan-change loss'}>
-          {change > 0 ? `+${change}` : `−${-change}`}
+    <Tip hint={<HintText hint={hints.resource(resource)} />}>
+      <span
+        className={count === 0 ? 'catan-card-tile empty' : 'catan-card-tile'}
+        style={resourceStyle(resource)}
+      >
+        <Icon name={resource} />
+        <span className="catan-card-count" aria-hidden="true">
+          {count}
         </span>
-      )}
-    </span>
+        <span className="sr-only">{label}</span>
+        {change !== 0 && (
+          <span key={changeKey} className={change > 0 ? 'catan-change gain' : 'catan-change loss'}>
+            {change > 0 ? `+${change}` : `−${-change}`}
+          </span>
+        )}
+      </span>
+    </Tip>
   );
 }
