@@ -7,50 +7,42 @@ import {
 import type { ReactNode } from 'react';
 import scoringSideA from '../assets/scoring-side-a.webp';
 import scoringSideB from '../assets/scoring-side-b.webp';
-import { TOKEN_FILL, TOKEN_LABEL, hexPoints } from '../layout';
+import type { DiagramToken } from '../layout';
+import { useHarmoniesText } from '../useHarmoniesText';
+import { TokenStack, tokenThickness } from './TokenStack';
 
 /**
  * The illustrated reference card for each water scoring, shown beside the table below. The
  * table is the authority (it reads the engine's own numbers); the picture is the quick look.
  */
-const REFERENCE_CARD: Record<HarmoniesView['waterScoring'], { src: string; alt: string }> = {
-  river: {
-    src: scoringSideA,
-    alt: 'Illustrated scoring card for the river side: the same rules as the table beside it.',
-  },
-  islands: {
-    src: scoringSideB,
-    alt: 'Illustrated scoring card for the island side: the same rules as the table beside it.',
-  },
+const REFERENCE_CARD: Record<HarmoniesView['waterScoring'], string> = {
+  river: scoringSideA,
+  islands: scoringSideB,
 };
 
 const SIZE = 15;
-const LIFT = 6;
 const GAP = SIZE * 1.9;
 
-/** A token in a diagram; `any` stands for a cell whose colour does not matter. */
-type GuideToken = TokenColor | 'any';
-
 /** One or more stacks side by side, drawn the way they sit on the board. */
-function Stacks({ stacks, label }: { stacks: GuideToken[][]; label: string }) {
+function Stacks({ stacks, label }: { stacks: DiagramToken[][]; label: string }) {
   const tallest = Math.max(...stacks.map((stack) => stack.length));
+  const thickness = tokenThickness(SIZE);
   const width = SIZE * 2 + (stacks.length - 1) * GAP + 4;
-  const height = SIZE * 2 + (tallest - 1) * LIFT + 4;
-  const baseY = height - SIZE - 2;
+  const height = SIZE * 2 + tallest * thickness + 4;
+  const baseY = height - SIZE - thickness / 2 - 2;
 
   return (
     <svg className="guide-stacks" role="img" aria-label={label} width={width} height={height}>
       <title>{label}</title>
-      {stacks.map((stack, index) =>
-        stack.map((token, level) => (
-          <polygon
-            key={`${index}-${level}`}
-            className={token === 'any' ? 'hex-token hex-any-base' : 'hex-token'}
-            points={hexPoints(SIZE + 2 + index * GAP, baseY - level * LIFT, SIZE - 1)}
-            fill={token === 'any' ? undefined : TOKEN_FILL[token]}
-          />
-        )),
-      )}
+      {stacks.map((stack, index) => (
+        <TokenStack
+          key={index}
+          x={SIZE + 2 + index * GAP}
+          y={baseY}
+          size={SIZE - 1}
+          stack={stack}
+        />
+      ))}
     </svg>
   );
 }
@@ -61,7 +53,7 @@ function Example({
   points,
   note,
 }: {
-  stacks: GuideToken[][];
+  stacks: DiagramToken[][];
   label: string;
   points: string;
   note?: string;
@@ -86,14 +78,16 @@ function Row({ title, count, children }: { title: string; count: string; childre
   );
 }
 
-const of = (token: GuideToken, height: number): GuideToken[] =>
-  Array<GuideToken>(height).fill(token);
+const of = (token: DiagramToken, height: number): DiagramToken[] =>
+  Array<DiagramToken>(height).fill(token);
 
 /**
  * How each terrain is built and what it scores, for the map being played. Every number comes
  * from the engine's own scoring table and the match's token counts.
  */
 export function ScoringGuide({ view }: { view: HarmoniesView }) {
+  const text = useHarmoniesText();
+  const guide = text.guide;
   const rules = SCORING_RULES;
   const count = (color: TokenColor) => `×${view.tokenCounts[color]}`;
   const byHeight = (height: number) => String(rules.pointsByHeight[height] ?? 0);
@@ -103,120 +97,114 @@ export function ScoringGuide({ view }: { view: HarmoniesView }) {
   return (
     <details className="card guide">
       <summary>
-        Scoring guide <span className="muted">· {view.map.name}</span>
+        {guide.title} <span className="muted">· {view.map.name}</span>
       </summary>
 
       <div className="guide-body">
         <a
           className="guide-card"
-          href={REFERENCE_CARD[view.waterScoring].src}
+          href={REFERENCE_CARD[view.waterScoring]}
           target="_blank"
           rel="noreferrer"
-          title="Open the card at full size"
+          title={guide.openCard}
         >
           <img
-            src={REFERENCE_CARD[view.waterScoring].src}
-            alt={REFERENCE_CARD[view.waterScoring].alt}
+            src={REFERENCE_CARD[view.waterScoring]}
+            alt={guide.cardAlt[view.waterScoring]}
             loading="lazy"
           />
         </a>
         <div className="guide-table">
-          <Row title="Trees" count={`${count('leaf')} leaves, ${count('trunk')} trunks`}>
+          <Row title={guide.trees} count={guide.treeCount(count('leaf'), count('trunk'))}>
             <Example
               stacks={[of('trunk', 2)]}
-              label="Trunks with no leaves"
+              label={guide.trunksOnly}
               points="0"
-              note="no leaves yet"
+              note={guide.trunksOnlyNote}
             />
-            <Example stacks={[['leaf']]} label="Leaves alone" points={byHeight(1)} />
-            <Example
-              stacks={[['trunk', 'leaf']]}
-              label="Leaves on one trunk"
-              points={byHeight(2)}
-            />
+            <Example stacks={[['leaf']]} label={guide.leavesAlone} points={byHeight(1)} />
+            <Example stacks={[['trunk', 'leaf']]} label={guide.leavesOnOne} points={byHeight(2)} />
             <Example
               stacks={[['trunk', 'trunk', 'leaf']]}
-              label="Leaves on two trunks"
+              label={guide.leavesOnTwo}
               points={byHeight(3)}
             />
           </Row>
 
-          <Row title="Mountains" count={count('mountain')}>
+          <Row title={guide.mountains} count={count('mountain')}>
             <Example
               stacks={[of('mountain', 2)]}
-              label="A mountain with no mountain next to it"
+              label={guide.mountainAlone}
               points="0"
-              note="standing alone"
+              note={guide.mountainAloneNote}
             />
             {[1, 2, 3].map((height) => (
               <Example
                 key={height}
                 stacks={[of('mountain', height), ['mountain']]}
-                label={`A mountain ${height} high next to another mountain`}
+                label={guide.mountainNext(height)}
                 points={byHeight(height)}
-                note={height === 1 ? 'each, when next to another' : undefined}
+                note={height === 1 ? guide.mountainNextNote : undefined}
               />
             ))}
           </Row>
 
-          <Row title="Fields" count={count('field')}>
-            <Example stacks={[['field']]} label="A single field" points="0" note="standing alone" />
+          <Row title={guide.fields} count={count('field')}>
+            <Example
+              stacks={[['field']]}
+              label={guide.fieldAlone}
+              points="0"
+              note={guide.fieldAloneNote}
+            />
             <Example
               stacks={[['field'], ['field']]}
-              label="Two or more fields touching"
+              label={guide.fieldGroup}
               points={String(rules.fieldGroupPoints)}
-              note="per group of 2 or more"
+              note={guide.fieldGroupNote}
             />
           </Row>
 
-          <Row title="Buildings" count={count('building')}>
+          <Row title={guide.buildings} count={count('building')}>
             <Example
               stacks={[['any', 'building']]}
-              label="A red token on a grey, brown or red token"
+              label={guide.buildingStack}
               points="0"
-              note={`fewer than ${rules.buildingMinNeighbourColors} colours around it`}
+              note={guide.buildingFew(rules.buildingMinNeighbourColors)}
             />
             <Example
               stacks={[['any', 'building']]}
-              label="A building surrounded by three or more colours"
+              label={guide.buildingSurrounded}
               points={String(rules.buildingPoints)}
-              note={`${rules.buildingMinNeighbourColors}+ different colours around it`}
+              note={guide.buildingEnough(rules.buildingMinNeighbourColors)}
             />
-            <li className="guide-note muted">
-              A building is a red token on top of a grey, brown or red one. A red token on the
-              ground is not a building yet.
-            </li>
+            <li className="guide-note muted">{guide.buildingNote}</li>
           </Row>
 
-          <Row title="Water" count={count('water')}>
+          <Row title={guide.water} count={count('water')}>
             {view.waterScoring === 'river' ? (
               <>
                 {river.slice(1).map((points, index) => (
                   <Example
                     key={index}
                     stacks={[['water']]}
-                    label={`A river ${index + 1} long`}
+                    label={guide.riverLong(index + 1)}
                     points={String(points)}
-                    note={`${index + 1} long`}
+                    note={guide.riverLong(index + 1)}
                   />
                 ))}
                 <li className="guide-note muted">
-                  Only your longest river scores, measured between its two furthest ends. Each cell
-                  beyond {longestListed} adds {rules.riverExtraPointsPerCell}.
+                  {guide.riverNote(longestListed, rules.riverExtraPointsPerCell)}
                 </li>
               </>
             ) : (
               <>
                 <Example
                   stacks={[['any'], ['water'], ['any']]}
-                  label="Two areas of land with water between them"
+                  label={guide.island}
                   points={String(rules.islandPoints)}
-                  note="per island"
+                  note={guide.islandEach}
                 />
-                <li className="guide-note muted">
-                  An island is an area of cells, built on or empty, that water and the edge of the
-                  board cut off from the rest. A board with no water is one island.
-                </li>
+                <li className="guide-note muted">{guide.islandNote}</li>
               </>
             )}
           </Row>
@@ -224,12 +212,19 @@ export function ScoringGuide({ view }: { view: HarmoniesView }) {
       </div>
 
       <p className="guide-note muted">
-        Stacking: water and fields stay flat. Mountains go up to 3. Trunks go up to 2 and are closed
-        by leaves. Nothing can be placed on a cell that holds an animal. The pouch started with{' '}
-        {TOKEN_COLORS.map(
-          (color) => `${view.tokenCounts[color]} ${TOKEN_LABEL[color].toLowerCase()}`,
-        ).join(', ')}
-        .
+        {guide.stacking(
+          TOKEN_COLORS.map(
+            (color) => `${view.tokenCounts[color]} ${text.token[color].toLowerCase()}`,
+          ).join(', '),
+        )}
+      </p>
+      {/* The icons' licence asks for this credit wherever they are shown: see art/CREDITS.md. */}
+      <p className="guide-note muted">
+        {guide.credit} ·{' '}
+        <a href="https://game-icons.net" target="_blank" rel="noreferrer">
+          game-icons.net
+        </a>{' '}
+        (CC BY 3.0)
       </p>
     </details>
   );

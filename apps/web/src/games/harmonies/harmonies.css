@@ -1,0 +1,1184 @@
+/* Harmonies. The boards and tokens are a painted table and keep their colours in both themes;
+   the panels around them follow the app's. */
+
+.harmonies {
+  --h-accent: #2f8f4e;
+  --h-accent-text: #ffffff;
+  --h-board-1: #f6ecd0;
+  --h-board-2: #e6d6a9;
+  --h-board-line: #c9b47f;
+  --h-cell: #fcf6e3;
+  --h-cell-line: #d3c092;
+  --h-any: #c9c4b6;
+  --h-gold: #c9920a;
+  /* A table has a lot on it. On a screen wider than the page's column, it takes the room. */
+  --harmonies-width: max(100%, min(100vw - 3rem, 84rem));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: var(--harmonies-width);
+  margin-inline: calc((100% - var(--harmonies-width)) / 2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .harmonies {
+    --h-accent: #58bd78;
+    --h-accent-text: #0d1a12;
+    --h-board-1: #d6c9a4;
+    --h-board-2: #b9a97e;
+    --h-board-line: #8f7f55;
+    --h-cell: #e6dbba;
+    --h-cell-line: #a69565;
+    --h-any: #a9a597;
+    --h-gold: #f0bf45;
+  }
+}
+
+.harmonies-icon {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.18em;
+}
+
+.harmonies-trophy {
+  margin-left: 0.35rem;
+  color: var(--h-gold);
+}
+
+/* Whose turn it is, and the match's own controls. */
+
+.harmonies-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1rem;
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--h-accent) 14%, var(--surface)),
+    var(--surface) 65%
+  );
+  border: 1px solid var(--border);
+  border-left: 4px solid color-mix(in srgb, var(--h-accent) 45%, var(--border));
+  border-radius: 12px;
+}
+
+.harmonies-banner.mine {
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--h-accent) 26%, var(--surface)),
+    var(--surface) 75%
+  );
+  border-left-color: var(--h-accent);
+}
+
+.harmonies-banner p {
+  margin: 0;
+}
+
+.harmonies-turn {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.harmonies-final {
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.8rem;
+  color: var(--accent-text);
+  background: var(--danger);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.harmonies-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.9rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.harmonies-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.harmonies-tool {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.harmonies-tool:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+.harmonies-tool[aria-pressed='true'] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--h-accent) 18%, var(--surface));
+  border-color: var(--h-accent);
+}
+
+.harmonies-tool .harmonies-icon {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* What a turn uses is all on screen at once: the cards on offer down the left, the tokens
+   above the viewer's own board in the middle. Everyone else shares a narrow column. */
+.harmonies-table {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr) minmax(15rem, 19rem);
+  /* The second row takes the slack, so a tall column never pries the middle two apart. */
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'river supply side'
+    'river mine side';
+  gap: 1rem;
+  align-items: start;
+}
+
+.harmonies-supply {
+  grid-area: supply;
+}
+
+.harmonies-river {
+  grid-area: river;
+}
+
+.harmonies-mine {
+  grid-area: mine;
+}
+
+.harmonies-side {
+  display: flex;
+  grid-area: side;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* Nobody to favour when only watching: every board gets the same share. */
+.harmonies-table.watching {
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  grid-template-areas:
+    'river supply'
+    'river side';
+}
+
+.harmonies-table.watching .harmonies-side {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+/* No room for three columns: the other players go under the viewer's side of the table. */
+@media (max-width: 76rem) {
+  .harmonies-table {
+    grid-template-columns: 15.5rem minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      'river supply'
+      'river mine'
+      'side side';
+  }
+
+  .harmonies-side {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  }
+}
+
+/* One column, in the order of a turn: take tokens, place them, then look at the cards. */
+@media (max-width: 56rem) {
+  .harmonies-table,
+  .harmonies-table.watching {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      'supply'
+      'mine'
+      'river'
+      'side';
+  }
+
+  .harmonies-table.watching {
+    grid-template-areas:
+      'supply'
+      'river'
+      'side';
+  }
+
+  /* The controls keep their names for screen readers and their pictures for everyone else. */
+  .harmonies-tool span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .harmonies-tool {
+    padding: 0.45rem 0.6rem;
+  }
+}
+
+.harmonies-supply h2,
+.harmonies-river h2 {
+  margin: 0;
+}
+
+.harmonies-supply h2 .muted,
+.harmonies-river h2 .muted {
+  font-size: 0.85rem;
+}
+
+/* Tokens */
+
+.token-chip {
+  display: inline-block;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  vertical-align: middle;
+}
+
+.token-chip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.token-face,
+.token-wall {
+  stroke: rgb(0 0 0 / 0.38);
+  stroke-width: 1px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The face of the edge that looks at the viewer sits in a little more shadow. */
+.token-wall-front {
+  fill: rgb(0 0 0 / 0.14);
+}
+
+.token-rim {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.36);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.token-glyph {
+  opacity: 0.94;
+  pointer-events: none;
+}
+
+/* The lower token of a building: any of grey, brown or red. */
+.token-face.any,
+.token-wall.any {
+  fill: var(--h-any);
+  stroke-dasharray: 3 2;
+}
+
+.animal-cube-top {
+  fill: #ffe2b0;
+}
+
+.animal-cube-left {
+  fill: #f3a84f;
+}
+
+.animal-cube-right {
+  fill: #cf7d24;
+}
+
+.animal-cube polygon {
+  stroke: #6b3a0c;
+  stroke-width: 1px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.animal-cube-shadow {
+  fill: rgb(0 0 0 / 0.28);
+}
+
+/* The central board: five trays of three tokens. */
+
+.harmonies-spaces {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.6rem;
+}
+
+.central-space {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.6rem;
+  padding: 0.5rem 0.6rem;
+  background: radial-gradient(circle at 50% 35%, var(--h-board-1), var(--h-board-2));
+  border: 1px solid var(--h-board-line);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 0.14),
+    0 1px 0 rgb(255 255 255 / 0.5);
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+
+.central-space .token-chip {
+  width: 2.2rem;
+  height: 2.2rem;
+  filter: drop-shadow(0 2px 1.5px rgb(0 0 0 / 0.28));
+}
+
+.central-space:not(:disabled) {
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 0.14),
+    0 0 0 2px var(--h-accent);
+}
+
+.central-space:not(:disabled):hover,
+.central-space:not(:disabled):focus-visible {
+  background: radial-gradient(circle at 50% 35%, var(--h-board-1), var(--h-board-2));
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 0.14),
+    0 0 0 3px var(--h-accent),
+    0 6px 14px rgb(0 0 0 / 0.2);
+  transform: translateY(-3px);
+}
+
+/* A tray on someone else's turn is still there to be read. */
+.central-space:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.central-space.empty {
+  background: none;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+/* The turn: where it has got to, what to do next, what is in hand. */
+
+.harmonies-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.harmonies-mine.active .harmonies-status {
+  border-color: var(--h-accent);
+}
+
+.harmonies-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.harmonies-steps li {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.12rem 0.6rem 0.12rem 0.18rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.harmonies-step-mark {
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--border);
+  border-radius: 50%;
+}
+
+.harmonies-step-mark .harmonies-icon {
+  width: 0.85em;
+  height: 0.85em;
+  vertical-align: 0;
+}
+
+.harmonies-steps li.done .harmonies-step-mark {
+  color: var(--h-accent-text);
+  background: color-mix(in srgb, var(--h-accent) 60%, var(--border));
+}
+
+.harmonies-steps li.current {
+  font-weight: 600;
+  color: var(--text);
+  background: color-mix(in srgb, var(--h-accent) 14%, transparent);
+  border-color: var(--h-accent);
+}
+
+.harmonies-steps li.current .harmonies-step-mark {
+  color: var(--h-accent-text);
+  background: var(--h-accent);
+}
+
+/* Sized for its fullest state, so it is the same height on everyone's turn. */
+.harmonies-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+  min-height: 2.9rem;
+}
+
+.harmonies-step {
+  flex: 1 1 9rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.harmonies-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  min-height: 2.6rem;
+}
+
+.harmonies-hand > .token-chip {
+  width: 2rem;
+  height: 2rem;
+}
+
+.token-button {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.3rem 0.65rem 0.3rem 0.4rem;
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: 999px;
+}
+
+.token-button .token-chip {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.token-button:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+.token-button.selected {
+  background: color-mix(in srgb, var(--h-accent) 16%, var(--surface));
+  border-color: var(--h-accent);
+  box-shadow: 0 0 0 2px var(--h-accent);
+}
+
+.token-button.selected .token-chip {
+  transform: translateY(-2px) scale(1.08);
+}
+
+.harmonies-end {
+  color: var(--h-accent-text);
+  background: var(--h-accent);
+}
+
+.harmonies-end:not(:disabled):hover {
+  background: color-mix(in srgb, var(--h-accent) 85%, #000);
+}
+
+/* Nothing left that has to be done: ending the turn is the next thing to press. */
+.harmonies-end.ready:not(:disabled) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--h-accent) 35%, transparent);
+}
+
+/* On a narrow screen the text takes its own line, and the tokens drop their names (the chip
+   still carries one for screen readers) so a full hand and the button share the second. */
+@media (max-width: 40rem) {
+  .harmonies-status-row {
+    align-content: flex-start;
+    min-height: 6.2rem;
+  }
+
+  .harmonies-step {
+    flex-basis: 100%;
+    min-height: 2.9rem;
+  }
+
+  .harmonies-status-row .harmonies-hand {
+    flex: 1 1 auto;
+  }
+
+  .token-label {
+    display: none;
+  }
+
+  .token-button {
+    padding: 0.3rem 0.4rem;
+  }
+
+  /* Only the step being played keeps its name, so the three stay on one line. */
+  .harmonies-steps li:not(.current) {
+    padding-right: 0.18rem;
+  }
+
+  .harmonies-steps li:not(.current) .harmonies-step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* Boards */
+
+.harmonies-mine.active,
+.harmonies-player.active {
+  border-color: var(--h-accent);
+  box-shadow: 0 0 0 1px var(--h-accent);
+}
+
+.harmonies-player-name {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.harmonies-score {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.harmonies-score .muted {
+  font-size: 0.85rem;
+}
+
+.harmonies-mine-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+/* No wider than leaves the whole board on screen under the tokens and the turn bar, the board
+   being a little taller than it is wide. On a short screen it stops shrinking and scrolls. */
+.harmonies-mine-board {
+  flex: 3 1 20rem;
+  min-width: 0;
+  max-width: min(34rem, max(17rem, (100dvh - 32rem) * 0.9));
+}
+
+.harmonies-mine-side {
+  display: flex;
+  flex: 1 1 13rem;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+/* What the viewer's score is made of, right under the board that earns it. */
+.harmonies-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  justify-content: center;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.harmonies-breakdown li {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.harmonies-score-paw {
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #cf7d24;
+}
+
+.harmonies-player {
+  gap: 0.5rem;
+}
+
+/* With few players a panel can be very wide: the board stops growing before it fills a screen. */
+.harmonies-player .hex-board {
+  max-width: 26rem;
+  margin-inline: auto;
+}
+
+.hex-board {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  background: radial-gradient(circle at 32% 22%, var(--h-board-1), var(--h-board-2));
+  border: 1px solid var(--h-board-line);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 3px rgb(255 255 255 / 0.28);
+}
+
+.hex-ground {
+  fill: var(--h-cell);
+  stroke: var(--h-cell-line);
+  stroke-width: 1.2;
+}
+
+.hex-height circle {
+  fill: rgb(24 28 32 / 0.86);
+  stroke: #fff;
+  stroke-width: 1;
+}
+
+.hex-height text {
+  font-size: 9px;
+  font-weight: 700;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.hex-height {
+  pointer-events: none;
+}
+
+.hex-height.small circle {
+  stroke-width: 0.6;
+}
+
+.hex-height.small text {
+  font-size: 5px;
+}
+
+.hex.target {
+  cursor: pointer;
+  outline: none;
+}
+
+/* Where what is in hand may go: the ground lights up, and a ring marks the top of a stack. */
+.hex.target .hex-ground {
+  fill: color-mix(in srgb, var(--h-accent) 24%, var(--h-cell));
+  stroke: var(--h-accent);
+  stroke-width: 1.6;
+}
+
+.hex.target:hover .hex-ground,
+.hex.target:focus-visible .hex-ground {
+  fill: color-mix(in srgb, var(--h-accent) 42%, var(--h-cell));
+}
+
+/* A dark line under a light dashed one: the ring shows on every colour of token. */
+.hex-target-ring-under {
+  fill: none;
+  stroke: rgb(16 54 30 / 0.85);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.hex-target-ring {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.hex.target:hover .hex-target-ring,
+.hex.target:focus-visible .hex-target-ring {
+  stroke-dasharray: none;
+}
+
+/* What a click would put down. */
+.hex-ghost {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hex.target:hover .hex-ghost,
+.hex.target:focus-visible .hex-ghost {
+  opacity: 0.88;
+}
+
+/* What another player put down on their last turn stays ringed until their next one. */
+.hex-fresh-ring {
+  display: none;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.95));
+  pointer-events: none;
+}
+
+.harmonies-player .hex-fresh-ring {
+  display: inline;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .token-drop {
+    animation: harmonies-drop 0.34s cubic-bezier(0.3, 1.35, 0.5, 1) both;
+  }
+
+  .hex-target-ring {
+    animation: harmonies-march 1.2s linear infinite;
+  }
+
+  .harmonies-player .hex-fresh-ring {
+    animation: harmonies-pulse 1.1s ease-in-out 3;
+  }
+
+  .harmonies-end.ready:not(:disabled) {
+    animation: harmonies-ready 1.6s ease-in-out infinite;
+  }
+
+  .hex-ghost {
+    transition: opacity 0.1s;
+  }
+}
+
+@keyframes harmonies-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+
+  55% {
+    opacity: 1;
+  }
+}
+
+@keyframes harmonies-march {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@keyframes harmonies-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes harmonies-ready {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--h-accent) 18%, transparent);
+  }
+}
+
+/* Animal cards: every card in a row is as tall as the tallest, with its action at the foot. */
+
+.harmonies-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.animal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+  width: 8.5rem;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tint) 22%, var(--surface)),
+    var(--surface) 70%
+  );
+  border: 1px solid color-mix(in srgb, var(--tint-shade) 40%, var(--border));
+  border-radius: 10px;
+}
+
+.animal-card.selected {
+  border-color: var(--h-accent);
+  box-shadow: 0 0 0 2px var(--h-accent);
+}
+
+.animal-card-head {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.animal-card-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The animal, on a disc of the colour of the terrain it lives on. */
+.animal-portrait {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  color: #fff;
+  background: color-mix(in srgb, var(--tint-shade) 88%, #000);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 -2px 0 rgb(0 0 0 / 0.22),
+    0 0 0 2px color-mix(in srgb, var(--tint) 55%, transparent);
+}
+
+.animal-portrait .harmonies-icon {
+  width: 72%;
+  height: 72%;
+  vertical-align: 0;
+}
+
+.animal-card .habitat {
+  flex: none;
+  max-width: 100%;
+}
+
+.animal-card-action {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 0.15rem;
+}
+
+.animal-card button {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  color: #fff;
+  background: color-mix(in srgb, var(--tint-shade) 82%, #000);
+}
+
+.animal-card button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--tint-shade) 62%, #000);
+}
+
+/* A column of cards lying down. Side by side instead wherever there is the width for two. */
+.harmonies-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
+  gap: 0.5rem;
+}
+
+.animal-card.landscape {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  grid-template-areas:
+    'head head'
+    'habitat points'
+    'habitat action';
+  gap: 0.3rem 0.5rem;
+  align-items: center;
+  width: auto;
+}
+
+.animal-card.landscape .animal-card-head {
+  grid-area: head;
+}
+
+/* One width for every habitat, so the scores line up down the column. */
+.animal-card.landscape .habitat {
+  grid-area: habitat;
+  width: 100%;
+  height: 4.4rem;
+}
+
+.animal-card.landscape .card-points {
+  grid-area: points;
+}
+
+.animal-card.landscape .animal-card-action {
+  grid-area: action;
+  padding-top: 0;
+}
+
+/* As many scores per line as fit, in equal columns: five never spill differently from three. */
+.card-points {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(1.15rem, 1fr));
+  gap: 0.2rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-points li {
+  min-width: 0;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--tint-shade) 35%, var(--border));
+  border-radius: 5px;
+}
+
+/* Scores already earned are filled in; the last of them is what the card is worth now. */
+.card-points li.done {
+  color: #fff;
+  background: color-mix(in srgb, var(--tint-shade) 60%, var(--muted));
+  border-color: transparent;
+}
+
+.card-points li.done.latest {
+  background: color-mix(in srgb, var(--tint-shade) 88%, #000);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tint) 60%, transparent);
+}
+
+.harmonies-card-help summary,
+.harmonies-completed summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.harmonies-card-help p {
+  margin-top: 0.4rem;
+}
+
+.harmonies-completed .harmonies-cards {
+  margin-top: 0.5rem;
+}
+
+.animal-card.compact {
+  gap: 0.25rem;
+  width: 6.4rem;
+  padding: 0.35rem;
+  font-size: 0.76rem;
+}
+
+.animal-card.compact .animal-card-head {
+  gap: 0.25rem;
+  min-height: 1.75rem;
+}
+
+/* A long name takes a second line here rather than losing its end. */
+.animal-card.compact .animal-card-head strong {
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.animal-card.compact .animal-portrait {
+  width: 1.35rem;
+  height: 1.35rem;
+  box-shadow: none;
+}
+
+.animal-card.compact .habitat {
+  height: 50px;
+}
+
+.animal-card.compact .card-points {
+  font-size: 0.7rem;
+}
+
+/* On a phone the cards on offer are one row to swipe through, not five to scroll past. */
+@media (max-width: 56rem) {
+  .harmonies-river .harmonies-card-list {
+    display: flex;
+    gap: 0.5rem;
+    margin-inline: -1rem;
+    padding: 0.15rem 1rem 0.4rem;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 1rem;
+  }
+
+  .harmonies-river .animal-card.landscape {
+    flex: 0 0 13.25rem;
+    scroll-snap-align: start;
+  }
+}
+
+/* Scores */
+
+.harmonies-scores-scroll {
+  overflow-x: auto;
+}
+
+.harmonies-scores table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.harmonies-scores th,
+.harmonies-scores td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.harmonies-scores tbody tr:last-child th,
+.harmonies-scores tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.harmonies-scores th[scope='row'] {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.harmonies-scores th[scope='col'] {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: right;
+}
+
+.harmonies-scores th[scope='col']:first-child {
+  text-align: left;
+}
+
+.harmonies-score-head {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.harmonies-scores tr.mine {
+  background: color-mix(in srgb, var(--h-accent) 9%, transparent);
+}
+
+.harmonies-scores tr.winner th,
+.harmonies-scores tr.winner td.total {
+  color: var(--h-gold);
+}
+
+.harmonies-scores td.total {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* On a narrow screen the columns go by their pictures alone, and all seven fit. */
+@media (max-width: 48rem) {
+  .harmonies-score-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .harmonies-scores th,
+  .harmonies-scores td {
+    padding: 0.4rem 0.2rem;
+  }
+
+  .harmonies-scores th[scope='row'] {
+    white-space: normal;
+  }
+}
+
+/* Scoring guide */
+
+.guide summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.guide-row h3 {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.guide-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: flex-end;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-example {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+  font-size: 0.9rem;
+}
+
+.guide-points {
+  min-width: 1.6rem;
+  padding: 0 0.3rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.guide-note {
+  flex-basis: 100%;
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+}
+
+.guide-stacks {
+  flex: none;
+}
+
+.guide-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.guide-card {
+  flex: 0 1 18rem;
+  max-width: 100%;
+}
+
+.guide-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.guide-table {
+  flex: 1 1 20rem;
+  min-width: 0;
+}

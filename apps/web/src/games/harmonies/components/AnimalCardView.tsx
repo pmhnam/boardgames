@@ -1,14 +1,22 @@
-import type { AnimalCard, HabitatCell, TokenColor } from '@bgp/game-harmonies';
-import type { ReactNode } from 'react';
-import { TOKEN_FILL, boundsOf, hexCentre, hexPoints } from '../layout';
+import type { AnimalCard, HabitatCell } from '@bgp/game-harmonies';
+import type { CSSProperties, ReactNode } from 'react';
+import {
+  TOKEN_FILL,
+  TOKEN_SHADE,
+  animalIcon,
+  backToFront,
+  boundsOf,
+  cardTint,
+  hexCentre,
+  type DiagramToken,
+} from '../layout';
+import { useHarmoniesText } from '../useHarmoniesText';
+import { Icon } from './Icon';
+import { AnimalCube, TokenStack, stackTopY, tokenThickness } from './TokenStack';
 
 const SIZE = 13;
-/** How far each token in a stack is drawn above the one below it. */
-const LIFT = 4;
+const TOKEN = 12;
 const MAX_HEIGHT = 3;
-
-/** The lower token of a building may be a mountain, a trunk or another building token. */
-type DiagramToken = TokenColor | 'any-base';
 
 /** The tokens a habitat cell asks for, bottom to top, exactly as they must be stacked. */
 function stackOf(cell: HabitatCell): DiagramToken[] {
@@ -22,22 +30,8 @@ function stackOf(cell: HabitatCell): DiagramToken[] {
     case 'TREE':
       return [...Array<DiagramToken>(cell.height - 1).fill('trunk'), 'leaf'];
     case 'BUILDING':
-      return ['any-base', 'building'];
-  }
-}
-
-function describe(cell: HabitatCell): string {
-  switch (cell.terrain) {
-    case 'WATER':
-      return 'water';
-    case 'FIELD':
-      return 'a field';
-    case 'MOUNTAIN':
-      return `a mountain ${cell.height} high`;
-    case 'TREE':
-      return `a tree ${cell.height} high`;
-    case 'BUILDING':
-      return 'a building (a red token on a grey, brown or red one)';
+      // The lower token of a building may be a mountain, a trunk or another building token.
+      return ['any', 'building'];
   }
 }
 
@@ -48,18 +42,18 @@ export function cardTitle(card: AnimalCard): string {
 /**
  * The habitat as a small diagram. Every cell is drawn as the actual stack of tokens it needs,
  * so a two-token building or a three-token tree cannot be mistaken for a single token. The
- * marked cell is where the animal goes.
+ * cube marks where the animal goes.
  */
 function HabitatDiagram({ card }: { card: AnimalCard }) {
+  const text = useHarmoniesText();
   const { cells } = card.habitat;
-  const bounds = boundsOf(cells, SIZE, 2 + MAX_HEIGHT * LIFT);
+  const bounds = boundsOf(cells, SIZE, 2);
+  const headroom = tokenThickness(TOKEN) * (MAX_HEIGHT - 0.5) + 3;
   const slot = cells.find((cell) => cell.animalSlot);
-  const summary = `Animal on ${slot ? describe(slot) : '?'}, next to ${cells
-    .filter((cell) => !cell.animalSlot)
-    .map(describe)
-    .join(' and ')}`;
-  // Back rows first, so stacks in front overlap the ones behind.
-  const drawOrder = [...cells].sort((a, b) => hexCentre(a, SIZE).y - hexCentre(b, SIZE).y);
+  const summary = text.habitat(
+    slot ? text.habitatCell(slot) : '?',
+    cells.filter((cell) => !cell.animalSlot).map(text.habitatCell),
+  );
 
   return (
     <svg
@@ -67,30 +61,24 @@ function HabitatDiagram({ card }: { card: AnimalCard }) {
       role="img"
       aria-label={summary}
       height={72}
-      viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
+      viewBox={`${bounds.minX} ${bounds.minY - headroom} ${bounds.width} ${bounds.height + headroom}`}
     >
       <title>{summary}</title>
-      {drawOrder.map((cell) => {
+      {backToFront(cells, SIZE).map((cell) => {
         const { x, y } = hexCentre(cell, SIZE);
         const stack = stackOf(cell);
-        const topY = y - (stack.length - 1) * LIFT;
+        const topY = stackTopY(y, TOKEN, stack.length);
         return (
           <g key={`${cell.q},${cell.r}`}>
-            {stack.map((token, level) => (
-              <polygon
-                key={level}
-                className={token === 'any-base' ? 'hex-token hex-any-base' : 'hex-token'}
-                points={hexPoints(x, y - level * LIFT, SIZE - 1)}
-                fill={token === 'any-base' ? undefined : TOKEN_FILL[token]}
-              />
-            ))}
-            {cell.animalSlot && (
-              <rect className="hex-cube" x={x - 4} y={topY - 4} width={8} height={8} rx={1} />
-            )}
+            <TokenStack x={x} y={y} size={TOKEN} stack={stack} glyphs={!cell.animalSlot} />
+            {cell.animalSlot && <AnimalCube x={x} y={topY} size={4.2} />}
             {stack.length > 1 && (
-              <text className="hex-height small" x={x + 5} y={topY + 9}>
-                {stack.length}
-              </text>
+              <g className="hex-height small" aria-hidden="true">
+                <circle cx={x + TOKEN * 0.6} cy={topY + TOKEN * 0.55} r={3.6} />
+                <text x={x + TOKEN * 0.6} y={topY + TOKEN * 0.55}>
+                  {stack.length}
+                </text>
+              </g>
             )}
           </g>
         );
@@ -119,6 +107,8 @@ export function AnimalCardView({
   landscape,
   action,
 }: AnimalCardViewProps) {
+  const text = useHarmoniesText();
+  const tint = cardTint(card);
   const classes = [
     'animal-card',
     selected && 'selected',
@@ -128,14 +118,28 @@ export function AnimalCardView({
     .filter(Boolean)
     .join(' ');
   return (
-    <div className={classes}>
-      <strong title={cardTitle(card)}>{cardTitle(card)}</strong>
+    <div
+      className={classes}
+      style={{ '--tint': TOKEN_FILL[tint], '--tint-shade': TOKEN_SHADE[tint] } as CSSProperties}
+    >
+      <div className="animal-card-head">
+        <span className="animal-portrait">
+          <Icon name={animalIcon(card)} />
+        </span>
+        <strong title={cardTitle(card)}>{cardTitle(card)}</strong>
+      </div>
       <HabitatDiagram card={card} />
-      <ol className="card-points" aria-label="Points by number of animals placed">
+      <ol className="card-points" aria-label={text.cardPoints}>
         {card.pointsByAnimalsPlaced.slice(1).map((points, index) => (
           <li
             key={index}
-            className={cubesPlaced !== undefined && index < cubesPlaced ? 'done' : undefined}
+            className={
+              cubesPlaced === undefined || index >= cubesPlaced
+                ? undefined
+                : index === cubesPlaced - 1
+                  ? 'done latest'
+                  : 'done'
+            }
           >
             {points}
           </li>
