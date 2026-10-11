@@ -21,7 +21,6 @@
     "@bgp/game-splendor": "workspace:*",
     "@bgp/game-werewolf": "workspace:*",
     "@bgp/shared-types": "workspace:*",
-    "@electric-sql/pglite": "^0.5.8",
     "@nestjs/common": "^12.1.2",
     "@nestjs/core": "^12.1.2",
     "@nestjs/event-emitter": "^12.0.1",
@@ -37,6 +36,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@nestjs/cli": "^12.0.8",
     "@nestjs/schematics": "^12.0.6",
     "@nestjs/testing": "^12.1.2",

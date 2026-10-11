@@ -41,18 +41,29 @@ if ! git -C repo merge-base --is-ancestor "$sha" "origin/$BRANCH"; then
 fi
 git -C repo checkout --quiet --detach "$sha"
 
+# The images CI built for this commit, named by it.
+export IMAGE_TAG="$sha"
+
 compose() {
   docker compose --env-file "$APP_DIR/.env" -f "$APP_DIR/repo/deploy/compose.yaml" "$@"
 }
 
-echo "Building ${sha:0:7}..."
-compose build --quiet
+# CI has already built and started these images once. Building here is only the way out when
+# the registry cannot be reached or the images are not public: slower, and it takes the
+# server's processor and memory away from the matches being played.
+echo "Fetching ${sha:0:7}..."
+if ! compose pull --quiet api web; then
+  echo "Could not pull the images; building ${sha:0:7} here instead..."
+  compose build --quiet
+fi
 
 echo "Starting..."
 # --wait returns once every container reports healthy, and fails the deploy if one does not.
-compose up --detach --remove-orphans --wait
+compose up --detach --remove-orphans --no-build --wait
 
-# Drop this project's superseded images; other projects on the server are left alone.
+# Drop this project's superseded images, pulled or built; other projects are left alone.
+docker image prune --all --force \
+  --filter "label=org.opencontainers.image.source=https://github.com/pmhnam/boardgames" >/dev/null
 docker image prune --force --filter "label=com.docker.compose.project=boardgames" >/dev/null
 
 echo "Deployed ${sha:0:7}."

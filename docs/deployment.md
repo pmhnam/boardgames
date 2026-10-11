@@ -6,13 +6,25 @@ Every push to `main` that passes CI is deployed to the VPS by the `deploy` job i
 ## How it works
 
 ```text
-push to main → CI (lint, build, typecheck, test) → ssh to the server with the commit sha
-                                                        │
-                        ~/apps/boardgames/deploy.sh  ◄──┘
-                          1. fetch the repo, check the commit is on main, check it out
-                          2. docker compose build      (deploy/Dockerfile)
-                          3. docker compose up --wait  (deploy/compose.yaml)
+push to main ─┬─ check:  lint, build, typecheck, test
+              └─ images: build api + web, start the whole stack once, push to ghcr.io
+                      │
+                      ▼  both passed
+              ssh to the server with the commit sha
+                      │
+                      ▼  ~/apps/boardgames/deploy.sh
+                1. fetch the repo, check the commit is on main, check it out
+                2. docker compose pull       (the images CI built for that commit)
+                3. docker compose up --wait  (deploy/compose.yaml)
 ```
+
+The images are built in CI, not on the server: a compiler run next to live matches takes their
+processor and memory. They are named by commit, `ghcr.io/pmhnam/boardgames/api:<sha>` and
+`.../web:<sha>`, and CI starts the production stack from them once before pushing, so an image
+that cannot boot, migrate or answer through nginx never reaches the server.
+
+If the server cannot pull them, `deploy.sh` says so and builds the commit itself, as it used
+to. That is the fallback, not the plan: see step 5 of the setup.
 
 The stack is three containers: `postgres`, `api` (NestJS) and `web` (nginx serving the React
 build and forwarding `/api` and `/socket.io` to `api`). Nothing is published on the host. `web`
@@ -82,6 +94,19 @@ On the server:
 4. **Public hostname.** In the Cloudflare Zero Trust dashboard, add a public hostname to the
    tunnel pointing at `http://boardgames-web:80`.
 
+5. **Let the server pull the images.** The first run of the `Images` job creates two packages,
+   `boardgames/api` and `boardgames/web`, and GitHub makes new packages private. Either make
+   both public (profile → Packages → the package → Package settings → Change visibility; the
+   repository is public already, and the images hold nothing its source does not), or sign the
+   server in once with a token that can only read packages:
+
+   ```bash
+   echo <token with read:packages> | docker login ghcr.io -u pmhnam --password-stdin
+   ```
+
+`deploy.sh` on the server is a copy. After a change to `deploy/server-deploy.sh`, fetch it
+again with the `curl` line from step 1.
+
 ## Operating it
 
 Deploy a commit by hand, on the server:
@@ -90,7 +115,7 @@ Deploy a commit by hand, on the server:
 ~/apps/boardgames/deploy.sh <full commit sha>
 ```
 
-Roll back by deploying an older commit the same way. Note that migrations only go forward: a
+Roll back by deploying an older commit the same way: its images are still in the registry. Note that migrations only go forward: a
 rollback across a schema change needs the database handled separately.
 
 Logs and status:

@@ -1,32 +1,29 @@
+# syntax=docker/dockerfile:1
 # One build, two images: `--target api` and `--target web`.
 
 FROM node:24-alpine AS build
 RUN corepack enable
 WORKDIR /repo
 
-# Manifests first, so the dependency layer is reused until one of them changes.
+# The lockfile alone says what to download, so this layer is reused until it changes: adding a
+# game or editing a manifest does not fetch every dependency again.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/api/package.json apps/api/
-COPY apps/web/package.json apps/web/
-COPY packages/game-avalon/package.json packages/game-avalon/
-COPY packages/game-catan/package.json packages/game-catan/
-COPY packages/game-bang/package.json packages/game-bang/
-COPY packages/game-core/package.json packages/game-core/
-COPY packages/game-demo/package.json packages/game-demo/
-COPY packages/game-harmonies/package.json packages/game-harmonies/
-COPY packages/game-splendor/package.json packages/game-splendor/
-COPY packages/game-werewolf/package.json packages/game-werewolf/
-COPY packages/shared-types/package.json packages/shared-types/
-RUN pnpm install --frozen-lockfile
+RUN pnpm fetch
 
 COPY . .
+RUN pnpm install --frozen-lockfile --offline
 RUN pnpm turbo run build
 
-# The API with production dependencies only, workspace packages included.
-RUN pnpm --filter @bgp/api deploy --prod --legacy /out/api
+# The API with production dependencies only, workspace packages included. What only a developer
+# reads is left behind: sources, tests, build settings and source maps.
+RUN pnpm --filter @bgp/api deploy --prod --legacy /out/api \
+  && cd /out/api \
+  && rm -rf src test nest-cli.json drizzle.config.ts vitest.config.ts tsconfig*.json *.tsbuildinfo \
+  && find . -name '*.map' -delete
 
 
 FROM node:24-alpine AS api
+LABEL org.opencontainers.image.source="https://github.com/pmhnam/boardgames"
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /out/api ./
@@ -35,7 +32,9 @@ EXPOSE 3000
 CMD ["node", "dist/main.js"]
 
 
-FROM nginx:1.29-alpine AS web
+# The slim image is nginx without the optional modules, none of which this site uses.
+FROM nginx:1.29-alpine-slim AS web
+LABEL org.opencontainers.image.source="https://github.com/pmhnam/boardgames"
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
