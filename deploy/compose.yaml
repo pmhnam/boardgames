@@ -38,6 +38,11 @@ services:
       # Two proxies sit in front of the API: the Cloudflare Tunnel, then nginx in `web`. Sign-in
       # throttling needs the caller's own address, which is that many hops back.
       TRUST_PROXY: ${TRUST_PROXY:-2}
+      # Voice calls go from browser to browser. Left empty, they find each other through public
+      # STUN servers, which a strict network cannot get through: list TURN servers here, as
+      # JSON in the shape of WebRTC's iceServers.
+      VOICE_ICE_SERVERS: ${VOICE_ICE_SERVERS:-}
+      VOICE_MAX_PEERS: ${VOICE_MAX_PEERS:-8}
     depends_on:
       postgres:
         condition: service_healthy

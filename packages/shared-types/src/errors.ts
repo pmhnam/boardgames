@@ -36,6 +36,9 @@ export const ErrorCodes = {
   NotYourTurn: 'NOT_YOUR_TURN',
   GameVersionConflict: 'GAME_VERSION_CONFLICT',
   GameControlChanged: 'GAME_CONTROL_CHANGED',
+
+  VoiceFull: 'VOICE_FULL',
+  NotInVoice: 'NOT_IN_VOICE',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

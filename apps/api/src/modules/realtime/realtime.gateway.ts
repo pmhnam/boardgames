@@ -34,7 +34,7 @@ import {
   type MatchFinishedEvent,
   type UserDisabledEvent,
 } from '../../common/events/platform-events.js';
-import { toApiError } from '../../common/filters/app-exception.filter.js';
+import { toAck } from '../../common/realtime/ack.js';
 import { parseWithSchema } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthService } from '../auth/auth.service.js';
 import { GameActionService } from '../matches/game-action.service.js';
@@ -293,13 +293,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     return parseWithSchema(schema, body);
   }
 
-  private async ack<T>(handler: () => Promise<T>): Promise<Ack<T>> {
-    try {
-      return { ok: true, data: await handler() };
-    } catch (error) {
-      const { status, error: apiError } = toApiError(error);
-      if (status >= 500) this.logger.error(error instanceof Error ? error.stack : error);
-      return { ok: false, error: apiError };
-    }
+  private ack<T>(handler: () => Promise<T>): Promise<Ack<T>> {
+    return toAck(this.logger, handler);
   }
 }

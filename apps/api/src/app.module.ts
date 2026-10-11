@@ -11,6 +11,7 @@ import { MatchesModule } from './modules/matches/matches.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { RoomsModule } from './modules/rooms/rooms.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { VoiceModule } from './modules/voice/voice.module.js';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UsersModule } from './modules/users/users.module.js';
     RoomsModule,
     MatchesModule,
     RealtimeModule,
+    VoiceModule,
     BotsModule,
     AdminModule,
   ],

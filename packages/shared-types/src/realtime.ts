@@ -6,6 +6,10 @@ export const ClientEvents = {
   RoomLeave: 'room.leave',
   GameSync: 'game.sync',
   GameAction: 'game.action',
+  VoiceJoin: 'voice.join',
+  VoiceLeave: 'voice.leave',
+  VoiceSignal: 'voice.signal',
+  VoiceMute: 'voice.mute',
 } as const;
 
 export const ServerEvents = {
@@ -18,6 +22,10 @@ export const ServerEvents = {
   GameFinished: 'game.finished',
   PlayerConnected: 'player.connected',
   PlayerDisconnected: 'player.disconnected',
+  VoicePeerJoined: 'voice.peer-joined',
+  VoicePeerLeft: 'voice.peer-left',
+  VoicePeerMuted: 'voice.peer-muted',
+  VoiceSignal: 'voice.signal',
 } as const;
 
 /** Every client->server event is acknowledged with this envelope. */
@@ -90,3 +98,75 @@ export interface PlayerPresenceMessage {
 }
 
 export type RoomUpdatedMessage = RoomDto;
+
+// Voice. The sound itself goes from browser to browser; the server only introduces them to
+// each other, by passing on what each needs to say to the other to open that connection.
+
+/** One open connection in a room's call. A person with two tabs in the call is two of these. */
+export interface VoicePeer {
+  /** The connection's own id: what a signal is addressed to. */
+  peerId: string;
+  userId: string;
+  displayName: string;
+  muted: boolean;
+}
+
+/** Where a browser asks how to reach another through whatever network sits between them. */
+export interface VoiceIceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+export interface VoiceJoinRequest {
+  roomId: string;
+}
+
+export interface VoiceJoined {
+  roomId: string;
+  /** The joiner's own peer id. */
+  peerId: string;
+  /** Everyone already in the call. The joiner opens a connection to each of them. */
+  peers: VoicePeer[];
+  iceServers: VoiceIceServer[];
+}
+
+/** What two browsers exchange to open a connection: a session description or a candidate. */
+export type VoiceSignal =
+  | { description: { type: 'offer' | 'answer'; sdp: string } }
+  | {
+      /** Null once a side has no more to offer. */
+      candidate: {
+        candidate: string;
+        sdpMid: string | null;
+        sdpMLineIndex: number | null;
+        usernameFragment?: string | null;
+      } | null;
+    };
+
+export interface VoiceSignalRequest {
+  roomId: string;
+  toPeerId: string;
+  signal: VoiceSignal;
+}
+
+export interface VoiceSignalMessage {
+  roomId: string;
+  fromPeerId: string;
+  signal: VoiceSignal;
+}
+
+export interface VoiceMuteRequest {
+  roomId: string;
+  muted: boolean;
+}
+
+export interface VoicePeerMessage {
+  roomId: string;
+  peer: VoicePeer;
+}
+
+export interface VoicePeerLeftMessage {
+  roomId: string;
+  peerId: string;
+}

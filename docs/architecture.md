@@ -150,12 +150,32 @@ One Socket.IO connection per signed-in user, authenticated in the handshake.
 | `game.sync`     | `game.state`, `game.finished`                  |
 | `game.action`   | `game.action.accepted`, `game.action.rejected` |
 |                 | `player.connected`, `player.disconnected`      |
+| `voice.join`    | `voice.peer-joined`                            |
+| `voice.leave`   | `voice.peer-left`                              |
+| `voice.mute`    | `voice.peer-muted`                             |
+| `voice.signal`  | `voice.signal`                                 |
 
 Every client event is acknowledged with `{ ok, data | error }`. Reconnecting is simple on
 purpose: on every `connect` the client sends `game.sync` and gets the latest snapshot; nothing
 is replayed.
 
 Room mutations (join, ready, start) go over REST; the socket only carries the resulting updates.
+
+### Voice
+
+Every room has a call its members may join, from the room or from its match; it goes on while
+they move between the two. The sound never reaches the server: each browser in a call holds a
+WebRTC connection to every other one (a mesh), and `modules/voice` only does the introducing.
+It keeps, in memory, who is in which call, lets in members of the room and nobody else, and
+passes each `voice.signal` (a session description or an ICE candidate) to the one connection it
+names. Whoever joins opens the connection to each person already there.
+
+A mesh costs every participant one connection per other participant, so a call is capped
+(`VOICE_MAX_PEERS`, 8 by default); more than that needs a media server, which this does not
+have. Browsers find a way to each other through the servers in `VOICE_ICE_SERVERS`, a JSON
+list in the shape of WebRTC's `iceServers`. Left out, calls use public STUN servers, which is
+enough between most home networks and not enough behind a strict one: for that, list a TURN
+server there.
 
 ## Admin area
 
