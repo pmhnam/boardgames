@@ -175,6 +175,10 @@ export function RoomPage() {
   });
 
   const gameUi = room.data ? getGameUi(room.data.gameType) : undefined;
+  // The table is fetched while everyone is still sitting down, so the match opens at once.
+  useEffect(() => {
+    gameUi?.preload?.();
+  }, [gameUi]);
   const gameConfig = useGameConfig(
     room.data?.gameType ?? '',
     gameUi?.describeSettings !== undefined || gameUi?.SettingsForm !== undefined,

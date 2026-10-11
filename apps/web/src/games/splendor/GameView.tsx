@@ -20,6 +20,7 @@ import { TIER_LABEL, TOKEN_LABEL } from './layout';
 import { useLastMove } from './useLastMove';
 import { useTurnAlerts } from '../shared/useTurnAlerts';
 import { HeaderControls } from '../../shared/components/HeaderControls';
+import './splendor.css';
 
 const TURN_ALERTS = {
   preferenceKey: 'splendor',

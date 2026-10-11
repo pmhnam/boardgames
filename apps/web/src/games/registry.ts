@@ -1,23 +1,35 @@
+import { lazy } from 'react';
 import type { GameUiDefinition } from './types';
-import { AvalonGameView } from './avalon/GameView';
 import { AvalonSettingsForm, describeAvalonSettings } from './avalon/SettingsForm';
 import { awaitsAvalonViewer } from './avalon/turn';
-import { CatanGameView } from './catan/GameView';
 import { CatanSettingsForm, describeCatanSettings } from './catan/SettingsForm';
 import { awaitsCatanViewer } from './catan/turn';
-import { BangGameView } from './bang/GameView';
 import { awaitsBangViewer } from './bang/turn';
-import { GridClaimGameView } from './grid-claim/GameView';
 import { awaitsGridClaimViewer } from './grid-claim/turn';
-import { HarmoniesGameView } from './harmonies/GameView';
 import { HarmoniesSettingsForm, describeHarmoniesSettings } from './harmonies/SettingsForm';
 import { awaitsHarmoniesViewer } from './harmonies/turn';
-import { SplendorGameView } from './splendor/GameView';
+import { warmSplendorArt } from './splendor/assets';
 import { SplendorSettingsForm, describeSplendorSettings } from './splendor/SettingsForm';
 import { awaitsSplendorViewer } from './splendor/turn';
-import { WerewolfGameView } from './werewolf/GameView';
 import { WerewolfSettingsForm, describeWerewolfSettings } from './werewolf/SettingsForm';
 import { awaitsWerewolfViewer } from './werewolf/turn';
+
+type GameView = GameUiDefinition['component'];
+
+/**
+ * A game's table is fetched when a match of it is on its way, not with the lobby: nobody
+ * opening one game should wait for the other six.
+ */
+function onDemand(load: () => Promise<GameView>): Pick<GameUiDefinition, 'component' | 'preload'> {
+  return {
+    component: lazy(async () => ({ default: await load() })),
+    preload: () => void load(),
+  };
+}
+
+const splendorView = onDemand(() =>
+  import('./splendor/GameView').then((module) => module.SplendorGameView),
+);
 
 /** The one place the web app learns which games it can render. Add new game UIs here. */
 const definitions: GameUiDefinition[] = [
@@ -31,7 +43,7 @@ const definitions: GameUiDefinition[] = [
         en: 'Build landscapes and give animals a home.',
       },
     },
-    component: HarmoniesGameView,
+    ...onDemand(() => import('./harmonies/GameView').then((module) => module.HarmoniesGameView)),
     awaitsViewer: awaitsHarmoniesViewer,
     supportsAutoplay: true,
     SettingsForm: HarmoniesSettingsForm,
@@ -47,7 +59,11 @@ const definitions: GameUiDefinition[] = [
         en: 'Collect gems, buy cards, court the nobles.',
       },
     },
-    component: SplendorGameView,
+    component: splendorView.component,
+    preload: () => {
+      splendorView.preload?.();
+      warmSplendorArt();
+    },
     awaitsViewer: awaitsSplendorViewer,
     supportsAutoplay: true,
     SettingsForm: SplendorSettingsForm,
@@ -63,7 +79,7 @@ const definitions: GameUiDefinition[] = [
         en: 'Villagers hunt the wolves before the wolves get them.',
       },
     },
-    component: WerewolfGameView,
+    ...onDemand(() => import('./werewolf/GameView').then((module) => module.WerewolfGameView)),
     awaitsViewer: awaitsWerewolfViewer,
     SettingsForm: WerewolfSettingsForm,
     describeSettings: describeWerewolfSettings,
@@ -80,7 +96,7 @@ const definitions: GameUiDefinition[] = [
         en: 'The loyal run quests while hidden traitors sabotage them.',
       },
     },
-    component: AvalonGameView,
+    ...onDemand(() => import('./avalon/GameView').then((module) => module.AvalonGameView)),
     awaitsViewer: awaitsAvalonViewer,
     SettingsForm: AvalonSettingsForm,
     describeSettings: describeAvalonSettings,
@@ -97,7 +113,7 @@ const definitions: GameUiDefinition[] = [
         en: 'Gather resources, build roads and cities, and trade.',
       },
     },
-    component: CatanGameView,
+    ...onDemand(() => import('./catan/GameView').then((module) => module.CatanGameView)),
     awaitsViewer: awaitsCatanViewer,
     SettingsForm: CatanSettingsForm,
     describeSettings: describeCatanSettings,
@@ -114,7 +130,7 @@ const definitions: GameUiDefinition[] = [
         en: 'A Wild West shootout: who is a deputy, and who an outlaw?',
       },
     },
-    component: BangGameView,
+    ...onDemand(() => import('./bang/GameView').then((module) => module.BangGameView)),
     awaitsViewer: awaitsBangViewer,
   },
   {
@@ -128,7 +144,7 @@ const definitions: GameUiDefinition[] = [
       },
       demo: true,
     },
-    component: GridClaimGameView,
+    ...onDemand(() => import('./grid-claim/GameView').then((module) => module.GridClaimGameView)),
     awaitsViewer: awaitsGridClaimViewer,
   },
 ];

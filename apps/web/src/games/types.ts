@@ -74,6 +74,11 @@ export interface GameUiDefinition {
   // Each game narrows the view/action types itself; the platform passes them through untyped.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<GameViewProps<any, any>>;
+  /**
+   * Starts fetching what the table needs, as soon as it is known which game is coming. The
+   * component is fetched on demand; this is what keeps a match from waiting for it.
+   */
+  preload?(): void;
 }
 
 export function playerName(players: MatchPlayerDto[], playerId: string): string {

@@ -1,5 +1,5 @@
 import type { GameDefinitionDto, MatchDto, PlayerAutoplayDto } from '@bgp/shared-types';
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
@@ -27,12 +27,16 @@ export function MatchPage() {
   } | null>(null);
   const connected = useIsConnected();
   const connectionLost = useConnectionLost();
-  const status = message?.status;
+  /** Known to have ended. Before the first message it is not known either way. */
+  const over = message !== null && message.status !== 'playing';
 
-  // Refetched when the status flips so the result and room link are current.
+  // Fetched again once the match ends, so the result and room link are current. Until that
+  // answer comes the players already on screen stay there, and so does the board.
   const match = useQuery({
-    queryKey: ['match', matchId, status],
+    queryKey: ['match', matchId, over],
     queryFn: () => api<MatchDto>('GET', `/matches/${matchId}`),
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === matchId ? previous : undefined,
   });
 
   // For the game's name. Shared with the lobby, so usually already loaded.
@@ -40,6 +44,12 @@ export function MatchPage() {
     queryKey: ['games'],
     queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
   });
+
+  // Whichever of the two answers names the game first starts its table loading.
+  const gameType = message?.gameType ?? match.data?.gameType;
+  useEffect(() => {
+    if (gameType) getGameUi(gameType)?.preload?.();
+  }, [gameType]);
 
   const definition = message ? getGameUi(message.gameType) : undefined;
   const finished = message?.status !== 'playing';
@@ -125,21 +135,23 @@ export function MatchPage() {
         {message.viewerPlayerId === null && <p className="muted">{t('match.watching')}</p>}
         <div className="game-area">
           {GameComponent ? (
-            <GameComponent
-              key={matchId}
-              message={message}
-              players={match.data.players}
-              sendAction={sendAction}
-              disabled={
-                pending ||
-                finished ||
-                enabled ||
-                Boolean(controlPending) ||
-                !connected ||
-                connectionLost
-              }
-              autoplay={autoplay}
-            />
+            <Suspense fallback={<MatchSkeleton label={t('match.loading')} />}>
+              <GameComponent
+                key={matchId}
+                message={message}
+                players={match.data.players}
+                sendAction={sendAction}
+                disabled={
+                  pending ||
+                  finished ||
+                  enabled ||
+                  Boolean(controlPending) ||
+                  !connected ||
+                  connectionLost
+                }
+                autoplay={autoplay}
+              />
+            </Suspense>
           ) : (
             <UnsupportedGame gameType={message.gameType} />
           )}

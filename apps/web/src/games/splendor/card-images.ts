@@ -5,12 +5,9 @@ import {
   type Noble,
   type Tier,
 } from '@bgp/game-splendor';
+import { assetUrl as url } from './assets';
 
-const ASSET_BASE =
-  import.meta.env.VITE_SPLENDOR_ASSET_BASE_URL ||
-  'https://pub-de586e6b073f4c52aa30d3b10be6b9ed.r2.dev/splendor/base/v1';
-
-const url = (path: string) => `${ASSET_BASE.replace(/\/$/, '')}/${path}`;
+export { cardBackImageUrl } from './assets';
 
 /** Each row follows the source sheet left to right. Matched by printed bonus, points and cost. */
 const CARD_ROWS: Record<Tier, readonly (readonly string[])[]> = {
@@ -184,8 +181,4 @@ export function nobleImageUrl(noble: Noble): string | undefined {
   )
     return undefined;
   return url(path);
-}
-
-export function cardBackImageUrl(tier: Tier): string {
-  return url(`backs/level-${tier}-back.png`);
 }

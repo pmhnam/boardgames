@@ -1,6 +1,6 @@
 import type { GameStateMessage, MatchReplayDto } from '@bgp/shared-types';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { playerName } from '../../games/types';
@@ -78,7 +78,9 @@ export function ReplayPage() {
       </div>
       <div className="game-area">
         {GameComponent ? (
-          <GameComponent message={message} players={match.players} sendAction={noop} disabled />
+          <Suspense fallback={<MatchSkeleton label={t('replay.loading')} />}>
+            <GameComponent message={message} players={match.players} sendAction={noop} disabled />
+          </Suspense>
         ) : (
           <UnsupportedGame gameType={match.gameType} />
         )}
