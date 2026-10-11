@@ -22,6 +22,7 @@ import { PlayerList } from '../../shared/components/PlayerList';
 import { errorText } from '../../shared/i18n/errors';
 import { useLocale, useT } from '../../shared/i18n/useT';
 import type { MessageKey } from '../../shared/i18n/vi';
+import { useDocumentTitle } from '../../shared/useDocumentTitle';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
 import { primaryAction, startBlocker } from './room-actions';
@@ -145,6 +146,8 @@ export function RoomPage() {
     room.data?.gameType ?? '',
     gameUi?.describeSettings !== undefined || gameUi?.SettingsForm !== undefined,
   );
+
+  useDocumentTitle(room.data ? t('roomPage.title', { code: room.data.code }) : null);
 
   if (room.isLoading) return <p className="muted">{t('roomPage.loading')}</p>;
   if (room.isError || !room.data) return <p className="error">{errorText(t, room.error)}</p>;

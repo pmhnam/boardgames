@@ -8,6 +8,7 @@ import { UnsupportedGame } from '../../games/UnsupportedGame';
 import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
+import { useDocumentTitle } from '../../shared/useDocumentTitle';
 
 const noop = () => undefined;
 
@@ -21,6 +22,8 @@ export function ReplayPage() {
     queryKey: ['replay', matchId],
     queryFn: () => api<MatchReplayDto>('GET', `/matches/${matchId}/replay`),
   });
+
+  useDocumentTitle(t('history.replay'));
 
   if (replay.isLoading) return <p className="muted">{t('replay.loading')}</p>;
   if (replay.isError || !replay.data) return <p className="error">{errorText(t, replay.error)}</p>;

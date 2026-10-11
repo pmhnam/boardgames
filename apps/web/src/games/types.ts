@@ -65,6 +65,12 @@ export interface GameUiDefinition {
   resendOnConflict?: boolean;
   /** Lets a seated player hand control to the server's bot. */
   supportsAutoplay?: boolean;
+  /**
+   * Whether the match is waiting on this seated viewer, so the page can say so outside the
+   * board. Read from the view the server sent; left out, the page never says it.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  awaitsViewer?(view: any, viewerPlayerId: string): boolean;
   // Each game narrows the view/action types itself; the platform passes them through untyped.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: ComponentType<GameViewProps<any, any>>;

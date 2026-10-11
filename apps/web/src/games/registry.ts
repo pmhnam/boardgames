@@ -1,16 +1,23 @@
 import type { GameUiDefinition } from './types';
 import { AvalonGameView } from './avalon/GameView';
 import { AvalonSettingsForm, describeAvalonSettings } from './avalon/SettingsForm';
+import { awaitsAvalonViewer } from './avalon/turn';
 import { CatanGameView } from './catan/GameView';
 import { CatanSettingsForm, describeCatanSettings } from './catan/SettingsForm';
+import { awaitsCatanViewer } from './catan/turn';
 import { BangGameView } from './bang/GameView';
+import { awaitsBangViewer } from './bang/turn';
 import { GridClaimGameView } from './grid-claim/GameView';
+import { awaitsGridClaimViewer } from './grid-claim/turn';
 import { HarmoniesGameView } from './harmonies/GameView';
 import { HarmoniesSettingsForm, describeHarmoniesSettings } from './harmonies/SettingsForm';
+import { awaitsHarmoniesViewer } from './harmonies/turn';
 import { SplendorGameView } from './splendor/GameView';
 import { SplendorSettingsForm, describeSplendorSettings } from './splendor/SettingsForm';
+import { awaitsSplendorViewer } from './splendor/turn';
 import { WerewolfGameView } from './werewolf/GameView';
 import { WerewolfSettingsForm, describeWerewolfSettings } from './werewolf/SettingsForm';
+import { awaitsWerewolfViewer } from './werewolf/turn';
 
 /** The one place the web app learns which games it can render. Add new game UIs here. */
 const definitions: GameUiDefinition[] = [
@@ -25,6 +32,7 @@ const definitions: GameUiDefinition[] = [
       },
     },
     component: HarmoniesGameView,
+    awaitsViewer: awaitsHarmoniesViewer,
     supportsAutoplay: true,
     SettingsForm: HarmoniesSettingsForm,
     describeSettings: describeHarmoniesSettings,
@@ -40,6 +48,7 @@ const definitions: GameUiDefinition[] = [
       },
     },
     component: SplendorGameView,
+    awaitsViewer: awaitsSplendorViewer,
     supportsAutoplay: true,
     SettingsForm: SplendorSettingsForm,
     describeSettings: describeSplendorSettings,
@@ -55,6 +64,7 @@ const definitions: GameUiDefinition[] = [
       },
     },
     component: WerewolfGameView,
+    awaitsViewer: awaitsWerewolfViewer,
     SettingsForm: WerewolfSettingsForm,
     describeSettings: describeWerewolfSettings,
     // Nights and votes are everyone acting at once.
@@ -71,6 +81,7 @@ const definitions: GameUiDefinition[] = [
       },
     },
     component: AvalonGameView,
+    awaitsViewer: awaitsAvalonViewer,
     SettingsForm: AvalonSettingsForm,
     describeSettings: describeAvalonSettings,
     // Everyone votes on a team, and plays quest cards, at once.
@@ -87,6 +98,7 @@ const definitions: GameUiDefinition[] = [
       },
     },
     component: CatanGameView,
+    awaitsViewer: awaitsCatanViewer,
     SettingsForm: CatanSettingsForm,
     describeSettings: describeCatanSettings,
     // Hands are discarded to a 7, and a trade offer is answered, by several players at once.
@@ -103,6 +115,7 @@ const definitions: GameUiDefinition[] = [
       },
     },
     component: BangGameView,
+    awaitsViewer: awaitsBangViewer,
   },
   {
     gameType: 'grid-claim',
@@ -116,6 +129,7 @@ const definitions: GameUiDefinition[] = [
       demo: true,
     },
     component: GridClaimGameView,
+    awaitsViewer: awaitsGridClaimViewer,
   },
 ];
 
