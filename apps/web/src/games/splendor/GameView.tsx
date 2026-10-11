@@ -1,22 +1,13 @@
-import {
-  TIERS,
-  TOKEN_COLORS,
-  type GemColor,
-  type SplendorAction,
-  type SplendorView,
-  type Tier,
-  type TokenColor,
-  type TokenCounts,
-} from '@bgp/game-splendor';
+import { TIERS, type SplendorAction, type SplendorView, type Tier } from '@bgp/game-splendor';
 import { useEffect, useState } from 'react';
 import { playerName, type GameViewProps } from '../types';
 import { Bank } from './components/Bank';
 import { CardSlot } from './components/CardActions';
 import { CardBack, DevCardView, describeMissing } from './components/DevCard';
-import { GemToken } from './components/GemToken';
 import { NobleTile } from './components/NobleTile';
 import { PlayerPanel } from './components/PlayerPanel';
-import { TIER_LABEL, TOKEN_LABEL } from './layout';
+import { ReturnPrompt } from './components/ReturnPrompt';
+import { TIER_LABEL } from './layout';
 import { useLastMove } from './useLastMove';
 import { useTurnAlerts } from '../shared/useTurnAlerts';
 import { HeaderControls } from '../../shared/components/HeaderControls';
@@ -29,10 +20,12 @@ const TURN_ALERTS = {
 };
 
 /** The card or deck the player has picked and is about to buy or reserve. UI state only. */
-type Selection = { kind: 'card'; cardId: string } | { kind: 'deck'; tier: Tier } | null;
+type Selection = { kind: 'card'; cardId: string } | { kind: 'deck'; tier: Tier };
 
 /** The printed table has the dearest cards on top. */
 const ROWS = [...TIERS].reverse();
+
+const NO_SHORTFALLS: SplendorView['shortfalls'] = {};
 
 export function SplendorGameView({
   message,
@@ -46,7 +39,11 @@ export function SplendorGameView({
   const { legal, turn } = view;
   const playing = view.phase === 'PLAYING';
   const mineTurn = playing && me !== null && turn.activePlayerId === me;
-  const isMyTurn = !disabled && !autoplay?.enabled && !autoplay?.pending && mineTurn;
+  /** The viewer's own move to make, rather than the server's bot making it for them. */
+  const myMove = mineTurn && !autoplay?.enabled;
+  // Whether a click would be taken right now. What is shown goes by `myMove` instead, so
+  // nothing flickers while an action is in flight.
+  const isMyTurn = myMove && !disabled && !autoplay?.pending;
   const alerts = useTurnAlerts(
     {
       gameId: message.gameId,
@@ -61,24 +58,42 @@ export function SplendorGameView({
   const interactive = mine !== undefined && playing;
   const lastMove = useLastMove(message);
 
-  const [picked, setPicked] = useState<GemColor[]>([]);
-  const [returning, setReturning] = useState<Partial<TokenCounts>>({});
-  const [selection, setSelection] = useState<Selection>(null);
+  /**
+   * What the player has in hand, and the state it is put down after: the one their own action
+   * was sent in. Someone else's move leaves it in hand, as long as it is still on the table.
+   */
+  const [held, setHeld] = useState<{ pick: Selection; until?: number } | null>(null);
+  const stillThere = (pick: Selection) =>
+    pick.kind === 'deck'
+      ? view.deckCounts[pick.tier] > 0
+      : TIERS.some((tier) => view.market[tier].some((card) => card?.id === pick.cardId)) ||
+        mine?.reserved.some((entry) => !entry.hidden && entry.card.id === pick.cardId) === true;
+  const selection: Selection | null =
+    held !== null &&
+    (held.until === undefined || held.until === message.version) &&
+    stillThere(held.pick)
+      ? held.pick
+      : null;
+  const select = (pick: Selection | null) => setHeld(pick && { pick });
 
-  // What was picked only makes sense for the state it was picked in.
-  useEffect(() => {
-    setPicked([]);
-    setReturning({});
-    setSelection(null);
-  }, [message.version]);
+  /** The action last sent, and the state it was sent in: its button is busy until answered. */
+  const [sent, setSent] = useState<{ version: number; key: string } | null>(null);
+  const act = (key: string, action: SplendorAction) => {
+    setSent({ version: message.version, key });
+    setHeld((current) => current && { ...current, until: message.version });
+    sendAction(action);
+  };
+  const busy = (key: string) =>
+    (disabled && sent?.version === message.version && sent.key === key) || undefined;
 
   // The actions sit under the selected card; Escape or a click elsewhere puts it down.
+  const holding = selection !== null;
   useEffect(() => {
-    if (selection === null) return;
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setSelection(null);
+    if (!holding) return;
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setHeld(null);
     const onPointer = (event: PointerEvent) => {
       if (!(event.target instanceof Element) || !event.target.closest('.splendor-slot')) {
-        setSelection(null);
+        setHeld(null);
       }
     };
     document.addEventListener('keydown', onKey);
@@ -87,19 +102,13 @@ export function SplendorGameView({
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('pointerdown', onPointer);
     };
-  }, [selection]);
-
-  const returnCount = TOKEN_COLORS.reduce((sum, color) => sum + (returning[color] ?? 0), 0);
-  const giveBack = (color: TokenColor, delta: 1 | -1) =>
-    setReturning((current) => ({ ...current, [color]: (current[color] ?? 0) + delta }));
+  }, [holding]);
 
   const selectedCardId = selection?.kind === 'card' ? selection.cardId : null;
+  const selectedTier = selection?.kind === 'deck' ? selection.tier : null;
   const toggleCard = (cardId: string) =>
-    setSelection(selectedCardId === cardId ? null : { kind: 'card', cardId });
-  const toggleDeck = (tier: Tier) =>
-    setSelection(
-      selection?.kind === 'deck' && selection.tier === tier ? null : { kind: 'deck', tier },
-    );
+    select(selectedCardId === cardId ? null : { kind: 'card', cardId });
+  const toggleDeck = (tier: Tier) => select(selectedTier === tier ? null : { kind: 'deck', tier });
   const reserveLabel = `Reserve${view.bank.gold > 0 ? ' (+1 gold)' : ''}`;
 
   /** The buttons under a selected card. What they allow is the engine's call, via `legal`. */
@@ -116,7 +125,8 @@ export function SplendorGameView({
         <button
           type="button"
           disabled={!canBuy}
-          onClick={() => sendAction({ type: 'BUY_CARD', cardId })}
+          aria-busy={busy(`buy:${cardId}`)}
+          onClick={() => act(`buy:${cardId}`, { type: 'BUY_CARD', cardId })}
         >
           Buy
         </button>
@@ -125,7 +135,8 @@ export function SplendorGameView({
             type="button"
             className="secondary"
             disabled={!isMyTurn || !legal.reservable.includes(cardId)}
-            onClick={() => sendAction({ type: 'RESERVE_CARD', cardId })}
+            aria-busy={busy(`reserve:${cardId}`)}
+            onClick={() => act(`reserve:${cardId}`, { type: 'RESERVE_CARD', cardId })}
           >
             {reserveLabel}
           </button>
@@ -148,7 +159,7 @@ export function SplendorGameView({
         active={playing && turn.activePlayerId === playerId}
         winner={view.winnerPlayerIds.includes(playerId)}
         lastMove={lastMove?.playerId === playerId ? lastMove.text : undefined}
-        shortfalls={own ? view.shortfalls : {}}
+        shortfalls={own ? view.shortfalls : NO_SHORTFALLS}
         selectedCardId={own ? selectedCardId : null}
         onSelectCard={own && interactive ? toggleCard : undefined}
         cardActions={own && selectedCardId ? cardActions(selectedCardId, false) : undefined}
@@ -211,52 +222,18 @@ export function SplendorGameView({
         </>
       )}
 
-      {isMyTurn && mine && legal.mustReturn > 0 && (
-        <section className="card splendor-prompt">
-          <h2>
-            Give back {legal.mustReturn} {legal.mustReturn === 1 ? 'token' : 'tokens'}
-          </h2>
-          <p className="muted splendor-hint">You may keep 10 at most. Pick the ones to return.</p>
-          <div className="row wrap">
-            {TOKEN_COLORS.filter((color) => mine.tokens[color] > 0).map((color) => {
-              const given = returning[color] ?? 0;
-              return (
-                <span key={color} className="splendor-stepper">
-                  <button
-                    type="button"
-                    className="secondary"
-                    aria-label={`Keep one more ${TOKEN_LABEL[color]}`}
-                    disabled={given === 0}
-                    onClick={() => giveBack(color, -1)}
-                  >
-                    −
-                  </button>
-                  <GemToken color={color} count={given} />
-                  <span className="muted">of {mine.tokens[color]}</span>
-                  <button
-                    type="button"
-                    className="secondary"
-                    aria-label={`Return one ${TOKEN_LABEL[color]}`}
-                    disabled={given >= mine.tokens[color] || returnCount >= legal.mustReturn}
-                    onClick={() => giveBack(color, 1)}
-                  >
-                    +
-                  </button>
-                </span>
-              );
-            })}
-            <button
-              type="button"
-              disabled={returnCount !== legal.mustReturn}
-              onClick={() => sendAction({ type: 'RETURN_GEMS', tokens: returning })}
-            >
-              Return {returnCount}/{legal.mustReturn}
-            </button>
-          </div>
-        </section>
+      {myMove && mine && legal.mustReturn > 0 && (
+        <ReturnPrompt
+          key={message.version}
+          tokens={mine.tokens}
+          mustReturn={legal.mustReturn}
+          canAct={isMyTurn}
+          busy={busy('return')}
+          onReturn={(tokens) => act('return', { type: 'RETURN_GEMS', tokens })}
+        />
       )}
 
-      {isMyTurn && legal.nobleChoices.length > 0 && (
+      {myMove && legal.nobleChoices.length > 0 && (
         <section className="card splendor-prompt">
           <h2>Two nobles want to visit: choose one</h2>
           <div className="row wrap">
@@ -269,7 +246,11 @@ export function SplendorGameView({
                   action={
                     <button
                       type="button"
-                      onClick={() => sendAction({ type: 'CHOOSE_NOBLE', nobleId: noble.id })}
+                      disabled={!isMyTurn}
+                      aria-busy={busy(`noble:${noble.id}`)}
+                      onClick={() =>
+                        act(`noble:${noble.id}`, { type: 'CHOOSE_NOBLE', nobleId: noble.id })
+                      }
                     >
                       Choose
                     </button>
@@ -296,25 +277,30 @@ export function SplendorGameView({
             {ROWS.map((tier) => (
               <div key={tier} className="splendor-row">
                 <CardSlot
-                  open={selection?.kind === 'deck' && selection.tier === tier}
+                  open={selectedTier === tier}
                   card={
                     <CardBack
                       tier={tier}
                       count={view.deckCounts[tier]}
-                      selected={selection?.kind === 'deck' && selection.tier === tier}
+                      selected={selectedTier === tier}
                       onSelect={interactive ? () => toggleDeck(tier) : undefined}
                       disabled={view.deckCounts[tier] === 0}
                     />
                   }
                 >
-                  <span className="muted">Top card of deck {TIER_LABEL[tier]}, unseen.</span>
-                  <button
-                    type="button"
-                    disabled={!isMyTurn || !legal.reservableTiers.includes(tier)}
-                    onClick={() => sendAction({ type: 'RESERVE_FROM_DECK', tier })}
-                  >
-                    {reserveLabel}
-                  </button>
+                  {selectedTier === tier && (
+                    <>
+                      <span className="muted">Top card of deck {TIER_LABEL[tier]}, unseen.</span>
+                      <button
+                        type="button"
+                        disabled={!isMyTurn || !legal.reservableTiers.includes(tier)}
+                        aria-busy={busy(`deck:${tier}`)}
+                        onClick={() => act(`deck:${tier}`, { type: 'RESERVE_FROM_DECK', tier })}
+                      >
+                        {reserveLabel}
+                      </button>
+                    </>
+                  )}
                 </CardSlot>
                 {view.market[tier].map((card, slot) =>
                   card ? (
@@ -332,7 +318,7 @@ export function SplendorGameView({
                         />
                       }
                     >
-                      {cardActions(card.id, true)}
+                      {selectedCardId === card.id && cardActions(card.id, true)}
                     </CardSlot>
                   ) : (
                     <div key={slot} className="splendor-card empty" aria-label="Empty slot" />
@@ -346,11 +332,12 @@ export function SplendorGameView({
             bank={view.bank}
             legal={legal}
             interactive={interactive}
+            myMove={myMove}
             isMyTurn={isMyTurn}
-            picked={picked}
-            onPick={setPicked}
-            onTake={() => sendAction({ type: 'TAKE_GEMS', colors: picked })}
-            onPass={() => sendAction({ type: 'PASS' })}
+            busy={busy('take') ? 'take' : busy('pass') ? 'pass' : undefined}
+            version={message.version}
+            onTake={(colors) => act('take', { type: 'TAKE_GEMS', colors })}
+            onPass={() => act('pass', { type: 'PASS' })}
           />
         </section>
 

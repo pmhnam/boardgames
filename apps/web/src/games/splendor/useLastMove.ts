@@ -6,7 +6,7 @@ import {
   type SplendorView,
 } from '@bgp/game-splendor';
 import type { GameStateMessage } from '@bgp/shared-types';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { TIER_LABEL, TOKEN_NAME } from './layout';
 
 export interface LastMove {
@@ -74,16 +74,22 @@ function compare(before: SplendorView, after: SplendorView): LastMove | null {
  * only what those views show: a card reserved unseen is still just "an unseen card".
  */
 export function useLastMove(message: GameStateMessage<SplendorView>): LastMove | null {
-  const previous = useRef(message);
-  const [move, setMove] = useState<LastMove | null>(null);
+  // Worked out while rendering the new state, not after it: the move is on screen in the same
+  // frame as what it changed.
+  const [seen, setSeen] = useState<{
+    message: GameStateMessage<SplendorView>;
+    move: LastMove | null;
+  }>({ message, move: null });
+  if (seen.message === message) return seen.move;
 
-  useEffect(() => {
-    const before = previous.current;
-    previous.current = message;
-    if (before.gameId !== message.gameId || before.version === message.version) return;
-    // Only a single step forward is one action; a jump (resync, replay scrubbing) is not.
-    setMove(message.version === before.version + 1 ? compare(before.state, message.state) : null);
-  }, [message]);
-
+  const before = seen.message;
+  const stepped = before.gameId === message.gameId && before.version !== message.version;
+  const move = !stepped
+    ? seen.move
+    : // Only a single step forward is one action; a jump (resync, replay scrubbing) is not.
+      message.version === before.version + 1
+      ? compare(before.state, message.state)
+      : null;
+  setSeen({ message, move });
   return move;
 }

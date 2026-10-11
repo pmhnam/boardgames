@@ -82,9 +82,9 @@ export function DevCardView({
   /** Just turned over: draws the eye once. */
   fresh?: boolean;
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [image, setImage] = useState<'loading' | 'shown' | 'failed'>('loading');
   const imageUrl = cardImageUrl(card);
-  const artwork = imageUrl && !imageFailed;
+  const artwork = imageUrl !== undefined && image !== 'failed';
   const costColors = GEM_COLORS.filter((color) => card.cost[color] > 0);
   const reach = !shortfall
     ? ''
@@ -93,6 +93,32 @@ export function DevCardView({
       : shortfall.short <= 2
         ? ' near'
         : '';
+  const face = (
+    <>
+      <span className="splendor-card-head" aria-hidden="true">
+        <span className="splendor-card-points">{card.points > 0 ? card.points : ''}</span>
+        <GemToken color={card.bonus} bonus small />
+      </span>
+      <span
+        className={`splendor-card-cost${costColors.length === 4 ? ' four' : ''}`}
+        aria-hidden="true"
+      >
+        {costColors.map((color) => {
+          const missing = shortfall?.missing[color];
+          return (
+            <span key={color} className="splendor-pip">
+              <GemToken color={color} count={card.cost[color]} small />
+              {missing !== undefined && (
+                <span className={missing === 0 ? 'splendor-pip-mark met' : 'splendor-pip-mark'}>
+                  {missing === 0 ? '✓' : `−${missing}`}
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </span>
+    </>
+  );
   return (
     <Frame
       className={`splendor-card${artwork ? ' artwork' : ''}${reach}${fresh ? ' fresh' : ''}`}
@@ -101,38 +127,24 @@ export function DevCardView({
       {...selectable}
     >
       {artwork ? (
-        <img
-          className="splendor-card-image"
-          src={imageUrl}
-          alt=""
-          loading="lazy"
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
         <>
-          <span className="splendor-card-head" aria-hidden="true">
-            <span className="splendor-card-points">{card.points > 0 ? card.points : ''}</span>
-            <GemToken color={card.bonus} bonus small />
-          </span>
-          <span
-            className={`splendor-card-cost${costColors.length === 4 ? ' four' : ''}`}
-            aria-hidden="true"
-          >
-            {costColors.map((color) => {
-              const missing = shortfall?.missing[color];
-              return (
-                <span key={color} className="splendor-pip">
-                  <GemToken color={color} count={card.cost[color]} small />
-                  {missing !== undefined && (
-                    <span className={missing === 0 ? 'splendor-pip-mark met' : 'splendor-pip-mark'}>
-                      {missing === 0 ? '✓' : `−${missing}`}
-                    </span>
-                  )}
-                </span>
-              );
-            })}
-          </span>
+          <img
+            className="splendor-card-image"
+            src={imageUrl}
+            alt=""
+            decoding="async"
+            // One already in the cache is there before the first paint.
+            ref={(node) => {
+              if (node?.complete && node.naturalWidth > 0) setImage('shown');
+            }}
+            onLoad={() => setImage('shown')}
+            onError={() => setImage('failed')}
+          />
+          {/* Drawn until the artwork arrives, so the card can be read and played at once. */}
+          {image === 'loading' && <span className="splendor-card-draft">{face}</span>}
         </>
+      ) : (
+        face
       )}
     </Frame>
   );
@@ -174,7 +186,7 @@ export function CardBack({
           className="splendor-card-image"
           src={cardBackImageUrl(tier)}
           alt=""
-          loading="lazy"
+          decoding="async"
           onError={() => setImageFailed(true)}
         />
       )}

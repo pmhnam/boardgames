@@ -219,8 +219,13 @@ button.splendor-bank-token:not(:disabled):hover {
   transform: translateY(-2px);
 }
 
-button.splendor-bank-token:disabled {
+/* Not every disabled token: one that only waits for the server's answer stays as it was. */
+button.splendor-bank-token.unavailable {
   opacity: 0.55;
+}
+
+.splendor button[aria-busy='true'] {
+  cursor: progress;
 }
 
 .splendor-bank-token.gold {
@@ -325,6 +330,24 @@ button.splendor-bank-token:disabled {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  pointer-events: none;
+}
+
+/* The drawn face, laid over the frame while the artwork is on its way. It takes no room of
+   its own, so nothing moves when the picture replaces it. */
+.splendor-card-draft {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  justify-content: space-between;
+  padding: 0.3rem;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--splendor-tint) 62%, var(--surface)),
+    color-mix(in srgb, var(--splendor-tint) 20%, var(--surface)) 70%
+  );
   pointer-events: none;
 }
 

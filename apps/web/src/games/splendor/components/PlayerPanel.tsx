@@ -6,7 +6,7 @@ import {
   type CardShortfall,
   type PlayerView,
 } from '@bgp/game-splendor';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CardSlot } from './CardActions';
 import { CardBack, CardStrip, DevCardView } from './DevCard';
 import { GemToken } from './GemToken';
@@ -40,6 +40,8 @@ export function PlayerPanel({
   /** The buttons for the selected reserved card. */
   cardActions?: ReactNode;
 }) {
+  // Every card bought, face up: only drawn once the list is opened.
+  const [showBought, setShowBought] = useState(false);
   const classes = ['card', 'splendor-player', mine && 'mine', active && 'active']
     .filter(Boolean)
     .join(' ');
@@ -139,13 +141,18 @@ export function PlayerPanel({
       )}
 
       {player.purchased.length > 0 && (
-        <details className="splendor-purchased">
+        <details
+          className="splendor-purchased"
+          onToggle={(event) => setShowBought(event.currentTarget.open)}
+        >
           <summary>{player.purchased.length} cards bought</summary>
-          <div className="splendor-reserved">
-            {player.purchased.map((card) => (
-              <DevCardView key={card.id} card={card} />
-            ))}
-          </div>
+          {showBought && (
+            <div className="splendor-reserved">
+              {player.purchased.map((card) => (
+                <DevCardView key={card.id} card={card} />
+              ))}
+            </div>
+          )}
         </details>
       )}
     </section>

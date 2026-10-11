@@ -28,7 +28,7 @@ export function NobleTile({
           )
             .map((color) => `${noble.requirement[color]} ${color}`)
             .join(', ')} bonuses`}
-          loading="lazy"
+          decoding="async"
           onError={() => setImageFailed(true)}
         />
       ) : (
