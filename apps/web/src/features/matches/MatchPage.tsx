@@ -9,6 +9,7 @@ import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
 import { useDocumentTitle } from '../../shared/useDocumentTitle';
+import { useVoiceRoom } from '../../shared/voice/VoiceProvider';
 import { useConnectionLost, useIsConnected } from '../../shared/websocket/SocketProvider';
 import { ActionErrorToast } from './ActionErrorToast';
 import { MatchSkeleton } from './MatchSkeleton';
@@ -44,6 +45,9 @@ export function MatchPage() {
     queryKey: ['games'],
     queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
   });
+
+  // A player is in the room the match belongs to, and so may be in its call.
+  useVoiceRoom(message && message.viewerPlayerId !== null ? match.data?.roomId : null);
 
   // Whichever of the two answers names the game first starts its table loading.
   const gameType = message?.gameType ?? match.data?.gameType;

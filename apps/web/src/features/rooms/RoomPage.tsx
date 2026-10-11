@@ -23,6 +23,7 @@ import { errorText } from '../../shared/i18n/errors';
 import { useLocale, useT } from '../../shared/i18n/useT';
 import type { MessageKey } from '../../shared/i18n/vi';
 import { useDocumentTitle } from '../../shared/useDocumentTitle';
+import { useVoiceRoom } from '../../shared/voice/VoiceProvider';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
 import { primaryAction, startBlocker } from './room-actions';
@@ -173,6 +174,9 @@ export function RoomPage() {
     queryKey: ['games'],
     queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
   });
+
+  // The room's call can be joined from here by anyone seated in it.
+  useVoiceRoom(room.data?.members.some((member) => member.userId === userId) ? roomId : null);
 
   const gameUi = room.data ? getGameUi(room.data.gameType) : undefined;
   // The table is fetched while everyone is still sitting down, so the match opens at once.

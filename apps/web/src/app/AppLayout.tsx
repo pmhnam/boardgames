@@ -7,6 +7,8 @@ import { isAdmin } from '../features/auth/roles';
 import { ConnectionIndicator } from '../shared/components/ConnectionIndicator';
 import { LanguageSwitcher } from '../shared/i18n/LanguageSwitcher';
 import { useT } from '../shared/i18n/useT';
+import { VoiceBar, VoiceJoinButton } from '../shared/voice/VoiceBar';
+import { VoiceProvider } from '../shared/voice/VoiceProvider';
 import { useConnectionLost } from '../shared/websocket/SocketProvider';
 
 export function AppLayout() {
@@ -26,32 +28,36 @@ export function AppLayout() {
 
   return (
     <HeaderControlsTarget.Provider value={controlsTarget}>
-      <div className="app">
-        <header className="app-header">
-          <Link to="/" className="brand">
-            {t('app.name')}
-          </Link>
-          <div className="app-header-tools">
-            <div className="app-game-controls" ref={setControlsTarget} />
-            {session ? (
-              <>
-                <nav className="app-header-links" aria-label={t('nav.label')}>
-                  {links}
-                </nav>
-                <ConnectionIndicator />
-                <AccountMenu name={session.user.displayName} links={links} onSignOut={signOut} />
-              </>
-            ) : (
-              <LanguageSwitcher />
-            )}
-          </div>
-        </header>
-        {/* No live role: the indicator in the header has already announced it. */}
-        {connectionLost && <p className="connection-bar">{t('connection.lost')}</p>}
-        <main>
-          <Outlet />
-        </main>
-      </div>
+      <VoiceProvider>
+        <div className="app">
+          <header className="app-header">
+            <Link to="/" className="brand">
+              {t('app.name')}
+            </Link>
+            <div className="app-header-tools">
+              <div className="app-game-controls" ref={setControlsTarget} />
+              {session ? (
+                <>
+                  <VoiceJoinButton />
+                  <nav className="app-header-links" aria-label={t('nav.label')}>
+                    {links}
+                  </nav>
+                  <ConnectionIndicator />
+                  <AccountMenu name={session.user.displayName} links={links} onSignOut={signOut} />
+                </>
+              ) : (
+                <LanguageSwitcher />
+              )}
+            </div>
+          </header>
+          {/* No live role: the indicator in the header has already announced it. */}
+          {connectionLost && <p className="connection-bar">{t('connection.lost')}</p>}
+          <VoiceBar />
+          <main>
+            <Outlet />
+          </main>
+        </div>
+      </VoiceProvider>
     </HeaderControlsTarget.Provider>
   );
 }

@@ -13,6 +13,25 @@ export const en: Messages = {
   'connection.reconnecting': 'Reconnecting…',
   'connection.lost': 'Lost connection to the server. Trying to reconnect…',
 
+  'voice.label': 'The room’s call',
+  'voice.join': 'Join voice',
+  'voice.joining': 'Joining the call…',
+  'voice.leave': 'Leave call',
+  'voice.mute': 'Mute',
+  'voice.unmute': 'Unmute',
+  'voice.you': '(you)',
+  'voice.isMuted': 'muted',
+  'voice.isSpeaking': 'speaking',
+  'voice.connecting': 'connecting…',
+  'voice.failed': 'could not connect',
+  'voice.dismiss': 'Dismiss',
+  'voice.removed': 'You left the room, so the call ended with it.',
+  'voice.unsupported': 'This browser cannot make voice calls.',
+  'voice.micDenied':
+    'The microphone is not allowed. Allow it for this site in the browser, then try again.',
+  'voice.micMissing': 'No microphone was found on this device.',
+  'voice.micFailed': 'The microphone could not be opened. Another app may be using it.',
+
   'login.title': 'Sign in with username',
   'login.intro':
     'Enter your existing username to return to your rooms and matches. A new username creates a new player.',
@@ -334,6 +353,8 @@ export const en: Messages = {
   'error.matchOutdated': 'This match was started under older rules and can no longer be opened.',
   'error.replayUnavailable':
     'The rules or config of this game have changed, so this match can no longer be replayed.',
+  'error.voiceFull': 'This call has no place left.',
+  'error.notInVoice': 'You are no longer in this call.',
   'error.invalidAction': 'That move is not allowed.',
   'error.notYourTurn': 'It is not your turn.',
   'error.gameVersionConflict': 'The game has moved on. Try again.',

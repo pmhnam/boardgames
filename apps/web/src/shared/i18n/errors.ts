@@ -28,6 +28,8 @@ const MESSAGE_FOR_CODE: Partial<Record<ErrorCode, MessageKey>> = {
   [ErrorCodes.MatchNotFinished]: 'error.matchNotFinished',
   [ErrorCodes.MatchOutdated]: 'error.matchOutdated',
   [ErrorCodes.ReplayUnavailable]: 'error.replayUnavailable',
+  [ErrorCodes.VoiceFull]: 'error.voiceFull',
+  [ErrorCodes.NotInVoice]: 'error.notInVoice',
   [ErrorCodes.InvalidAction]: 'error.invalidAction',
   [ErrorCodes.NotYourTurn]: 'error.notYourTurn',
   [ErrorCodes.GameVersionConflict]: 'error.gameVersionConflict',

@@ -1,0 +1,129 @@
+/* The call the viewer is in: one line under the header, on every page until they leave it. */
+
+.voice-bar,
+.voice-notice {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-bottom: 1px solid var(--border);
+}
+
+.voice-notice {
+  justify-content: center;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  border-bottom-color: var(--danger);
+}
+
+.voice-icon {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.voice-icon rect {
+  fill: currentColor;
+  stroke: none;
+}
+
+.voice-icon-slash {
+  stroke: var(--danger);
+  stroke-width: 2.2;
+}
+
+.voice-people {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.voice-person {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  min-width: 0;
+}
+
+/* The dot is the voice: it lights up while its person is heard. */
+.voice-dot {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  border-radius: 50%;
+}
+
+.voice-person.speaking .voice-dot {
+  background: #1f9d55;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #1f9d55 30%, transparent);
+}
+
+.voice-person.muted .voice-dot {
+  background: transparent;
+}
+
+.voice-person.muted .voice-dot .voice-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.voice-person.connecting,
+.voice-person.failed {
+  opacity: 0.7;
+}
+
+.voice-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-state {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.voice-controls {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.voice-controls button,
+.voice-join {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* Muted is the state to notice: it is why nobody answers. */
+.voice-mute.on {
+  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.voice-mute.on .voice-icon-slash {
+  stroke: #fff;
+}
