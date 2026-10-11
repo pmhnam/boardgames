@@ -1,11 +1,18 @@
 import type { LogEntryView } from '@bgp/game-bang';
+import { memo } from 'react';
 import { groupByTurn, logIcon } from '../log';
 import type { NameOf } from '../text';
 import { useBangText } from '../useBangText';
 import { Icon } from './Icon';
 
 /** What the table has seen happen, the latest turn first and the latest thing first in it. */
-export function EventLog({ log, nameOf }: { log: LogEntryView[]; nameOf: NameOf }) {
+export const EventLog = memo(function EventLog({
+  log,
+  nameOf,
+}: {
+  log: LogEntryView[];
+  nameOf: NameOf;
+}) {
   const text = useBangText();
   const turns = groupByTurn(log).reverse();
   return (
@@ -42,4 +49,4 @@ export function EventLog({ log, nameOf }: { log: LogEntryView[]; nameOf: NameOf 
       </p>
     </section>
   );
-}
+});

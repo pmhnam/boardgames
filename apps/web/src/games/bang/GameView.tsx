@@ -5,10 +5,11 @@ import {
   type CardView,
   type PlayerView,
 } from '@bgp/game-bang';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Locale } from '../../shared/i18n/locales';
 import { useLocale } from '../../shared/i18n/useT';
 import type { TurnAlertOptions } from '../shared/turnAlerts';
+import { useSharedView } from '../shared/useSharedView';
 import { useTurnAlerts } from '../shared/useTurnAlerts';
 import { playerName, type GameViewProps } from '../types';
 import { CardBack, CardFace } from './components/CardFace';
@@ -99,13 +100,16 @@ export function BangGameView({
 }: GameViewProps<BangView, BangAction>) {
   const locale = useLocale();
   const text = BANG_TEXT[locale];
-  const view = message.state;
+  const view = useSharedView(message.state);
   const me = view.me;
   const legal = me?.legal;
-  const prompt = disabled ? null : (legal?.prompt ?? null);
+  // What is asked of the viewer goes by what the rules say, not by whether a click would be
+  // taken this instant: the question stays put while an answer is on its way, and a second
+  // click then is simply not sent.
+  const prompt = legal?.prompt ?? null;
   const pending = view.pending;
   const over = view.phase === 'FINISHED';
-  const nameOf: NameOf = (playerId) => playerName(players, playerId);
+  const nameOf: NameOf = useCallback((playerId) => playerName(players, playerId), [players]);
   const myTurn = !over && me !== null && view.turn.playerId === me.playerId;
 
   // One chime when a turn starts, and one each time a card of someone else's needs an answer:
@@ -216,8 +220,15 @@ export function BangGameView({
     }
   };
 
+  // The seats are handed the same function for as long as the table lives, so a handler made
+  // anew by every render is no reason to draw them again.
+  const latestPickSeat = useRef(pickSeat);
+  latestPickSeat.current = pickSeat;
+  const [onPickSeat] = useState(() => (playerId: string) => latestPickSeat.current(playerId));
+
   const viewerIndex = view.players.findIndex((player) => player.playerId === me?.playerId);
-  const spots = seatSpots(view.players.length, viewerIndex);
+  const seatCount = view.players.length;
+  const spots = useMemo(() => seatSpots(seatCount, viewerIndex), [seatCount, viewerIndex]);
   const tiles: SeatTile[] = view.players.map((player, index) => {
     const { playerId } = player;
     return {
@@ -331,255 +342,277 @@ export function BangGameView({
             discardCount={view.discardCount}
             discardTop={view.discardTop}
             news={latest ? text.log.describe(latest, nameOf) : text.table.quiet}
-            onPick={pickSeat}
+            onPick={onPickSeat}
           />
 
-          {!over && (
-            <section className={prompt === null ? 'card bang-prompt' : 'card bang-prompt yours'}>
-              {offered.length > 0 && (
-                <div className="bang-offer">
-                  <span className="muted hint">
-                    {pending?.type === 'STORE' ? text.offer.storeLabel : text.offer.kitLabel}
-                  </span>
-                  <div className="bang-cards">
-                    {offered.map((card) => (
-                      <CardFace
-                        key={card.id}
-                        card={card}
-                        lit={choosing}
-                        selected={choosing && picked.includes(card.id)}
-                        onPick={choosing ? () => pickCard(card.id) : undefined}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {prompt === null && (
-                <p className="bang-say muted">
-                  {me ? describeWaiting(view, nameOf, text) : text.banner.watching}
-                </p>
-              )}
-
-              {mode === 'heal' && (
-                <>
-                  <p className="bang-say">
-                    {prompt === 'DYING' && `${text.ask.dying} `}
-                    {text.heal.choose(picked.length)}
-                  </p>
-                  <div className="row wrap">
-                    <button
-                      type="button"
-                      disabled={picked.length !== 2}
-                      onClick={() => sendAction({ type: 'DISCARD_TO_HEAL', cardIds: picked })}
-                    >
-                      {text.heal.confirm}
-                    </button>
-                    {prompt === 'DYING' ? (
-                      passButton
-                    ) : (
-                      <button type="button" className="secondary" onClick={() => setStored(null)}>
-                        {text.button.back}
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {mode === 'discard' && (
-                <>
-                  <p className="bang-say">{text.discard.choose(discardCount, picked.length)}</p>
-                  <div className="row wrap">
-                    <button
-                      type="button"
-                      disabled={picked.length !== discardCount}
-                      onClick={() => sendAction({ type: 'END_TURN', discardIds: picked })}
-                    >
-                      {text.button.discardAndEnd(discardCount)}
-                    </button>
-                    <button type="button" className="secondary" onClick={() => setStored(null)}>
-                      {text.button.back}
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {prompt === 'PLAY' && mode === 'play' && (
-                <>
-                  <p className="bang-say">
-                    {!play && (legal?.plays.length ? text.play.choose : text.play.nothing)}
-                    {play && !aimed && text.play.confirm(cardName(playCard) ?? '')}
-                    {play && aimed && !target && text.play.aim(cardName(playCard) ?? '')}
-                    {target &&
-                      text.play.loot(nameOf(target.playerId), playCard?.kind === 'catBalou')}
-                    {!play && discardCount > 0 && ` ${text.play.overLimit(discardCount)}`}
-                  </p>
-                  {target && (
+          <div className={me ? 'bang-dock with-hand' : 'bang-dock'}>
+            {!over && (
+              <section
+                className={prompt === null ? 'card bang-prompt' : 'card bang-prompt yours'}
+                aria-busy={(disabled && prompt !== null) || undefined}
+              >
+                {offered.length > 0 && (
+                  <div className="bang-offer">
+                    <span className="muted hint">
+                      {pending?.type === 'STORE' ? text.offer.storeLabel : text.offer.kitLabel}
+                    </span>
                     <div className="bang-cards">
-                      {target.handCount > 0 && (
-                        <button
-                          type="button"
-                          className="bang-loot-hand"
-                          onClick={() => playOn(target.playerId, null)}
-                        >
-                          <CardBack />
-                          <span>{text.play.lootHand}</span>
-                        </button>
-                      )}
-                      {target.inPlay.map((card) => (
+                      {offered.map((card) => (
                         <CardFace
                           key={card.id}
                           card={card}
-                          lit
-                          onPick={() => playOn(target.playerId, card.id)}
+                          lit={choosing}
+                          selected={choosing && picked.includes(card.id)}
+                          onPick={choosing ? () => pickCard(card.id) : undefined}
                         />
                       ))}
                     </div>
-                  )}
-                  <div className="row wrap">
-                    {play && !aimed && (
-                      <button type="button" onClick={() => playOn(null, null)}>
-                        {text.button.play(cardName(playCard) ?? '')}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={legal?.plays.length ? 'secondary' : undefined}
-                      onClick={() =>
-                        discardCount > 0
-                          ? choose({ mode: 'discard', cards: [], targetId: null })
-                          : sendAction({ type: 'END_TURN', discardIds: [] })
-                      }
-                    >
-                      {discardCount > 0
-                        ? text.button.endTurnDiscard(discardCount)
-                        : text.button.endTurn}
-                    </button>
-                    {healOffer}
                   </div>
-                </>
-              )}
+                )}
 
-              {answering && mode === 'play' && (
-                <>
-                  <p className="bang-say">
-                    {prompt === 'BANG' &&
-                      text.ask.bang(
-                        pending?.sourceId ? nameOf(pending.sourceId) : text.ask.someone,
-                        pending?.missedNeeded ?? 1,
-                      )}
-                    {prompt === 'INDIANS' && text.ask.indians}
-                    {prompt === 'DUEL' &&
-                      text.ask.duel(
-                        pending?.sourceId ? nameOf(pending.sourceId) : text.ask.someone,
-                      )}
+                {prompt === null && (
+                  <p className="bang-say muted">
+                    {me ? describeWaiting(view, nameOf, text) : text.banner.watching}
                   </p>
-                  <div className="row wrap">
-                    <button
-                      type="button"
-                      disabled={response === null}
-                      onClick={() => sendAction({ type: 'RESPOND', cardId: response })}
-                    >
-                      {text.button.respond(cardName(hand.find((card) => card.id === response)))}
-                    </button>
-                    {passButton}
-                    {healOffer}
-                  </div>
-                </>
-              )}
+                )}
 
-              {prompt === 'DYING' && mode === 'play' && (
-                <>
-                  <p className="bang-say">{text.ask.dying}</p>
-                  <div className="row wrap">
-                    {healOffer}
-                    {passButton}
-                  </div>
-                </>
-              )}
-
-              {choosing && (
-                <>
-                  <p className="bang-say">
-                    {prompt === 'STORE' ? text.offer.storeYours : text.offer.kitYours}
-                  </p>
-                  <div className="row">
-                    <button
-                      type="button"
-                      disabled={picked.length !== legal?.pickCount}
-                      onClick={() => sendAction({ type: 'PICK_CARDS', cardIds: picked })}
-                    >
-                      {prompt === 'KIT'
-                        ? text.offer.takeTwo
-                        : text.offer.take(cardName(offered.find((card) => card.id === only)))}
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {prompt === 'DRAW' && (
-                <>
-                  <p className="bang-say">{text.draw.choose(targets.length > 0)}</p>
-                  <div className="row wrap">
-                    <button
-                      type="button"
-                      onClick={() => sendAction({ type: 'DRAW', source: 'deck', targetId: null })}
-                    >
-                      {text.draw.deck}
-                    </button>
-                    {legal?.drawFromDiscard && (
+                {mode === 'heal' && (
+                  <>
+                    <p className="bang-say">
+                      {prompt === 'DYING' && `${text.ask.dying} `}
+                      {text.heal.choose(picked.length)}
+                    </p>
+                    <div className="row wrap">
                       <button
                         type="button"
-                        className="secondary"
+                        disabled={picked.length !== 2}
+                        onClick={() => sendAction({ type: 'DISCARD_TO_HEAL', cardIds: picked })}
+                      >
+                        {text.heal.confirm}
+                      </button>
+                      {prompt === 'DYING' ? (
+                        passButton
+                      ) : (
+                        <button type="button" className="secondary" onClick={() => setStored(null)}>
+                          {text.button.back}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {mode === 'discard' && (
+                  <>
+                    <p className="bang-say">{text.discard.choose(discardCount, picked.length)}</p>
+                    <div className="row wrap">
+                      <button
+                        type="button"
+                        disabled={picked.length !== discardCount}
+                        onClick={() => sendAction({ type: 'END_TURN', discardIds: picked })}
+                      >
+                        {text.button.discardAndEnd(discardCount)}
+                      </button>
+                      <button type="button" className="secondary" onClick={() => setStored(null)}>
+                        {text.button.back}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {prompt === 'PLAY' && mode === 'play' && (
+                  <>
+                    <p className="bang-say">
+                      {!play && (legal?.plays.length ? text.play.choose : text.play.nothing)}
+                      {play && !aimed && text.play.confirm(cardName(playCard) ?? '')}
+                      {play && aimed && !target && text.play.aim(cardName(playCard) ?? '')}
+                      {target &&
+                        text.play.loot(nameOf(target.playerId), playCard?.kind === 'catBalou')}
+                      {!play && discardCount > 0 && ` ${text.play.overLimit(discardCount)}`}
+                    </p>
+                    {target && (
+                      <div className="bang-cards">
+                        {target.handCount > 0 && (
+                          <button
+                            type="button"
+                            className="bang-loot-hand"
+                            onClick={() => playOn(target.playerId, null)}
+                          >
+                            <CardBack />
+                            <span>{text.play.lootHand}</span>
+                          </button>
+                        )}
+                        {target.inPlay.map((card) => (
+                          <CardFace
+                            key={card.id}
+                            card={card}
+                            lit
+                            onPick={() => playOn(target.playerId, card.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <div className="row wrap">
+                      {play && !aimed && (
+                        <button type="button" onClick={() => playOn(null, null)}>
+                          {text.button.play(cardName(playCard) ?? '')}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className={legal?.plays.length ? 'secondary' : undefined}
                         onClick={() =>
-                          sendAction({ type: 'DRAW', source: 'discard', targetId: null })
+                          discardCount > 0
+                            ? choose({ mode: 'discard', cards: [], targetId: null })
+                            : sendAction({ type: 'END_TURN', discardIds: [] })
                         }
                       >
-                        {text.draw.discard(cardName(view.discardTop))}
+                        {discardCount > 0
+                          ? text.button.endTurnDiscard(discardCount)
+                          : text.button.endTurn}
                       </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </section>
-          )}
+                      {healOffer}
+                    </div>
+                  </>
+                )}
 
-          {me && (
-            <section className="card bang-hand" aria-label={text.hand.title}>
-              <h2>
-                {text.hand.title}{' '}
-                <span className={discardCount > 0 ? 'bang-hand-count over' : 'bang-hand-count'}>
-                  {text.hand.count(hand.length, self?.alive ? self.life : null)}
-                </span>
-              </h2>
-              {hand.length === 0 ? (
-                <span className="muted">{text.hand.empty}</span>
-              ) : (
-                <div className="bang-cards">
-                  {hand.map((card) => {
-                    // Cards to give up may be any; a card to play or to answer with is one the
-                    // engine lists.
-                    const free = prompt !== null && mode !== 'play';
-                    const listed =
-                      prompt === 'PLAY'
-                        ? legal?.plays.some((option) => option.cardId === card.id) === true
-                        : answering && legal?.responses.includes(card.id) === true;
-                    const judged = mode === 'play' && (prompt === 'PLAY' || answering);
-                    return (
-                      <CardFace
-                        key={card.id}
-                        card={card}
-                        selected={picked.includes(card.id)}
-                        lit={free || (judged && listed)}
-                        dimmed={judged && !listed}
-                        onPick={free || (judged && listed) ? () => pickCard(card.id) : undefined}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          )}
+                {answering && mode === 'play' && (
+                  <>
+                    <p className="bang-say">
+                      {prompt === 'BANG' &&
+                        text.ask.bang(
+                          pending?.sourceId ? nameOf(pending.sourceId) : text.ask.someone,
+                          pending?.missedNeeded ?? 1,
+                        )}
+                      {prompt === 'INDIANS' && text.ask.indians}
+                      {prompt === 'DUEL' &&
+                        text.ask.duel(
+                          pending?.sourceId ? nameOf(pending.sourceId) : text.ask.someone,
+                        )}
+                    </p>
+                    <div className="row wrap">
+                      <button
+                        type="button"
+                        disabled={response === null}
+                        onClick={() => sendAction({ type: 'RESPOND', cardId: response })}
+                      >
+                        {text.button.respond(cardName(hand.find((card) => card.id === response)))}
+                      </button>
+                      {passButton}
+                      {healOffer}
+                    </div>
+                  </>
+                )}
+
+                {prompt === 'DYING' && mode === 'play' && (
+                  <>
+                    <p className="bang-say">{text.ask.dying}</p>
+                    <div className="row wrap">
+                      {healOffer}
+                      {passButton}
+                    </div>
+                  </>
+                )}
+
+                {choosing && (
+                  <>
+                    <p className="bang-say">
+                      {prompt === 'STORE' ? text.offer.storeYours : text.offer.kitYours}
+                    </p>
+                    <div className="row">
+                      <button
+                        type="button"
+                        disabled={picked.length !== legal?.pickCount}
+                        onClick={() => sendAction({ type: 'PICK_CARDS', cardIds: picked })}
+                      >
+                        {prompt === 'KIT'
+                          ? text.offer.takeTwo
+                          : text.offer.take(cardName(offered.find((card) => card.id === only)))}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {prompt === 'DRAW' && (
+                  <>
+                    <p className="bang-say">{text.draw.choose(targets.length > 0)}</p>
+                    <div className="row wrap">
+                      <button
+                        type="button"
+                        onClick={() => sendAction({ type: 'DRAW', source: 'deck', targetId: null })}
+                      >
+                        {text.draw.deck}
+                      </button>
+                      {legal?.drawFromDiscard && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() =>
+                            sendAction({ type: 'DRAW', source: 'discard', targetId: null })
+                          }
+                        >
+                          {text.draw.discard(cardName(view.discardTop))}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+
+            {me && (
+              <section className="card bang-hand" aria-label={text.hand.title}>
+                <h2>
+                  {text.hand.title}{' '}
+                  <span className={discardCount > 0 ? 'bang-hand-count over' : 'bang-hand-count'}>
+                    {text.hand.count(hand.length, self?.alive ? self.life : null)}
+                  </span>
+                  {/* The viewer's life again, here where it stays in sight: their own seat can
+                      be behind the dock on a short window, and under it on a phone. */}
+                  {self?.alive && (
+                    <span
+                      className="bang-life bang-hand-life"
+                      role="img"
+                      aria-label={text.seat.life(self.life, self.maxLife)}
+                    >
+                      {Array.from({ length: self.maxLife }, (_, index) => (
+                        <Icon
+                          key={index}
+                          name="bullet"
+                          className={index < self.life ? undefined : 'spent'}
+                        />
+                      ))}
+                    </span>
+                  )}
+                </h2>
+                {hand.length === 0 ? (
+                  <span className="muted">{text.hand.empty}</span>
+                ) : (
+                  <div className="bang-cards">
+                    {hand.map((card) => {
+                      // Cards to give up may be any; a card to play or to answer with is one the
+                      // engine lists.
+                      const free = prompt !== null && mode !== 'play';
+                      const listed =
+                        prompt === 'PLAY'
+                          ? legal?.plays.some((option) => option.cardId === card.id) === true
+                          : answering && legal?.responses.includes(card.id) === true;
+                      const judged = mode === 'play' && (prompt === 'PLAY' || answering);
+                      return (
+                        <CardFace
+                          key={card.id}
+                          card={card}
+                          selected={picked.includes(card.id)}
+                          lit={free || (judged && listed)}
+                          dimmed={judged && !listed}
+                          onPick={free || (judged && listed) ? () => pickCard(card.id) : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
         </div>
 
         <aside className="bang-side">

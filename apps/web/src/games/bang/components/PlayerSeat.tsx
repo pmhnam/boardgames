@@ -1,5 +1,5 @@
 import type { PlayerView } from '@bgp/game-bang';
-import type { CSSProperties } from 'react';
+import { memo, type CSSProperties } from 'react';
 import { Tip } from '../../shared/Tip';
 import type { SeatEffect } from '../effects';
 import { fanSize, type SeatSpot } from '../layout';
@@ -54,12 +54,34 @@ function effectLabel(effect: SeatEffect, text: BangText): string {
   }
 }
 
+const TILE_PARTS = [
+  'player',
+  'name',
+  'isYou',
+  'turn',
+  'asked',
+  'queued',
+  'winner',
+  'selectable',
+  'selected',
+  'faded',
+  'effect',
+  'spot',
+] as const satisfies ReadonlyArray<keyof SeatTile>;
+
 /**
  * One player at the table, as a poster: who they are, the life they have left as bullets, the
  * cards they hold seen from behind, and what lies in front of them. It is a button while the
- * viewer may choose this player.
+ * viewer may choose this player. A move changes a seat or two, so a seat is drawn again only
+ * when something about it did.
  */
-export function PlayerSeat({ tile, onPick }: { tile: SeatTile; onPick(playerId: string): void }) {
+export const PlayerSeat = memo(function PlayerSeat({
+  tile,
+  onPick,
+}: {
+  tile: SeatTile;
+  onPick(playerId: string): void;
+}) {
   const text = useBangText();
   const { player, name, effect } = tile;
   const role = player.role;
@@ -211,5 +233,15 @@ export function PlayerSeat({ tile, onPick }: { tile: SeatTile; onPick(playerId: 
         </span>
       )}
     </li>
+  );
+}, sameSeat);
+
+function sameSeat(
+  before: { tile: SeatTile; onPick(playerId: string): void },
+  after: { tile: SeatTile; onPick(playerId: string): void },
+): boolean {
+  return (
+    before.onPick === after.onPick &&
+    TILE_PARTS.every((part) => before.tile[part] === after.tile[part])
   );
 }

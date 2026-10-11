@@ -784,6 +784,74 @@ button.bang-card:hover {
   box-shadow: none;
 }
 
+/* What the viewer is asked and what they hold, kept in reach: the two stay at the foot of the
+   window while the table above is scrolled, so answering never means hunting for the hand. */
+.bang-dock {
+  position: sticky;
+  bottom: 0.5rem;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.bang-dock:empty {
+  display: none;
+}
+
+.bang-dock > .card {
+  min-width: 0;
+  box-shadow: 0 0.4rem 1.4rem rgb(0 0 0 / 0.28);
+}
+
+/* One row of cards, however many: a hand that wrapped would push the table off the window. */
+.bang-dock .bang-hand .bang-cards {
+  flex-wrap: nowrap;
+  padding-bottom: 0.4rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.bang-prompt[aria-busy='true'] button {
+  cursor: progress;
+}
+
+@media (min-width: 64rem) {
+  .bang-dock.with-hand {
+    grid-template-columns: minmax(17rem, 2fr) minmax(0, 3fr);
+    align-items: stretch;
+  }
+}
+
+/* A wide window that is not tall, as on a small laptop: the dock and the table each give up a
+   little, so the viewer's own seat still shows above the dock. */
+@media (min-width: 64rem) and (max-height: 46rem) {
+  .bang-dock > .card {
+    gap: 0.4rem;
+    padding-block: 0.65rem;
+  }
+
+  .bang-dock .bang-hand .bang-card {
+    width: 4.7rem;
+    height: 6.6rem;
+  }
+
+  .bang-dock .bang-hand .bang-card .bang-card-art .bang-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+
+  .bang-ring {
+    --ring-room: calc(100dvh - 24rem);
+    --ring-trim: 4rem;
+  }
+}
+
+.bang-hand-life {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
 /* What the viewer is asked, and what they may answer. */
 
 .bang-prompt {
@@ -945,23 +1013,26 @@ button.bang-card:hover {
    grows with the number of seats so that no two overlap. After the rules above, which it
    overrides. */
 @container bang-table (min-width: 47rem) {
+  /* As tall as leaves the question and the hand in sight under it, between the least that
+     keeps the seats apart and the most that still looks like one table. A short window
+     sets `--ring-room` and `--ring-trim` itself, further up. */
   .bang-ring {
     position: relative;
     display: block;
-    height: 31rem;
+    height: clamp(24rem - var(--ring-trim, 0rem), var(--ring-room, 100dvh - 27rem), 31rem);
   }
 
   .bang-ring[data-seats='5'] {
-    height: 33rem;
+    height: clamp(25rem - var(--ring-trim, 0rem), var(--ring-room, 100dvh - 27rem), 33rem);
   }
 
   .bang-ring[data-seats='6'] {
-    height: 36rem;
+    height: clamp(29rem - var(--ring-trim, 0rem), var(--ring-room, 100dvh - 27rem), 36rem);
   }
 
   .bang-ring[data-seats='7'],
   .bang-ring[data-seats='8'] {
-    height: 40rem;
+    height: clamp(33rem - var(--ring-trim, 0rem), var(--ring-room, 100dvh - 27rem), 40rem);
   }
 
   .bang-centre {
@@ -997,6 +1068,51 @@ button.bang-card:hover {
   .bang-card:not(.mini) {
     width: 5rem;
     height: 7.1rem;
+  }
+
+  /* The two switches keep their pictures and give up their words, which a screen reader
+     still reads: the banner is then one line shorter over a table that needs the room. */
+  .bang-tool span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  /* On a phone the dock is the foot of the screen: flush with it, and no taller than it must
+     be, so the seats above stay in sight to aim at. */
+  .bang-dock {
+    bottom: 0;
+    gap: 0;
+    margin-inline: -1rem;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .bang-dock > .card {
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .bang-dock > .card + .card {
+    border-top: 0;
+  }
+
+  .bang-dock .bang-hand h2 {
+    font-size: 0.95rem;
+  }
+
+  .bang-dock .bang-hand .bang-card {
+    width: 4.3rem;
+    height: 6.1rem;
+  }
+
+  .bang-dock .bang-hand .bang-card .bang-card-art .bang-icon {
+    width: 2.2rem;
+    height: 2.2rem;
   }
 
   .bang-card:not(.mini) .bang-card-art .bang-icon {
