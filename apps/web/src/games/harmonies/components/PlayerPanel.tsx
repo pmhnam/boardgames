@@ -1,4 +1,5 @@
 import type { Hex, PlayerBoardView } from '@bgp/game-harmonies';
+import { memo } from 'react';
 import { useHarmoniesText } from '../useHarmoniesText';
 import { AnimalCardView } from './AnimalCardView';
 import { CompletedCards } from './CompletedCards';
@@ -6,7 +7,7 @@ import { HexBoard } from './HexBoard';
 import { Icon } from './Icon';
 
 /** Another player's board and cards: there to be read, never to be acted on. */
-export function PlayerPanel({
+export const PlayerPanel = memo(function PlayerPanel({
   name,
   cells,
   board,
@@ -47,4 +48,4 @@ export function PlayerPanel({
       <CompletedCards cards={board.cards.filter((entry) => entry.complete)} />
     </section>
   );
-}
+});

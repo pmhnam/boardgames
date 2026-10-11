@@ -1,5 +1,5 @@
 import type { AnimalCard, HabitatCell } from '@bgp/game-harmonies';
-import type { CSSProperties, ReactNode } from 'react';
+import { memo, type CSSProperties, type ReactNode } from 'react';
 import {
   TOKEN_FILL,
   TOKEN_SHADE,
@@ -42,9 +42,9 @@ export function cardTitle(card: AnimalCard): string {
 /**
  * The habitat as a small diagram. Every cell is drawn as the actual stack of tokens it needs,
  * so a two-token building or a three-token tree cannot be mistaken for a single token. The
- * cube marks where the animal goes.
+ * cube marks where the animal goes. A card never changes, so its diagram is drawn once.
  */
-function HabitatDiagram({ card }: { card: AnimalCard }) {
+const HabitatDiagram = memo(function HabitatDiagram({ card }: { card: AnimalCard }) {
   const text = useHarmoniesText();
   const { cells } = card.habitat;
   const bounds = boundsOf(cells, SIZE, 2);
@@ -85,7 +85,7 @@ function HabitatDiagram({ card }: { card: AnimalCard }) {
       })}
     </svg>
   );
-}
+});
 
 interface AnimalCardViewProps {
   card: AnimalCard;

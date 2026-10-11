@@ -6,9 +6,10 @@ import {
   type ScoreBreakdown,
   type TokenColor,
 } from '@bgp/game-harmonies';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Locale } from '../../shared/i18n/locales';
 import { useLocale } from '../../shared/i18n/useT';
+import { useSharedView } from '../shared/useSharedView';
 import { useTurnAlerts } from '../shared/useTurnAlerts';
 import type { TurnAlertOptions } from '../shared/turnAlerts';
 import { playerName, type GameViewProps } from '../types';
@@ -31,6 +32,8 @@ const TURN_ALERTS: Record<Locale, TurnAlertOptions> = {
 /** What the player has picked up and is about to put on their board. UI state only. */
 type Selection =
   { kind: 'token'; color: TokenColor; index: number } | { kind: 'card'; cardId: string } | null;
+
+const NO_CELLS: Hex[] = [];
 
 /** What each column of the score is drawn with. */
 const SCORE_COLUMNS: Array<[keyof ScoreBreakdown, TokenColor | 'paw' | null]> = [
@@ -60,7 +63,7 @@ export function HarmoniesGameView({
 }: GameViewProps<HarmoniesView, HarmoniesAction>) {
   const locale = useLocale();
   const text = HARMONIES_TEXT[locale];
-  const view = message.state;
+  const view = useSharedView(message.state);
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
   const playing = view.phase === 'PLAYING';
@@ -112,19 +115,28 @@ export function HarmoniesGameView({
 
   const targetCells: Hex[] =
     selection?.kind === 'token'
-      ? (legal.tokenCells[selection.color] ?? [])
+      ? (legal.tokenCells[selection.color] ?? NO_CELLS)
       : selection?.kind === 'card'
-        ? (legal.cubeCells[selection.cardId] ?? [])
-        : [];
-  const targets = new Set(targetCells.map(hexKey));
+        ? (legal.cubeCells[selection.cardId] ?? NO_CELLS)
+        : NO_CELLS;
+  const targets = useMemo(() => new Set(targetCells.map(hexKey)), [targetCells]);
+  // The cells stay marked while an action is in flight, so the board does not flicker; a
+  // click on one then does nothing.
+  const showTargets = mine && !autoplay?.enabled;
 
   const placeAt = (cell: Hex) => {
+    if (!isMyTurn) return;
     if (selection?.kind === 'token') {
       sendAction({ type: 'PLACE_TOKEN', color: selection.color, cell });
     } else if (selection?.kind === 'card') {
       sendAction({ type: 'PLACE_CUBE', cardId: selection.cardId, cell });
     }
   };
+  // The board is handed the same function for as long as it lives, so a handler made anew by
+  // every render is no reason to draw the board again.
+  const latestPlaceAt = useRef(placeAt);
+  latestPlaceAt.current = placeAt;
+  const [onSelectCell] = useState(() => (cell: Hex) => latestPlaceAt.current(cell));
 
   // What to do next, read off what the engine says is possible right now.
   const activeName = playerName(players, turn.activePlayerId);
@@ -464,7 +476,7 @@ export function HarmoniesGameView({
                   board={myBoard}
                   turnNumber={turn.number}
                   label={text.yourBoard}
-                  targets={isMyTurn ? targets : undefined}
+                  targets={showTargets ? targets : undefined}
                   preview={
                     selection?.kind === 'token'
                       ? selection.color
@@ -472,7 +484,7 @@ export function HarmoniesGameView({
                         ? 'animal'
                         : undefined
                   }
-                  onSelect={placeAt}
+                  onSelect={onSelectCell}
                 />
                 <ul className="harmonies-breakdown" aria-label={text.scores}>
                   {SCORE_COLUMNS.map(
@@ -548,7 +560,11 @@ export function HarmoniesGameView({
 
       {playing && scores}
 
-      <ScoringGuide view={view} />
+      <ScoringGuide
+        tokenCounts={view.tokenCounts}
+        mapName={view.map.name}
+        waterScoring={view.waterScoring}
+      />
     </div>
   );
 }

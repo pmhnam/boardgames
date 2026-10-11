@@ -8,6 +8,7 @@ import {
   type ResourceCounts,
 } from '@bgp/game-catan';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useSharedView } from '../shared/useSharedView';
 import { playerName, type GameViewProps } from '../types';
 import type { IconName } from './art/icons';
 import { Board } from './components/Board';
@@ -25,7 +26,6 @@ import { useHints, type Hint, type StepHint } from './hints';
 import { CARD_ICON, playerColors } from './layout';
 import { useCatanText } from './useCatanText';
 import { useHandChange } from './useHandChange';
-import { useSharedView } from './useSharedView';
 import './catan.css';
 
 /** What the player is about to place on the board. UI state only. */

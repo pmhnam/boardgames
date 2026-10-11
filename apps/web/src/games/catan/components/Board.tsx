@@ -372,7 +372,7 @@ const Paints = memo(function Paints() {
 
 /**
  * The island. It is drawn again only when something on it changed, so everything it is given
- * has to stay the very same value until then: see `useSharedView`.
+ * has to stay the very same value until then: see `shared/useSharedView`.
  */
 export const Board = memo(function Board({
   board,

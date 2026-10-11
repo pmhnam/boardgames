@@ -4,7 +4,7 @@ import {
   type HarmoniesView,
   type TokenColor,
 } from '@bgp/game-harmonies';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import scoringSideA from '../assets/scoring-side-a.webp';
 import scoringSideB from '../assets/scoring-side-b.webp';
 import type { DiagramToken } from '../layout';
@@ -85,11 +85,19 @@ const of = (token: DiagramToken, height: number): DiagramToken[] =>
  * How each terrain is built and what it scores, for the map being played. Every number comes
  * from the engine's own scoring table and the match's token counts.
  */
-export function ScoringGuide({ view }: { view: HarmoniesView }) {
+export const ScoringGuide = memo(function ScoringGuide({
+  tokenCounts,
+  mapName,
+  waterScoring,
+}: {
+  tokenCounts: HarmoniesView['tokenCounts'];
+  mapName: string;
+  waterScoring: HarmoniesView['waterScoring'];
+}) {
   const text = useHarmoniesText();
   const guide = text.guide;
   const rules = SCORING_RULES;
-  const count = (color: TokenColor) => `×${view.tokenCounts[color]}`;
+  const count = (color: TokenColor) => `×${tokenCounts[color]}`;
   const byHeight = (height: number) => String(rules.pointsByHeight[height] ?? 0);
   const river = rules.riverPoints;
   const longestListed = river.length - 1;
@@ -97,20 +105,20 @@ export function ScoringGuide({ view }: { view: HarmoniesView }) {
   return (
     <details className="card guide">
       <summary>
-        {guide.title} <span className="muted">· {view.map.name}</span>
+        {guide.title} <span className="muted">· {mapName}</span>
       </summary>
 
       <div className="guide-body">
         <a
           className="guide-card"
-          href={REFERENCE_CARD[view.waterScoring]}
+          href={REFERENCE_CARD[waterScoring]}
           target="_blank"
           rel="noreferrer"
           title={guide.openCard}
         >
           <img
-            src={REFERENCE_CARD[view.waterScoring]}
-            alt={guide.cardAlt[view.waterScoring]}
+            src={REFERENCE_CARD[waterScoring]}
+            alt={guide.cardAlt[waterScoring]}
             loading="lazy"
           />
         </a>
@@ -181,7 +189,7 @@ export function ScoringGuide({ view }: { view: HarmoniesView }) {
           </Row>
 
           <Row title={guide.water} count={count('water')}>
-            {view.waterScoring === 'river' ? (
+            {waterScoring === 'river' ? (
               <>
                 {river.slice(1).map((points, index) => (
                   <Example
@@ -214,7 +222,7 @@ export function ScoringGuide({ view }: { view: HarmoniesView }) {
       <p className="guide-note muted">
         {guide.stacking(
           TOKEN_COLORS.map(
-            (color) => `${view.tokenCounts[color]} ${text.token[color].toLowerCase()}`,
+            (color) => `${tokenCounts[color]} ${text.token[color].toLowerCase()}`,
           ).join(', '),
         )}
       </p>
@@ -228,4 +236,4 @@ export function ScoringGuide({ view }: { view: HarmoniesView }) {
       </p>
     </details>
   );
-}
+});
