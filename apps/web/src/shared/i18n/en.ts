@@ -284,6 +284,11 @@ export const en: Messages = {
   'botLevel.hard': 'Hard',
 
   'history.empty': 'No matches yet.',
+  'history.toLobby': 'Find a room to play',
+  'history.won': 'Won',
+  'history.lost': 'Lost',
+  'history.finished': 'Finished',
+  'history.with': 'with {names}',
   'history.wonBy': 'Won by {names}',
   'history.abandoned': 'Abandoned',
   'history.replay': 'Replay',

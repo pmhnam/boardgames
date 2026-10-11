@@ -9,6 +9,8 @@ import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
 import { useDocumentTitle } from '../../shared/useDocumentTitle';
+import { MatchSkeleton } from './MatchSkeleton';
+import './match.css';
 
 const noop = () => undefined;
 
@@ -25,7 +27,7 @@ export function ReplayPage() {
 
   useDocumentTitle(t('history.replay'));
 
-  if (replay.isLoading) return <p className="muted">{t('replay.loading')}</p>;
+  if (replay.isLoading) return <MatchSkeleton label={t('replay.loading')} />;
   if (replay.isError || !replay.data) return <p className="error">{errorText(t, replay.error)}</p>;
 
   const { match, frames } = replay.data;

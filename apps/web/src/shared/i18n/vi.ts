@@ -281,6 +281,11 @@ export const vi = {
   'botLevel.hard': 'Khó',
 
   'history.empty': 'Chưa có trận nào.',
+  'history.toLobby': 'Tìm phòng để chơi',
+  'history.won': 'Thắng',
+  'history.lost': 'Thua',
+  'history.finished': 'Đã kết thúc',
+  'history.with': 'với {names}',
   'history.wonBy': 'Thắng: {names}',
   'history.abandoned': 'Bỏ dở',
   'history.replay': 'Xem lại',
