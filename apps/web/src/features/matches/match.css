@@ -39,6 +39,13 @@
   }
 }
 
+/* The board */
+
+/* Marks where a game's own layout begins without standing between it and the page's. */
+.game-area {
+  display: contents;
+}
+
 /* Loading */
 
 .match-skeleton-bar {

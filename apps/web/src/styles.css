@@ -108,6 +108,66 @@ h2 {
   text-decoration: none;
 }
 
+/* The player's name, and behind it what the header has no room to lay out. */
+.account-menu {
+  position: relative;
+}
+
+/* Two classes, to keep the name in the text's colour rather than a secondary button's. */
+.account-menu .account-menu-button {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  color: var(--text);
+}
+
+.account-menu-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 13rem;
+  max-width: calc(100vw - 2rem);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+}
+
+.account-menu-panel[hidden] {
+  display: none;
+}
+
+.account-menu-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+}
+
+/* Only where the header itself has dropped them. */
+.app-header nav.account-menu-links {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: stretch;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
 .language-switcher {
   display: inline-flex;
   overflow: hidden;
@@ -391,8 +451,38 @@ code {
 }
 
 @media (max-width: 40rem) {
+  /*
+   * One line for the name of the place and of the player. Its parts become the header's own,
+   * so that a game's controls can drop to a line of their own under it.
+   */
   .app-header-tools {
+    display: contents;
     font-size: var(--text-sm);
+  }
+
+  .brand {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-game-controls {
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .app-header nav.app-header-links {
+    display: none;
+  }
+
+  .app-header nav.account-menu-links {
+    display: flex;
+  }
+
+  .account-menu-name {
+    max-width: 5rem;
   }
 
   /* On a phone the dot says it. Trouble connecting is still spelled out. */
@@ -535,6 +625,40 @@ td {
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
     animation: none;
+  }
+}
+
+/*
+ * A finger needs more to aim at than a cursor does. Everything here is as weak as a bare
+ * element selector, and it stops at a board: the games size their own pieces.
+ */
+@media (pointer: coarse) {
+  :where(button, select, a.button, input:not([type='checkbox'], [type='radio'])):not(
+    :where(.game-area *)
+  ) {
+    min-height: 2.75rem;
+  }
+
+  :where(button.link, .language-switcher button, .match-toast button):not(:where(.game-area *)) {
+    min-width: 2.75rem;
+  }
+
+  :where(.app-header nav a) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  /* Padded rather than stretched, so a long name can still be cut short with an ellipsis. */
+  .brand {
+    padding-block: 0.65rem;
+  }
+
+  /* Centred in the height it has just been given. */
+  a.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 

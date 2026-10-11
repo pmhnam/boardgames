@@ -76,11 +76,13 @@ export function ReplayPage() {
           ⏭
         </button>
       </div>
-      {GameComponent ? (
-        <GameComponent message={message} players={match.players} sendAction={noop} disabled />
-      ) : (
-        <UnsupportedGame gameType={match.gameType} />
-      )}
+      <div className="game-area">
+        {GameComponent ? (
+          <GameComponent message={message} players={match.players} sendAction={noop} disabled />
+        ) : (
+          <UnsupportedGame gameType={match.gameType} />
+        )}
+      </div>
     </div>
   );
 }

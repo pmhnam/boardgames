@@ -123,25 +123,27 @@ export function MatchPage() {
           </div>
         )}
         {message.viewerPlayerId === null && <p className="muted">{t('match.watching')}</p>}
-        {GameComponent ? (
-          <GameComponent
-            key={matchId}
-            message={message}
-            players={match.data.players}
-            sendAction={sendAction}
-            disabled={
-              pending ||
-              finished ||
-              enabled ||
-              Boolean(controlPending) ||
-              !connected ||
-              connectionLost
-            }
-            autoplay={autoplay}
-          />
-        ) : (
-          <UnsupportedGame gameType={message.gameType} />
-        )}
+        <div className="game-area">
+          {GameComponent ? (
+            <GameComponent
+              key={matchId}
+              message={message}
+              players={match.data.players}
+              sendAction={sendAction}
+              disabled={
+                pending ||
+                finished ||
+                enabled ||
+                Boolean(controlPending) ||
+                !connected ||
+                connectionLost
+              }
+              autoplay={autoplay}
+            />
+          ) : (
+            <UnsupportedGame gameType={message.gameType} />
+          )}
+        </div>
       </div>
     </>
   );

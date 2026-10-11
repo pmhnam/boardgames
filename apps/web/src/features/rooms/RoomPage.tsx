@@ -158,6 +158,17 @@ export function RoomPage() {
       setCopyState('failed');
     }
   };
+  // The phone's own sheet: messaging apps, nearby devices. Desktop browsers mostly lack it.
+  const canShare = typeof navigator.share === 'function';
+  const share = async (data: ShareData) => {
+    try {
+      await navigator.share(data);
+    } catch (error) {
+      // Closing the sheet is an answer, not a failure.
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (data.url) await copy(data.url);
+    }
+  };
   const games = useQuery({
     queryKey: ['games'],
     queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
@@ -224,6 +235,21 @@ export function RoomPage() {
         <button type="button" className="secondary" onClick={() => void copy(inviteLink)}>
           {copyState === 'copied' ? t('roomPage.copied') : t('roomPage.copy')}
         </button>
+        {canShare && (
+          <button
+            type="button"
+            className="secondary"
+            onClick={() =>
+              void share({
+                title: t('roomPage.title', { code: data.code }),
+                text: t('roomPage.shareText', { game: game?.displayName ?? data.gameType }),
+                url: inviteLink,
+              })
+            }
+          >
+            {t('roomPage.share')}
+          </button>
+        )}
         <span className={copyState === 'failed' ? 'error' : 'sr-only'} aria-live="polite">
           {copyState === 'copied' && t('roomPage.copied')}
           {copyState === 'failed' && t('roomPage.copyFailed')}

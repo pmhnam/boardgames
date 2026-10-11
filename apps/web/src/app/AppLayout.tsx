@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useState } from 'react';
+import { AccountMenu } from '../shared/components/AccountMenu';
 import { HeaderControlsTarget } from '../shared/components/HeaderControls';
 import { useAuthStore } from '../features/auth/auth.store';
 import { isAdmin } from '../features/auth/roles';
@@ -15,6 +16,14 @@ export function AppLayout() {
   const connectionLost = useConnectionLost();
   const [controlsTarget, setControlsTarget] = useState<HTMLDivElement | null>(null);
 
+  // Listed in the header where there is room, and in the account menu where there is not.
+  const links = session && (
+    <>
+      <NavLink to="/history">{t('nav.history')}</NavLink>
+      {isAdmin(session) && <NavLink to="/admin">{t('nav.admin')}</NavLink>}
+    </>
+  );
+
   return (
     <HeaderControlsTarget.Provider value={controlsTarget}>
       <div className="app">
@@ -24,21 +33,16 @@ export function AppLayout() {
           </Link>
           <div className="app-header-tools">
             <div className="app-game-controls" ref={setControlsTarget} />
-            {session && (
-              <nav aria-label={t('nav.label')}>
-                <NavLink to="/history">{t('nav.history')}</NavLink>
-                {isAdmin(session) && <NavLink to="/admin">{t('nav.admin')}</NavLink>}
-              </nav>
-            )}
-            <LanguageSwitcher />
-            {session && (
+            {session ? (
               <>
+                <nav className="app-header-links" aria-label={t('nav.label')}>
+                  {links}
+                </nav>
                 <ConnectionIndicator />
-                <span className="muted">{session.user.displayName}</span>
-                <button type="button" className="link" onClick={signOut}>
-                  {t('nav.signOut')}
-                </button>
+                <AccountMenu name={session.user.displayName} links={links} onSignOut={signOut} />
               </>
+            ) : (
+              <LanguageSwitcher />
             )}
           </div>
         </header>
