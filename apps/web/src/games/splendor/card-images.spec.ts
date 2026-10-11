@@ -19,29 +19,29 @@ describe('Splendor artwork', () => {
 
     for (const card of cards) {
       expect(CARD_IMAGE_PATHS[card.id]).toMatch(
-        new RegExp(`^development/level-${card.tier}/L${card.tier}-R\\d{2}-C\\d{2}\\.png$`),
+        new RegExp(`^development/level-${card.tier}/L${card.tier}-R\\d{2}-C\\d{2}\\.webp$`),
       );
       expect(cardImageUrl(card)).toContain(CARD_IMAGE_PATHS[card.id]);
     }
     for (const noble of nobles) expect(nobleImageUrl(noble)).toContain(NOBLE_IMAGE_PATHS[noble.id]);
     for (const tier of [1, 2, 3] as const) {
-      expect(cardBackImageUrl(tier)).toContain(`backs/level-${tier}-back.png`);
+      expect(cardBackImageUrl(tier)).toContain(`backs/level-${tier}-back.webp`);
     }
   });
 
   it('matches the printed bonus, points and cost on the source sheet', () => {
-    expect(CARD_IMAGE_PATHS['red-L1-01']).toBe('development/level-1/L1-R01-C01.png');
-    expect(CARD_IMAGE_PATHS['white-L1-07']).toBe('development/level-1/L1-R01-C04.png');
+    expect(CARD_IMAGE_PATHS['red-L1-01']).toBe('development/level-1/L1-R01-C01.webp');
+    expect(CARD_IMAGE_PATHS['white-L1-07']).toBe('development/level-1/L1-R01-C04.webp');
     // The two higher tiers have repeated artwork with different printed gem costs.
-    expect(CARD_IMAGE_PATHS['red-L2-03']).toBe('development/level-2/L2-R01-C01.png');
-    expect(CARD_IMAGE_PATHS['red-L2-04']).toBe('development/level-2/L2-R03-C06.png');
-    expect(CARD_IMAGE_PATHS['blue-L2-02']).toBe('development/level-2/L2-R01-C02.png');
-    expect(CARD_IMAGE_PATHS['black-L2-01']).toBe('development/level-2/L2-R03-C01.png');
-    expect(CARD_IMAGE_PATHS['white-L3-01']).toBe('development/level-3/L3-R01-C07.png');
-    expect(CARD_IMAGE_PATHS['black-L3-01']).toBe('development/level-3/L3-R01-C01.png');
-    expect(CARD_IMAGE_PATHS['black-L3-02']).toBe('development/level-3/L3-R01-C06.png');
-    expect(CARD_IMAGE_PATHS['red-L3-03']).toBe('development/level-3/L3-R02-C08.png');
-    expect(NOBLE_IMAGE_PATHS['noble-henry-viii']).toBe('nobles/NOBLE-02.png');
+    expect(CARD_IMAGE_PATHS['red-L2-03']).toBe('development/level-2/L2-R01-C01.webp');
+    expect(CARD_IMAGE_PATHS['red-L2-04']).toBe('development/level-2/L2-R03-C06.webp');
+    expect(CARD_IMAGE_PATHS['blue-L2-02']).toBe('development/level-2/L2-R01-C02.webp');
+    expect(CARD_IMAGE_PATHS['black-L2-01']).toBe('development/level-2/L2-R03-C01.webp');
+    expect(CARD_IMAGE_PATHS['white-L3-01']).toBe('development/level-3/L3-R01-C07.webp');
+    expect(CARD_IMAGE_PATHS['black-L3-01']).toBe('development/level-3/L3-R01-C01.webp');
+    expect(CARD_IMAGE_PATHS['black-L3-02']).toBe('development/level-3/L3-R01-C06.webp');
+    expect(CARD_IMAGE_PATHS['red-L3-03']).toBe('development/level-3/L3-R02-C08.webp');
+    expect(NOBLE_IMAGE_PATHS['noble-henry-viii']).toBe('nobles/NOBLE-02.webp');
   });
 
   it('falls back to the rendered card when a custom game changes its printed values', () => {

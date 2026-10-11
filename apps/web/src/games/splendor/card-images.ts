@@ -132,7 +132,7 @@ export const CARD_IMAGE_PATHS = Object.fromEntries(
     rows.flatMap((row, rowIndex) =>
       row.map((card, columnIndex) => [
         `${card.split('-')[0]}-L${tier}-${card.split('-')[1]}`,
-        `development/level-${tier}/L${tier}-R${String(rowIndex + 1).padStart(2, '0')}-C${String(columnIndex + 1).padStart(2, '0')}.png`,
+        `development/level-${tier}/L${tier}-R${String(rowIndex + 1).padStart(2, '0')}-C${String(columnIndex + 1).padStart(2, '0')}.webp`,
       ]),
     ),
   ),
@@ -140,16 +140,16 @@ export const CARD_IMAGE_PATHS = Object.fromEntries(
 
 /** Noble sheet order differs from both the JSON numbering and the engine's noble order. */
 export const NOBLE_IMAGE_PATHS: Record<string, string> = {
-  'noble-catherine-de-medici': 'nobles/NOBLE-01.png',
-  'noble-henry-viii': 'nobles/NOBLE-02.png',
-  'noble-machiavelli': 'nobles/NOBLE-03.png',
-  'noble-charles-v': 'nobles/NOBLE-04.png',
-  'noble-elisabeth-of-austria': 'nobles/NOBLE-05.png',
-  'noble-isabella-of-castile': 'nobles/NOBLE-06.png',
-  'noble-suleiman': 'nobles/NOBLE-07.png',
-  'noble-anne-of-brittany': 'nobles/NOBLE-08.png',
-  'noble-francis-i': 'nobles/NOBLE-09.png',
-  'noble-mary-stuart': 'nobles/NOBLE-10.png',
+  'noble-catherine-de-medici': 'nobles/NOBLE-01.webp',
+  'noble-henry-viii': 'nobles/NOBLE-02.webp',
+  'noble-machiavelli': 'nobles/NOBLE-03.webp',
+  'noble-charles-v': 'nobles/NOBLE-04.webp',
+  'noble-elisabeth-of-austria': 'nobles/NOBLE-05.webp',
+  'noble-isabella-of-castile': 'nobles/NOBLE-06.webp',
+  'noble-suleiman': 'nobles/NOBLE-07.webp',
+  'noble-anne-of-brittany': 'nobles/NOBLE-08.webp',
+  'noble-francis-i': 'nobles/NOBLE-09.webp',
+  'noble-mary-stuart': 'nobles/NOBLE-10.webp',
 };
 
 const defaultCards = new Map(DEFAULT_SPLENDOR_CONFIG.cards.map((card) => [card.id, card]));
