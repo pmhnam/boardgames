@@ -1,44 +1,51 @@
 import type { AvalonAction, AvalonView } from '@bgp/game-avalon';
+import { useAvalonText } from '../useAvalonText';
+import { Icon } from './Icon';
 
 /**
- * What the viewer has to do right now, if anything. Which buttons there are is the engine's
- * call, via `legal`; the players picked for a team or as a target come from the seats above.
+ * What the viewer is asked right now, or what the table is waiting for. Which buttons there
+ * are is the engine's call, via `legal`; the players picked for a team or as a target come
+ * from the seats of the table. It stays in place while an answer is on its way: only its
+ * buttons wait.
  */
 export function ActionPanel({
   view,
   selected,
-  describe,
+  nameOf,
+  status,
   disabled,
   sendAction,
 }: {
   view: AvalonView;
   /** The seats the viewer has picked. */
-  selected: string[];
-  /** Names for a list of players. */
-  describe(playerIds: string[]): string;
+  selected: readonly string[];
+  nameOf(playerId: string): string;
+  /** What to say when nothing is asked of the viewer. */
+  status: string;
   disabled: boolean;
   sendAction(action: AvalonAction): void;
 }) {
+  const text = useAvalonText();
   const { legal } = view;
   const target = selected[0];
+  const names = (playerIds: readonly string[]) => playerIds.map(nameOf).join(', ');
 
   if (legal.propose) {
     const { teamSize } = legal.propose;
     return (
-      <section className="card avalon-prompt">
-        <h2>Choose a team of {teamSize}</h2>
-        <p className="muted">
-          Pick players from the table below. You may pick yourself. Everyone then votes on it.
-        </p>
-        <div className="row wrap">
+      <section className="card avalon-prompt yours">
+        <h2>{text.prompt.proposeTitle(teamSize)}</h2>
+        <p className="muted hint">{text.prompt.proposeHint}</p>
+        <div className="avalon-prompt-row">
           <button
             type="button"
             disabled={disabled || selected.length !== teamSize}
-            onClick={() => sendAction({ type: 'PROPOSE_TEAM', team: selected })}
+            onClick={() => sendAction({ type: 'PROPOSE_TEAM', team: [...selected] })}
           >
-            Propose team ({selected.length}/{teamSize})
+            <Icon name="team" />
+            {text.prompt.propose(selected.length, teamSize)}
           </button>
-          {selected.length > 0 && <span>{describe(selected)}</span>}
+          {selected.length > 0 && <span className="avalon-picked">{names(selected)}</span>}
         </div>
       </section>
     );
@@ -48,22 +55,31 @@ export function ActionPanel({
     const { proposal } = legal.vote;
     const vote = (approve: boolean) => sendAction({ type: 'VOTE', proposal, approve });
     return (
-      <section className="card avalon-prompt">
-        <h2>Send this team on the quest?</h2>
-        <p>{describe(view.team ?? [])}</p>
-        <div className="row wrap">
-          <button type="button" disabled={disabled} onClick={() => vote(true)}>
-            Approve
+      <section className="card avalon-prompt yours">
+        <h2>{text.prompt.voteTitle}</h2>
+        <p className="avalon-picked">
+          <Icon name="team" /> {names(view.team ?? [])}
+        </p>
+        <div className="avalon-prompt-row">
+          <button
+            type="button"
+            className="avalon-choice yes"
+            disabled={disabled}
+            onClick={() => vote(true)}
+          >
+            <Icon name="approve" />
+            {text.prompt.approve}
           </button>
           <button
             type="button"
-            className="secondary"
+            className="avalon-choice no"
             disabled={disabled}
             onClick={() => vote(false)}
           >
-            Reject
+            <Icon name="reject" />
+            {text.prompt.reject}
           </button>
-          <span className="muted">Votes are shown once everyone has voted.</span>
+          <span className="muted hint">{text.prompt.voteHint}</span>
         </div>
       </section>
     );
@@ -73,71 +89,72 @@ export function ActionPanel({
     const { quest, canFail } = legal.quest;
     const play = (success: boolean) => sendAction({ type: 'PLAY_QUEST_CARD', quest, success });
     return (
-      <section className="card avalon-prompt">
-        <h2>You are on the quest: play a card</h2>
-        <div className="row wrap">
-          <button type="button" disabled={disabled} onClick={() => play(true)}>
-            Success
+      <section className="card avalon-prompt yours">
+        <h2>{text.prompt.questTitle}</h2>
+        <div className="avalon-prompt-row">
+          <button
+            type="button"
+            className="avalon-choice yes"
+            disabled={disabled}
+            onClick={() => play(true)}
+          >
+            <Icon name="success" />
+            {text.prompt.success}
           </button>
           <button
             type="button"
-            className="secondary"
+            className="avalon-choice no"
             disabled={disabled || !canFail}
             onClick={() => play(false)}
           >
-            Fail
+            <Icon name="fail" />
+            {text.prompt.fail}
           </button>
-          <span className="muted">
-            {canFail
-              ? 'Only the number of Fails is announced, never who played them.'
-              : 'The good side always plays Success.'}
+          <span className="muted hint">
+            {canFail ? text.prompt.questHintEvil : text.prompt.questHintGood}
           </span>
         </div>
       </section>
     );
   }
 
-  if (legal.ladyTargets.length > 0) {
+  if (legal.ladyTargets.length > 0 || legal.assassinTargets.length > 0) {
+    const lady = legal.ladyTargets.length > 0;
     return (
-      <section className="card avalon-prompt">
-        <h2>Use the Lady of the Lake</h2>
-        <p className="muted">
-          Pick a player below to learn which side they are on. Only you see the answer, and the Lady
-          passes to them.
-        </p>
-        <div className="row wrap">
+      <section className="card avalon-prompt yours">
+        <h2>{lady ? text.prompt.ladyTitle : text.prompt.assassinTitle}</h2>
+        <p className="muted hint">{lady ? text.prompt.ladyHint : text.prompt.assassinHint}</p>
+        <div className="avalon-prompt-row">
           <button
             type="button"
+            className={lady ? undefined : 'avalon-choice no'}
             disabled={disabled || target === undefined}
-            onClick={() => target && sendAction({ type: 'USE_LADY', targetId: target })}
+            onClick={() =>
+              target &&
+              sendAction(
+                lady
+                  ? { type: 'USE_LADY', targetId: target }
+                  : { type: 'ASSASSINATE', targetId: target },
+              )
+            }
           >
-            {target ? `Look at ${describe([target])}` : 'Pick a player'}
+            <Icon name={lady ? 'lady' : 'dagger'} />
+            {target === undefined
+              ? text.prompt.pickPlayer
+              : lady
+                ? text.prompt.look(nameOf(target))
+                : text.prompt.assassinate(nameOf(target))}
           </button>
         </div>
       </section>
     );
   }
 
-  if (legal.assassinTargets.length > 0) {
-    return (
-      <section className="card avalon-prompt">
-        <h2>Name Merlin</h2>
-        <p className="muted">
-          Good has its three quests. Pick the player you believe is Merlin: if you are right, evil
-          wins.
-        </p>
-        <div className="row wrap">
-          <button
-            type="button"
-            disabled={disabled || target === undefined}
-            onClick={() => target && sendAction({ type: 'ASSASSINATE', targetId: target })}
-          >
-            {target ? `Assassinate ${describe([target])}` : 'Pick a player'}
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  return null;
+  return (
+    <section className="card avalon-prompt">
+      <p className="avalon-say" aria-live="polite">
+        {status}
+      </p>
+    </section>
+  );
 }

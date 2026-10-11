@@ -1,44 +1,73 @@
 import type { AvalonView } from '@bgp/game-avalon';
+import { memo } from 'react';
+import { useAvalonText } from '../useAvalonText';
+import { Icon } from './Icon';
 
-/** The five quests, and how close the table is to running out of proposals. */
-export function QuestTrack({ view }: { view: AvalonView }) {
-  const underway = view.phase !== 'FINISHED' && view.phase !== 'ASSASSINATION';
+/**
+ * The five quests as medallions, each showing how many go on it and how it turned out, and how
+ * close the table is to running out of proposals. It changes a few times in a game.
+ */
+export const QuestTrack = memo(function QuestTrack({
+  quests,
+  questIndex,
+  underway,
+  rejections,
+  maxRejections,
+}: {
+  quests: AvalonView['quests'];
+  questIndex: number;
+  /** A quest is still to be decided: the one in progress is marked. */
+  underway: boolean;
+  rejections: number;
+  maxRejections: number;
+}) {
+  const text = useAvalonText();
   return (
-    <section className="card avalon-track">
-      <ol className="avalon-quests">
-        {view.quests.map((quest, index) => {
+    <div className="avalon-track">
+      <ol className="avalon-quests" aria-label={text.quest.trackLabel}>
+        {quests.map((quest, index) => {
           const state = quest.result ? (quest.result.success ? 'success' : 'failed') : 'open';
-          const current = underway && index === view.questIndex;
+          const current = underway && index === questIndex;
+          const note = quest.result
+            ? `${quest.result.success ? text.quest.success : text.quest.failed} · ${text.quest.fails(quest.result.fails)}`
+            : quest.failsRequired > 1
+              ? `${text.quest.players(quest.teamSize)} · ${text.quest.failsNeeded(quest.failsRequired)}`
+              : text.quest.players(quest.teamSize);
           return (
             <li
               key={index}
               className={`avalon-quest ${state}${current ? ' current' : ''}`}
               aria-current={current ? 'step' : undefined}
+              title={`${text.quest.label(index + 1)}: ${note}`}
             >
-              <span className="avalon-quest-number">Quest {index + 1}</span>
-              <span className="avalon-quest-size">{quest.teamSize}</span>
-              <span className="avalon-quest-note">
-                {quest.result
-                  ? `${quest.result.success ? 'Success' : 'Failed'} · ${quest.result.fails} fail${quest.result.fails === 1 ? '' : 's'}`
-                  : quest.failsRequired > 1
-                    ? `players · ${quest.failsRequired} fails needed`
-                    : 'players'}
+              <span className="avalon-quest-coin" aria-hidden="true">
+                {quest.result ? (
+                  <Icon name={quest.result.success ? 'success' : 'fail'} />
+                ) : (
+                  quest.teamSize
+                )}
+                {!quest.result && quest.failsRequired > 1 && (
+                  <span className="avalon-quest-double">{quest.failsRequired}</span>
+                )}
+              </span>
+              <span className="sr-only">
+                {text.quest.label(index + 1)}: {note}
               </span>
             </li>
           );
         })}
       </ol>
-      <p className="avalon-rejections">
-        <span className="muted">Teams rejected in a row</span>
+      <p className="avalon-rejections" title={text.quest.rejections}>
+        <Icon name="reject" />
         <span className="avalon-pips" aria-hidden="true">
-          {Array.from({ length: view.maxRejections }, (_, index) => (
-            <span key={index} className={index < view.rejections ? 'pip used' : 'pip'} />
+          {Array.from({ length: maxRejections }, (_, index) => (
+            <span key={index} className={index < rejections ? 'pip used' : 'pip'} />
           ))}
         </span>
-        <span className="num">
-          {view.rejections} of {view.maxRejections}
+        <span className="sr-only">
+          {text.quest.rejections}: {text.quest.rejectionsOf(rejections, maxRejections)}
         </span>
       </p>
-    </section>
+    </div>
   );
-}
+});

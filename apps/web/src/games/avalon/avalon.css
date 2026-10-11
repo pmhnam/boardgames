@@ -1,0 +1,1081 @@
+/* Avalon. The table is a hall at night with a round table in it, and the seats are parchment:
+   they keep their colours in both themes. The panels around the table follow the app's. */
+
+.avalon {
+  --avalon-night-1: #26375f;
+  --avalon-night-2: #17213d;
+  --avalon-night-3: #0d1428;
+  --avalon-gold: #d4a843;
+  --avalon-paper: #f4ecd8;
+  --avalon-paper-2: #e6d9b8;
+  --avalon-paper-edge: #a98f56;
+  --avalon-ink: #252a3a;
+  --avalon-ink-soft: #5d6274;
+  /* The two sides, as paint: the same on parchment and on a button in either theme. */
+  --avalon-blue: #2b6fc2;
+  --avalon-red: #b3261e;
+  /* The two sides, as text on the app's own surfaces. */
+  --avalon-good: #235fa8;
+  --avalon-evil: var(--danger);
+  /* A table of ten has a lot on it. On a screen wider than the page's column, it takes the
+     room. */
+  --avalon-width: max(100%, min(100vw - 2rem, 84rem));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: var(--avalon-width);
+  margin-inline: calc((100% - var(--avalon-width)) / 2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .avalon {
+    --avalon-good: #86b6f2;
+  }
+}
+
+.avalon-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.avalon h2 {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.avalon p {
+  margin: 0;
+}
+
+/* Small dots that count: proposals turned down, votes cast, cards played. */
+
+.avalon .pip {
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 1.5px solid currentcolor;
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+.avalon .pip.used {
+  background: currentcolor;
+  opacity: 1;
+}
+
+/* Where the game is, the five quests, and the alerts. */
+
+.avalon-banner {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 0.75rem;
+}
+
+.avalon-banner.over {
+  border-color: var(--avalon-gold);
+}
+
+.avalon-banner-title {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.avalon-banner-title > .avalon-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+  color: var(--avalon-gold);
+}
+
+.avalon-banner-title > div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.avalon-banner-title strong {
+  font-size: 1.2rem;
+}
+
+.avalon-banner-title .muted {
+  font-size: var(--text-sm);
+}
+
+.avalon-banner .hint {
+  flex-basis: 100%;
+}
+
+.avalon-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.avalon-quests {
+  display: flex;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.avalon-quest-coin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+}
+
+.avalon-quest-coin .avalon-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.avalon-quest.current .avalon-quest-coin {
+  color: var(--text);
+  background: color-mix(in srgb, var(--avalon-gold) 22%, var(--surface));
+  border-color: var(--avalon-gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--avalon-gold) 35%, transparent);
+}
+
+.avalon-quest.success .avalon-quest-coin {
+  color: #fff;
+  background: var(--avalon-blue);
+  border-color: var(--avalon-blue);
+}
+
+.avalon-quest.failed .avalon-quest-coin {
+  color: #fff;
+  background: var(--avalon-red);
+  border-color: var(--avalon-red);
+}
+
+/* A quest that takes two fail cards to fail says so on its rim. */
+.avalon-quest-double {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.45rem;
+  display: grid;
+  place-items: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.7rem;
+  color: #fff;
+  background: var(--avalon-red);
+  border-radius: var(--radius-pill);
+}
+
+.avalon-rejections {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--muted);
+}
+
+.avalon-rejections .avalon-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.avalon-pips,
+.avalon-tally {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.avalon-rejections .pip.used {
+  color: var(--avalon-evil);
+}
+
+.avalon-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.avalon-tool {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.avalon-tool:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+.avalon-tool[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--avalon-gold) 20%, var(--surface));
+  border-color: var(--avalon-gold);
+}
+
+.avalon-tool .avalon-icon {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* The table and the question under it in one column; the viewer's secret and the roles
+   beside it once there is room. */
+
+.avalon-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.avalon-main,
+.avalon-play {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.avalon-side {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 75rem) {
+  .avalon-layout {
+    grid-template-columns: minmax(0, 1fr) 19rem;
+  }
+
+  .avalon-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The table. */
+
+.avalon-table {
+  container: avalon-table / inline-size;
+  padding: 1.1rem 0.75rem 0.9rem;
+  color: var(--avalon-paper);
+  background:
+    radial-gradient(ellipse at 50% 40%, rgb(212 168 67 / 0.16), transparent 62%),
+    linear-gradient(180deg, var(--avalon-night-1), var(--avalon-night-2));
+  border: 3px solid var(--avalon-night-3);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 0.07),
+    inset 0 0 3.5rem rgb(0 0 0 / 0.45);
+}
+
+.avalon-ring {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.avalon-centre {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+  text-align: center;
+}
+
+.avalon-emblem {
+  display: grid;
+  place-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  color: var(--avalon-gold);
+  background: rgb(0 0 0 / 0.28);
+  border: 2px solid var(--avalon-gold);
+  border-radius: 50%;
+}
+
+.avalon-emblem .avalon-icon {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+
+.avalon-emblem.good {
+  color: #fff;
+  background: var(--avalon-blue);
+}
+
+.avalon-emblem.evil {
+  color: #fff;
+  background: var(--avalon-red);
+}
+
+.avalon-centre-title {
+  font-size: 1.1rem;
+  line-height: 1.25;
+  text-wrap: balance;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+.avalon-centre-note {
+  max-width: 20rem;
+  font-size: 0.9rem;
+  text-wrap: balance;
+}
+
+.avalon-tally {
+  max-width: 11rem;
+  color: var(--avalon-gold);
+}
+
+.avalon-tally .pip {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+/* On a narrow table the seats are a list, in seat order. */
+.avalon-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.75rem, 1fr));
+  gap: 0.9rem 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A player, as a name plate on the table. */
+
+.avalon-seat {
+  position: relative;
+  color: var(--avalon-ink);
+  background: linear-gradient(180deg, var(--avalon-paper), var(--avalon-paper-2));
+  border: 2px solid var(--avalon-paper-edge);
+  border-radius: 8px;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.4);
+}
+
+.avalon-seat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: 3.4rem;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+
+button.avalon-seat-body:hover {
+  background: rgb(212 168 67 / 0.25);
+}
+
+.avalon-seat.mine {
+  border-color: var(--avalon-ink);
+}
+
+/* Going on the quest: the plate is lit. */
+.avalon-seat.on-team {
+  border-color: var(--avalon-gold);
+  box-shadow:
+    0 0 0 3px rgb(212 168 67 / 0.7),
+    0 3px 10px rgb(0 0 0 / 0.45);
+}
+
+/* A player the viewer may choose is outlined; one they chose is ringed in gold. */
+.avalon-seat.selectable {
+  outline: 2px dashed var(--avalon-gold);
+  outline-offset: 2px;
+}
+
+.avalon-seat.selected {
+  outline: 3px solid #fff;
+  box-shadow:
+    0 0 0 6px var(--avalon-gold),
+    0 3px 10px rgb(0 0 0 / 0.45);
+}
+
+.avalon-seat.good {
+  border-color: var(--avalon-blue);
+}
+
+.avalon-seat.evil {
+  border-color: var(--avalon-red);
+}
+
+.avalon-seat-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.avalon-face {
+  position: relative;
+  flex: none;
+}
+
+.avalon-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  font-weight: 700;
+  color: #fff;
+  background: hsl(var(--seat-hue) 42% 38%);
+  border: 2px solid var(--avalon-paper-edge);
+  border-radius: 50%;
+}
+
+.avalon-avatar .avalon-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.avalon-seat.good .avalon-avatar {
+  background: var(--avalon-blue);
+}
+
+.avalon-seat.evil .avalon-avatar {
+  background: var(--avalon-red);
+}
+
+.avalon-seat-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.avalon-seat-name {
+  overflow: hidden;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avalon-you {
+  font-weight: 400;
+  color: var(--avalon-ink-soft);
+}
+
+.avalon-seat-status {
+  overflow: hidden;
+  font-size: 0.78rem;
+  color: var(--avalon-ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A role's name is what the end of the game is about: it takes a second line before it is
+   cut. */
+.avalon-reveal {
+  font-size: 0.78rem;
+  text-wrap: balance;
+}
+
+/* How a player voted, or that they have, pinned to the corner of their portrait. */
+
+.avalon-seat-status.waiting {
+  font-style: italic;
+}
+
+.avalon-seat-status.done {
+  font-weight: 700;
+  color: var(--avalon-ink);
+}
+
+.avalon-reveal {
+  font-weight: 700;
+}
+
+.avalon-reveal.good {
+  color: var(--avalon-blue);
+}
+
+.avalon-reveal.evil {
+  color: var(--avalon-red);
+}
+
+.avalon-ballot {
+  position: absolute;
+  right: -0.4rem;
+  bottom: -0.35rem;
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  color: #fff;
+  border: 1.5px solid var(--avalon-paper);
+  border-radius: 50%;
+}
+
+.avalon-ballot .avalon-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.avalon-ballot.yes {
+  background: var(--avalon-blue);
+}
+
+.avalon-ballot.no {
+  background: var(--avalon-red);
+}
+
+.avalon-ballot.done {
+  background: var(--avalon-ink-soft);
+}
+
+.avalon-knowledge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.5rem;
+}
+
+.avalon-known {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--avalon-ink-soft);
+}
+
+.avalon-seat .avalon-known.good {
+  color: var(--avalon-blue);
+}
+
+.avalon-seat .avalon-known.evil {
+  color: var(--avalon-red);
+}
+
+/* What a player holds or is, as tokens along the top edge of their plate. */
+.avalon-marks {
+  position: absolute;
+  top: -0.8rem;
+  right: 0.35rem;
+  z-index: 1;
+  display: flex;
+  gap: 0.2rem;
+}
+
+.avalon-mark {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--avalon-ink);
+  background: var(--avalon-gold);
+  border: 1.5px solid var(--avalon-ink);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+}
+
+.avalon-mark .avalon-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.avalon-mark.team {
+  color: #fff;
+  background: var(--avalon-ink);
+  border-color: var(--avalon-gold);
+}
+
+.avalon-mark.lady {
+  color: #fff;
+  background: #2a8a8f;
+}
+
+.avalon-mark.dagger {
+  color: #fff;
+  background: var(--avalon-red);
+}
+
+/* What the viewer is asked, kept in reach: it stays at the foot of the window while the
+   table above is scrolled. The vote record sits outside, so it is never under it. */
+
+.avalon-dock {
+  position: sticky;
+  bottom: 0.5rem;
+  z-index: 5;
+}
+
+.avalon-prompt {
+  gap: 0.5rem;
+  box-shadow: 0 0.4rem 1.4rem rgb(0 0 0 / 0.22);
+}
+
+.avalon-prompt.yours {
+  border-color: var(--avalon-gold);
+  box-shadow:
+    0 0 0 2px var(--avalon-gold),
+    0 0.4rem 1.4rem rgb(0 0 0 / 0.28);
+}
+
+.avalon-prompt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+
+.avalon-prompt button {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-inline: 1.1rem;
+  font-weight: 600;
+}
+
+.avalon-prompt button .avalon-icon {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.avalon-choice.yes {
+  color: #fff;
+  background: var(--avalon-blue);
+}
+
+.avalon-choice.yes:not(:disabled):hover {
+  background: color-mix(in srgb, var(--avalon-blue) 85%, #000);
+}
+
+.avalon-choice.no {
+  color: #fff;
+  background: var(--avalon-red);
+}
+
+.avalon-choice.no:not(:disabled):hover {
+  background: color-mix(in srgb, var(--avalon-red) 85%, #000);
+}
+
+.avalon-picked {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-weight: 600;
+}
+
+.avalon-say {
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+/* The viewer's secret. */
+
+.avalon-role {
+  border-top: 4px solid var(--border);
+}
+
+.avalon-role.good {
+  border-top-color: var(--avalon-blue);
+}
+
+.avalon-role.evil {
+  border-top-color: var(--avalon-red);
+}
+
+.avalon-role.face-down {
+  border-style: dashed;
+}
+
+.avalon h2.avalon-role-head {
+  justify-content: space-between;
+}
+
+.avalon-role-head button {
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.avalon-identity {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.avalon-identity > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  line-height: 1.25;
+}
+
+.avalon-identity strong {
+  font-size: 1.2rem;
+}
+
+.avalon-crest {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  color: #fff;
+  background: var(--avalon-ink-soft);
+  border-radius: 50%;
+}
+
+.avalon-crest .avalon-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.avalon-crest.good {
+  background: var(--avalon-blue);
+}
+
+.avalon-crest.evil {
+  background: var(--avalon-red);
+}
+
+.avalon-crest.small {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.avalon-crest.small .avalon-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.avalon-side-tag {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.avalon-side-tag.good,
+.avalon-side .avalon-known.good {
+  color: var(--avalon-good);
+}
+
+.avalon-side-tag.evil,
+.avalon-side .avalon-known.evil {
+  color: var(--avalon-evil);
+}
+
+.avalon-sees {
+  display: flex;
+  gap: 0.45rem;
+  align-items: baseline;
+}
+
+.avalon-sees .avalon-icon {
+  color: var(--muted);
+  translate: 0 0.15em;
+}
+
+/* The roles in this game, and who has held the Lady of the Lake. */
+
+.avalon-cast,
+.avalon-lady {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.avalon-cast li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.avalon-cast .num {
+  color: var(--muted);
+}
+
+.avalon-lady {
+  font-size: 0.92rem;
+}
+
+.avalon-credit {
+  font-size: 0.75rem;
+}
+
+/* Votes so far. */
+
+/* The table scrolls sideways; this keeps the screen-reader text of its cells scrolling with
+   it. */
+.avalon-history-scroll {
+  position: relative;
+  overflow-x: auto;
+}
+
+.avalon-history {
+  width: 100%;
+  font-size: 0.9rem;
+  border-collapse: collapse;
+}
+
+.avalon-history th,
+.avalon-history td {
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.avalon-history th {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.avalon-history th.avalon-history-name {
+  max-width: 5.5rem;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+.avalon-history td.num {
+  text-align: right;
+}
+
+.avalon-history td.avalon-vote {
+  text-align: center;
+}
+
+.avalon-vote .avalon-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.avalon-vote .yes {
+  color: var(--avalon-good);
+}
+
+.avalon-vote .no {
+  color: var(--avalon-evil);
+}
+
+.avalon-vote.picked {
+  background: color-mix(in srgb, var(--avalon-gold) 30%, var(--surface));
+}
+
+.avalon-history tr.sent td:last-child {
+  font-weight: 600;
+}
+
+.avalon-history tr.turned-down td:last-child {
+  color: var(--muted);
+}
+
+/* Given the room, the seats sit round the table where `seatSpots` puts them, and the table
+   grows with the number of seats so that no two overlap. After the rules above, which it
+   overrides. */
+@container avalon-table (min-width: 47rem) {
+  /* As tall as leaves the question in sight under it, between the least that keeps the seats
+     apart and the most that still looks like one table. */
+  .avalon-ring {
+    position: relative;
+    display: block;
+    height: clamp(23rem, 100dvh - 17rem, 30rem);
+  }
+
+  .avalon-ring[data-seats='7'],
+  .avalon-ring[data-seats='8'] {
+    height: clamp(26rem, 100dvh - 17rem, 34rem);
+  }
+
+  .avalon-ring[data-seats='9'],
+  .avalon-ring[data-seats='10'] {
+    height: clamp(29rem, 100dvh - 17rem, 38rem);
+  }
+
+  /* The round table itself, inside the ring of seats. */
+  .avalon-ring::before {
+    position: absolute;
+    inset: 17% 19%;
+    content: '';
+    background:
+      radial-gradient(ellipse at center, rgb(212 168 67 / 0.14), transparent 70%),
+      radial-gradient(ellipse at center, #5b4630, #3a2b1c);
+    border: 3px solid var(--avalon-gold);
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 6px rgb(0 0 0 / 0.25),
+      inset 0 0 2.5rem rgb(0 0 0 / 0.5);
+  }
+
+  .avalon-centre {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(20rem, 36%);
+    translate: -50% -50%;
+  }
+
+  .avalon-seats {
+    display: block;
+  }
+
+  .avalon-seat {
+    position: absolute;
+    top: var(--y);
+    left: var(--x);
+    /* Narrower than the gap between two neighbours on the ring of ten. */
+    width: clamp(8.75rem, 18.5cqw, 13rem);
+    translate: -50% -50%;
+  }
+}
+
+/* On a wide window the question is one line high: what is asked on the left, the answers on
+   the right. The table above then keeps the viewer's own seat in sight. */
+@media (min-width: 64rem) {
+  .avalon-prompt.yours {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem 1.25rem;
+    align-items: center;
+    padding-block: 0.75rem;
+  }
+
+  .avalon-prompt.yours > * {
+    grid-column: 1;
+  }
+
+  .avalon-prompt.yours > .avalon-prompt-row {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+
+  .avalon-prompt-row > .hint,
+  .avalon-prompt-row > .avalon-picked {
+    max-width: 17rem;
+    text-wrap: balance;
+  }
+}
+
+/* A phone: the table runs edge to edge. */
+@media (max-width: 39.99rem) {
+  .avalon-table {
+    margin-inline: -1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .avalon-centre {
+    flex-flow: row wrap;
+    gap: 0.4rem 0.75rem;
+    justify-content: center;
+  }
+
+  .avalon-emblem {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+
+  .avalon-emblem .avalon-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .avalon-centre-note {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .avalon-seats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .avalon-quest-coin {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  /* The two switches keep their pictures and give up their words, which a screen reader
+     still reads: the banner is then one line shorter over a table that needs the room. */
+  .avalon-tool span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  /* On a phone the dock is the foot of the screen: flush with it. */
+  .avalon-dock {
+    bottom: 0;
+    margin-inline: -1rem;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .avalon-dock > .card {
+    padding: 0.7rem 1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .avalon-prompt-row > button {
+    flex: 1 1 8rem;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A player to choose beckons. */
+  .avalon-seat.selectable:not(.selected) {
+    animation: avalon-beckon 1.2s ease-in-out infinite;
+  }
+
+  /* The quest being decided draws the eye once, when it becomes the one. */
+  .avalon-quest.current .avalon-quest-coin,
+  .avalon-ballot {
+    animation: avalon-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  }
+
+  .avalon-seat {
+    transition: box-shadow 0.2s;
+  }
+}
+
+@keyframes avalon-beckon {
+  50% {
+    outline-offset: 5px;
+  }
+}
+
+@keyframes avalon-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}

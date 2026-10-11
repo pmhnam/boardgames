@@ -1,59 +1,69 @@
 import type { AvalonView } from '@bgp/game-avalon';
-import type { MatchPlayerDto } from '@bgp/shared-types';
-import { playerName } from '../../types';
+import { memo } from 'react';
+import { useAvalonText } from '../useAvalonText';
+import { Icon } from './Icon';
 
-/** Every settled proposal: who led, who was picked and how each player voted. */
-export function ProposalHistory({
-  view,
-  players,
+/**
+ * Every settled proposal: who led, who was picked and how each player voted. It gains a row
+ * when a vote is settled and is otherwise left alone.
+ */
+export const ProposalHistory = memo(function ProposalHistory({
+  proposals,
+  seatOrder,
+  nameOf,
 }: {
-  view: AvalonView;
-  players: MatchPlayerDto[];
+  proposals: AvalonView['proposals'];
+  seatOrder: AvalonView['seatOrder'];
+  nameOf(playerId: string): string;
 }) {
-  if (view.proposals.length === 0) return null;
+  const text = useAvalonText();
+  if (proposals.length === 0) return null;
   return (
-    <section className="card">
-      <h2>Votes so far</h2>
-      <table className="avalon-history">
-        <thead>
-          <tr>
-            <th scope="col">Quest</th>
-            <th scope="col">Leader</th>
-            {view.seatOrder.map((playerId) => (
-              <th key={playerId} scope="col">
-                {playerName(players, playerId)}
-              </th>
-            ))}
-            <th scope="col">Team</th>
-          </tr>
-        </thead>
-        <tbody>
-          {view.proposals.map((proposal, index) => (
-            <tr key={index}>
-              <td className="num">{proposal.quest + 1}</td>
-              <td>{playerName(players, proposal.leaderId)}</td>
-              {view.seatOrder.map((playerId) => (
-                <td
-                  key={playerId}
-                  className={
-                    proposal.team.includes(playerId) ? 'avalon-vote picked' : 'avalon-vote'
-                  }
-                >
-                  <span className={proposal.votes[playerId] ? 'yes' : 'no'} aria-hidden="true">
-                    {proposal.votes[playerId] ? '✓' : '✗'}
-                  </span>
-                  <span className="sr-only">
-                    {proposal.votes[playerId] ? 'approved' : 'rejected'}
-                    {proposal.team.includes(playerId) ? ', on the team' : ''}
-                  </span>
-                </td>
+    <section className="card avalon-record">
+      <h2>
+        <Icon name="scroll" /> {text.history.title}
+      </h2>
+      <div className="avalon-history-scroll">
+        <table className="avalon-history">
+          <thead>
+            <tr>
+              <th scope="col">{text.history.quest}</th>
+              <th scope="col">{text.history.leader}</th>
+              {seatOrder.map((playerId) => (
+                <th key={playerId} scope="col" className="avalon-history-name">
+                  {nameOf(playerId)}
+                </th>
               ))}
-              <td>{proposal.approved ? 'Sent' : 'Rejected'}</td>
+              <th scope="col">{text.history.result}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="muted avalon-legend">A shaded cell marks a player picked for that team.</p>
+          </thead>
+          <tbody>
+            {proposals.map((proposal, index) => (
+              <tr key={index} className={proposal.approved ? 'sent' : 'turned-down'}>
+                <td className="num">{proposal.quest + 1}</td>
+                <td>{nameOf(proposal.leaderId)}</td>
+                {seatOrder.map((playerId) => {
+                  const approved = proposal.votes[playerId] === true;
+                  const picked = proposal.team.includes(playerId);
+                  return (
+                    <td key={playerId} className={picked ? 'avalon-vote picked' : 'avalon-vote'}>
+                      <span className={approved ? 'yes' : 'no'} aria-hidden="true">
+                        <Icon name={approved ? 'approve' : 'reject'} />
+                      </span>
+                      <span className="sr-only">
+                        {approved ? text.history.approved : text.history.rejectedVote}
+                        {picked ? `, ${text.history.onTeam}` : ''}
+                      </span>
+                    </td>
+                  );
+                })}
+                <td>{proposal.approved ? text.history.sent : text.history.rejected}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted hint">{text.history.legend}</p>
     </section>
   );
-}
+});
