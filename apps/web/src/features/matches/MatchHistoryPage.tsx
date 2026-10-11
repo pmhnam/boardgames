@@ -5,6 +5,7 @@ import { playerName } from '../../games/types';
 import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
 import { useLocale, useT, type Translate } from '../../shared/i18n/useT';
+import { useDocumentTitle } from '../../shared/useDocumentTitle';
 import { useAuthStore } from '../auth/auth.store';
 
 function outcome(t: Translate, match: MatchDto): string {
@@ -30,6 +31,7 @@ export function MatchHistoryPage() {
   });
   const gameName = (gameType: string) =>
     games.data?.find((game) => game.gameType === gameType)?.displayName ?? gameType;
+  useDocumentTitle(t('nav.history'));
 
   if (matches.isLoading) return <p className="muted">{t('common.loading')}</p>;
   if (matches.isError) return <p className="error">{errorText(t, matches.error)}</p>;

@@ -293,6 +293,7 @@ export const en: Messages = {
   'match.over': 'Match over',
   'match.backToRoom': 'Back to room',
   'match.watching': 'You are watching this match.',
+  'match.yourTurn': 'Your turn',
 
   'replay.loading': 'Loading replay…',
   'replay.empty': 'Nothing to replay.',

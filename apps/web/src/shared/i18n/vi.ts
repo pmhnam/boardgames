@@ -290,6 +290,7 @@ export const vi = {
   'match.over': 'Trận đã kết thúc',
   'match.backToRoom': 'Về phòng',
   'match.watching': 'Bạn đang xem trận này.',
+  'match.yourTurn': 'Tới lượt bạn',
 
   'replay.loading': 'Đang tải bản xem lại…',
   'replay.empty': 'Không có gì để xem lại.',
