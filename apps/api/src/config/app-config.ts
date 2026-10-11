@@ -14,6 +14,7 @@ const envSchema = z.object({
   TRUST_PROXY: z.coerce.number().int().min(0).max(8).default(0),
   BOT_ACTION_DELAY_MS: z.coerce.number().int().min(0).max(10_000).default(700),
   VOICE_MAX_PEERS: z.coerce.number().int().min(2).max(16).default(8),
+  VOICE_RESUME_GRACE_MS: z.coerce.number().int().min(0).max(120_000).default(20_000),
   /** A JSON list of ICE servers. Left out, calls use public STUN servers and no relay. */
   VOICE_ICE_SERVERS: z.string().optional(),
 });
@@ -61,6 +62,8 @@ export class AppConfig {
    * so each more costs everybody in the call.
    */
   readonly voiceMaxPeers: number;
+  /** How long a place in a call is kept for a connection that dropped, for it to come back to. */
+  readonly voiceResumeGraceMs: number;
   /** What browsers in a call are told to ask about reaching each other. */
   readonly voiceIceServers: VoiceIceServer[];
 
@@ -79,6 +82,7 @@ export class AppConfig {
     this.trustProxy = env.TRUST_PROXY;
     this.botActionDelayMs = env.BOT_ACTION_DELAY_MS;
     this.voiceMaxPeers = env.VOICE_MAX_PEERS;
+    this.voiceResumeGraceMs = env.VOICE_RESUME_GRACE_MS;
     this.voiceIceServers = readIceServers(env.VOICE_ICE_SERVERS);
   }
 }

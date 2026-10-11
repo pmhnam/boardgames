@@ -93,7 +93,10 @@ export type RoomUpdatedMessage = RoomDto;
 
 /** One open connection in a room's call. A person with two tabs in the call is two of these. */
 export interface VoicePeer {
-  /** The connection's own id: what a signal is addressed to. */
+  /**
+   * One browser's part in the call, named by that browser: what a signal is addressed to. It
+   * outlives the socket it came in on, so a connection that drops and returns is the same peer.
+   */
   peerId: string;
   userId: string;
   displayName: string;
@@ -109,6 +112,8 @@ export interface VoiceIceServer {
 
 export interface VoiceJoinRequest {
   roomId: string;
+  /** Sent again after a reconnect to take the same place back. Without one, the socket's id. */
+  peerId?: string;
 }
 
 export interface VoiceJoined {
@@ -118,6 +123,11 @@ export interface VoiceJoined {
   /** Everyone already in the call. The joiner opens a connection to each of them. */
   peers: VoicePeer[];
   iceServers: VoiceIceServer[];
+  /**
+   * The place was still held from before a reconnect: the connections to the others may well
+   * be alive, and only those to peers not yet connected need opening.
+   */
+  resumed?: boolean;
 }
 
 /** What two browsers exchange to open a connection: a session description or a candidate. */

@@ -1,7 +1,16 @@
 import { z } from 'zod';
 
 /** Transport-level shapes only. What a signal says is between the two browsers. */
-export const voiceRoomSchema = z.object({ roomId: z.uuid() });
+export const voiceRoomSchema = z.object({
+  roomId: z.uuid(),
+  /** The browser's own name for its part in the call. Older clients send none. */
+  peerId: z
+    .string()
+    .min(8)
+    .max(64)
+    .regex(/^[A-Za-z0-9-]+$/)
+    .optional(),
+});
 
 export const voiceMuteSchema = z.object({ roomId: z.uuid(), muted: z.boolean() });
 

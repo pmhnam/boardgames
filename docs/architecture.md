@@ -135,9 +135,11 @@ package and import nothing from the platform.
 - **It is reproducible.** The random source is seeded from the match seed and state version.
 - **It cannot stall a match.** A strategy that throws or picks an illegal move falls back to a
   legal one; on boot the runner resumes every match that was waiting on a bot.
-
-The hard level's search runs on the event loop (tens of milliseconds per action). Move it to a
-worker thread before running many bot matches at once.
+- **It thinks elsewhere.** `BotThinker` runs every strategy on one worker thread
+  (`bot-worker.ts`), sent the seat's view and a seed. A hard bot's search takes tens of
+  milliseconds and would otherwise hold up every socket for that long. The thread is started on
+  the first question and given back after two idle minutes; one that will not answer in fifteen
+  seconds is ended. If it cannot be started at all, strategies run on the main thread instead.
 
 ## Realtime
 
@@ -174,6 +176,17 @@ WebRTC connection to every other one (a mesh), and `modules/voice` only does the
 It keeps, in memory, who is in which call, lets in members of the room and nobody else, and
 passes each `voice.signal` (a session description or an ICE candidate) to the one connection it
 names. Whoever joins opens the connection to each person already there.
+
+A browser joins under a name of its own choosing (`peerId`), not its socket's. A phone loses its
+socket for a moment all the time while the sound, which never went through the server, carries
+on: the place is kept for `VOICE_RESUME_GRACE_MS` (20 s by default), and a browser that comes
+back under the same name within it finds its connections as they were, and only opens or mends
+the ones that need it. Nobody is told it left; they are told it is back. Signals addressed to a
+peer whose socket is down are dropped, which is why both sides look again when it returns.
+
+Each side asks the other for Opus discontinuous transmission (`usedtx=1`, added to the session
+description it sends) and caps what it sends at 24 kbps, so a quiet participant uploads next to
+nothing to each of the others.
 
 A mesh costs every participant one connection per other participant, so a call is capped
 (`VOICE_MAX_PEERS`, 8 by default); more than that needs a media server, which this does not

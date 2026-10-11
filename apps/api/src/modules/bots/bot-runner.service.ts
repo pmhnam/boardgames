@@ -6,7 +6,7 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { createSeededRandom, type BotLevel } from '@bgp/game-core';
+import type { BotLevel } from '@bgp/game-core';
 import { ErrorCodes } from '@bgp/shared-types';
 import { AppError } from '../../common/errors/app-error.js';
 import {
@@ -17,6 +17,7 @@ import {
 import { AppConfig } from '../../config/app-config.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { GameActionService } from '../matches/game-action.service.js';
+import { BotThinker } from './bot-thinker.js';
 import {
   MatchRepository,
   type MatchRecord,
@@ -65,6 +66,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
     private readonly registry: GameRegistry,
     private readonly actions: GameActionService,
     private readonly config: AppConfig,
+    private readonly thinker: BotThinker,
   ) {}
 
   /** A restart must not leave a match waiting forever on a computer player. */
@@ -182,8 +184,10 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
     const currentMatch = match;
     const currentBot = bot;
 
-    const choose = (level: BotLevel): unknown =>
-      game.bot?.chooseAction({
+    // Thought out on another thread: a hard bot's search would otherwise hold up every socket.
+    const choose = (level: BotLevel): Promise<unknown> =>
+      this.thinker.choose({
+        gameType: currentMatch.gameType,
         view: game.engine.getPublicView(currentMatch.state, {
           type: 'player',
           playerId: currentBot.playerId,
@@ -191,9 +195,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
         playerId: currentBot.playerId,
         level,
         // Derived from the match, so a bot's play can be reproduced.
-        random: createSeededRandom(
-          `${currentMatch.randomSeed}:${currentMatch.stateVersion}:${level}`,
-        ),
+        seed: `${currentMatch.randomSeed}:${currentMatch.stateVersion}:${level}`,
       });
     const submit = (action: unknown) =>
       this.actions.execute({
@@ -207,7 +209,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
       });
 
     try {
-      await submit(choose(level));
+      await submit(await choose(level));
       return 'acted';
     } catch (error) {
       // Someone else moved first: look again.
@@ -223,7 +225,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
     // The strategy threw or chose something illegal. Any legal move keeps the match going;
     // if even that fails, stop rather than spin.
     try {
-      await submit(choose('easy'));
+      await submit(await choose('easy'));
       return 'acted';
     } catch (error) {
       if (isOvertaken(error)) return 'retry';

@@ -12,6 +12,7 @@ import {
   type VoiceSignalMessage,
 } from '@bgp/shared-types';
 import type { Socket } from 'socket.io-client';
+import { askForSilenceSuppression } from './sdp';
 
 /** How a connection to one other person in the call stands. */
 export type PeerLink = 'connecting' | 'connected' | 'failed';
@@ -83,6 +84,15 @@ function capBitrate(sender: RTCRtpSender): void {
   }
 }
 
+/** A name for this browser's part in a call, kept for as long as the call lasts. */
+function newPeerId(): string {
+  // Only missing on a page not served securely, where a microphone cannot be had anyway.
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+}
+
 function micProblem(error: unknown): VoiceProblem {
   const name = error instanceof DOMException ? error.name : '';
   if (name === 'NotAllowedError' || name === 'SecurityError') return 'mic-denied';
@@ -97,8 +107,14 @@ function micProblem(error: unknown): VoiceProblem {
  *
  * Whoever joins opens the connection to each person already there, so two sides never both
  * try. The one who opened a connection is also the one who mends it when it fails.
+ *
+ * The call is joined under a name of this browser's own choosing, not the socket's. A phone
+ * loses its connection to the server for a moment all the time, while the sound, which never
+ * went that way, carries on: coming back under the same name, the connections to the others
+ * are kept as they are.
  */
 export class VoiceCall {
+  private readonly peerId = newPeerId();
   private microphone: MediaStream | null = null;
   private iceServers: VoiceIceServer[] = [];
   private readonly links = new Map<string, Link>();
@@ -160,23 +176,33 @@ export class VoiceCall {
     this.end({ reason: 'left' });
   }
 
-  /** Takes a place in the call and opens a connection to everyone already in it. */
+  /**
+   * Takes a place in the call, or takes it back after the connection to the server dropped,
+   * and opens a connection to everyone it does not have one with.
+   */
   private async enter(): Promise<void> {
     const ack: Ack<VoiceJoined> = await this.socket.emitWithAck(ClientEvents.VoiceJoin, {
       roomId: this.state.roomId,
+      peerId: this.peerId,
     });
     if (this.closed) return;
     if (!ack.ok) return this.end({ reason: 'refused', error: ack.error });
 
     this.iceServers = ack.data.iceServers;
+    // The place was given up while this side was away: the others have let go of their ends.
+    if (!ack.data.resumed) this.dropLinks();
+    const present = new Set(ack.data.peers.map((peer) => peer.peerId));
+    for (const peerId of [...this.links.keys()]) if (!present.has(peerId)) this.dropLink(peerId);
+
+    const known = new Map(this.state.peers.map((peer) => [peer.peerId, peer]));
     this.update({
       status: 'joined',
-      peers: ack.data.peers.map((peer) => ({
-        ...peer,
-        link: 'connecting',
-        speaking: false,
-        stream: null,
-      })),
+      peers: ack.data.peers.map((peer) => {
+        const before = this.links.has(peer.peerId) ? known.get(peer.peerId) : undefined;
+        return before
+          ? { ...before, ...peer }
+          : { ...peer, link: 'connecting', speaking: false, stream: null };
+      }),
     });
     if (this.state.muted) {
       void this.socket.emitWithAck(ClientEvents.VoiceMute, {
@@ -184,21 +210,48 @@ export class VoiceCall {
         muted: true,
       });
     }
-    for (const peer of ack.data.peers) void this.offerTo(peer.peerId);
+    for (const peer of ack.data.peers) {
+      const link = this.links.get(peer.peerId);
+      // Someone who joined while this side was away offered into the void: offer to them.
+      if (!link) void this.offerTo(peer.peerId);
+      else this.mend(peer.peerId, link);
+    }
   }
 
-  // The connection to the server came back under a new id, and the call has forgotten the old
-  // one: every link is opened again from scratch.
+  /**
+   * Looks for a way through again on a connection that has lost its own. What either side
+   * said to that end while the other was away from the server was never passed on.
+   */
+  private mend(peerId: string, link: Link): void {
+    const { connectionState, signalingState } = link.connection;
+    // An offer still waiting for its answer may be one of the things that were never passed on.
+    if (link.initiator && signalingState === 'have-local-offer') return void this.offerTo(peerId);
+    if (connectionState !== 'failed' && connectionState !== 'disconnected') return;
+    if (link.initiator) {
+      link.restarts = 0;
+      void this.offerTo(peerId, true);
+    } else if (connectionState === 'failed') {
+      // Not this side's to mend, and the side whose it is may have given up: start over.
+      this.dropLink(peerId);
+      this.patchPeer(peerId, { link: 'connecting', stream: null });
+      void this.offerTo(peerId);
+    }
+  }
+
+  // Back on the server under a new socket, but under the same name in the call.
   private readonly onReconnect = () => {
     if (this.closed) return;
-    this.dropLinks();
-    this.update({ status: 'joining', peers: [] });
     void this.enter();
   };
 
   private readonly onPeerJoined = (message: VoicePeerMessage) => {
     if (this.closed || message.roomId !== this.state.roomId) return;
-    if (this.state.peers.some((peer) => peer.peerId === message.peer.peerId)) return;
+    if (this.state.peers.some((peer) => peer.peerId === message.peer.peerId)) {
+      // Already here: they are back from losing the server, and can hear this side again.
+      const link = this.links.get(message.peer.peerId);
+      if (link?.initiator) this.mend(message.peer.peerId, link);
+      return;
+    }
     // They open the connection; this side waits for their offer.
     this.update({
       peers: [
@@ -211,7 +264,7 @@ export class VoiceCall {
   private readonly onPeerLeft = (message: VoicePeerLeftMessage) => {
     if (this.closed || message.roomId !== this.state.roomId) return;
     // The viewer themselves: taken out of the call, because they are no longer in the room.
-    if (message.peerId === this.socket.id) return this.end({ reason: 'removed' });
+    if (message.peerId === this.peerId) return this.end({ reason: 'removed' });
     this.dropLink(message.peerId);
     this.update({ peers: this.state.peers.filter((peer) => peer.peerId !== message.peerId) });
   };
@@ -231,11 +284,21 @@ export class VoiceCall {
 
   private async receive(peerId: string, signal: VoiceSignal): Promise<void> {
     if ('description' in signal) {
+      const existing = this.links.get(peerId);
+      // An offer on a connection this side opened: they have started theirs over, as this side
+      // may have too. Either way the old one is done with. So that the two do not both wait for
+      // an answer, one of them gives way, always the same one, and the other offers afresh.
+      if (signal.description.type === 'offer' && existing?.initiator) {
+        this.dropLink(peerId);
+        this.patchPeer(peerId, { link: 'connecting', stream: null });
+        if (this.peerId > peerId) return void this.offerTo(peerId);
+      }
       const link =
         signal.description.type === 'offer'
           ? (this.links.get(peerId) ?? this.open(peerId, false))
           : this.links.get(peerId);
-      if (!link) return;
+      // An answer to an offer this side has since taken back.
+      if (!link || (signal.description.type === 'answer' && !link.initiator)) return;
       await link.connection.setRemoteDescription(signal.description);
       for (const candidate of link.waiting.splice(0)) {
         await link.connection.addIceCandidate(candidate);
@@ -249,8 +312,9 @@ export class VoiceCall {
 
     const link = this.links.get(peerId) ?? this.open(peerId, false);
     if (signal.candidate === null) return;
-    if (link.connection.remoteDescription) await link.connection.addIceCandidate(signal.candidate);
-    else link.waiting.push(signal.candidate);
+    if (!link.connection.remoteDescription) link.waiting.push(signal.candidate);
+    // One left over from a connection since started over belongs to nothing: no harm in it.
+    else await link.connection.addIceCandidate(signal.candidate).catch(() => undefined);
   }
 
   private async offerTo(peerId: string, restart = false): Promise<void> {
@@ -269,7 +333,7 @@ export class VoiceCall {
     const description = connection.localDescription;
     return {
       type: description?.type === 'answer' ? 'answer' : 'offer',
-      sdp: description?.sdp ?? '',
+      sdp: askForSilenceSuppression(description?.sdp ?? ''),
     };
   }
 

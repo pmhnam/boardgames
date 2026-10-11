@@ -26,7 +26,7 @@ import { parseWithSchema } from '../../common/pipes/zod-validation.pipe.js';
 import { RateLimiter } from '../../common/rate-limit/rate-limiter.js';
 import { toAck } from '../../common/realtime/ack.js';
 import { voiceMuteSchema, voiceRoomSchema, voiceSignalSchema } from './voice.schemas.js';
-import { VoiceService } from './voice.service.js';
+import { VoiceService, type VoiceDeparture } from './voice.service.js';
 
 /** Set by the realtime gateway's handshake check, which every connection has passed. */
 type VoiceSocket = Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, { userId: string }>;
@@ -52,8 +52,9 @@ export class VoiceGateway implements OnGatewayDisconnect {
 
   constructor(private readonly voice: VoiceService) {}
 
+  /** Its place is kept for a while: a phone's connection drops and returns all the time. */
   handleDisconnect(socket: VoiceSocket): void {
-    this.leaveCall(socket);
+    this.voice.dropped(socket.id, (departure) => this.announceLeft(departure));
   }
 
   @SubscribeMessage(ClientEvents.VoiceJoin)
@@ -62,24 +63,26 @@ export class VoiceGateway implements OnGatewayDisconnect {
     @MessageBody() body: unknown,
   ): Promise<Ack<VoiceJoined>> {
     return toAck(this.logger, async () => {
-      const { roomId } = parseWithSchema(voiceRoomSchema, body);
-      const joined = await this.voice.join(roomId, socket.data.userId, socket.id);
-      // Gone while its membership was being looked up: nothing would ever take it out again.
+      const { roomId, peerId = socket.id } = parseWithSchema(voiceRoomSchema, body);
+      const joined = await this.voice.join(roomId, socket.data.userId, peerId, socket.id);
+      if (joined.left) this.announceLeft(joined.left);
+      // Gone while its membership was being looked up: nothing else would ever notice.
       if (socket.disconnected) {
-        this.leaveCall(socket);
+        this.handleDisconnect(socket);
         throw new AppError(ErrorCodes.NotInVoice, 'The connection closed.', 409);
       }
-      if (joined.leftRoomId !== null) this.announceLeft(socket, joined.leftRoomId);
       await socket.join(callChannel(roomId));
-      if (!joined.already) {
+      // Said of one who is back as well: whoever was mending a connection to it can try again.
+      if (!joined.already || joined.resumed) {
         const message: VoicePeerMessage = { roomId, peer: joined.self };
         socket.to(callChannel(roomId)).emit(ServerEvents.VoicePeerJoined, message);
       }
       return {
         roomId,
-        peerId: socket.id,
+        peerId,
         peers: joined.peers,
         iceServers: this.voice.iceServers,
+        resumed: joined.resumed,
       };
     });
   }
@@ -87,7 +90,9 @@ export class VoiceGateway implements OnGatewayDisconnect {
   @SubscribeMessage(ClientEvents.VoiceLeave)
   leave(@ConnectedSocket() socket: VoiceSocket): Promise<Ack<null>> {
     return toAck(this.logger, () => {
-      this.leaveCall(socket);
+      const peerId = this.voice.peerOf(socket.id);
+      const departure = peerId === null ? null : this.voice.leave(peerId);
+      if (departure) this.announceLeft(departure);
       return null;
     });
   }
@@ -99,10 +104,15 @@ export class VoiceGateway implements OnGatewayDisconnect {
         throw new AppError(ErrorCodes.RateLimited, 'Too many signals. Slow down.', 429);
       }
       const { roomId, toPeerId, signal } = parseWithSchema(voiceSignalSchema, body);
-      this.voice.assertCanSignal(roomId, socket.id, toPeerId);
-      const message: VoiceSignalMessage = { roomId, fromPeerId: socket.id, signal };
-      // Every connection is alone in the channel named after it.
-      this.server.to(toPeerId).emit(ServerEvents.VoiceSignal, message);
+      const fromPeerId = this.voice.peerOf(socket.id);
+      this.voice.assertCanSignal(roomId, fromPeerId, toPeerId);
+      // A peer whose connection is down misses this. Its browser asks again when it is back.
+      const to = this.voice.socketOf(toPeerId);
+      if (to !== null && fromPeerId !== null) {
+        const message: VoiceSignalMessage = { roomId, fromPeerId, signal };
+        // Every connection is alone in the channel named after it.
+        this.server.to(to).emit(ServerEvents.VoiceSignal, message);
+      }
       return null;
     });
   }
@@ -113,7 +123,7 @@ export class VoiceGateway implements OnGatewayDisconnect {
       const { roomId, muted } = parseWithSchema(voiceMuteSchema, body);
       const message: VoicePeerMessage = {
         roomId,
-        peer: this.voice.setMuted(roomId, socket.id, muted),
+        peer: this.voice.setMuted(roomId, this.voice.peerOf(socket.id), muted),
       };
       this.server.to(callChannel(roomId)).emit(ServerEvents.VoicePeerMuted, message);
       return null;
@@ -124,23 +134,19 @@ export class VoiceGateway implements OnGatewayDisconnect {
   @OnEvent(PlatformEvents.RoomUpdated)
   onRoomUpdated(event: RoomUpdatedEvent): void {
     const memberIds = new Set(event.room.members.map((member) => member.userId));
-    for (const peer of this.voice.dropNonMembers(event.roomId, memberIds)) {
-      const message: VoicePeerLeftMessage = { roomId: event.roomId, peerId: peer.peerId };
-      // Told as well as the others: its own browser has a microphone to let go of.
-      this.server.to(callChannel(event.roomId)).emit(ServerEvents.VoicePeerLeft, message);
-      this.server.in(peer.peerId).socketsLeave(callChannel(event.roomId));
+    for (const departure of this.voice.dropNonMembers(event.roomId, memberIds)) {
+      this.announceLeft(departure);
     }
   }
 
-  private leaveCall(socket: VoiceSocket): void {
-    const roomId = this.voice.leave(socket.id);
-    if (roomId !== null) this.announceLeft(socket, roomId);
-  }
-
-  private announceLeft(socket: VoiceSocket, roomId: string): void {
-    void socket.leave(callChannel(roomId));
-    const message: VoicePeerLeftMessage = { roomId, peerId: socket.id };
+  /**
+   * Tells the call, the one who left included: its own browser has a microphone to let go of.
+   * Only then is its socket taken out of the call's channel.
+   */
+  private announceLeft({ roomId, peerId, socketId }: VoiceDeparture): void {
+    const message: VoicePeerLeftMessage = { roomId, peerId };
     this.server.to(callChannel(roomId)).emit(ServerEvents.VoicePeerLeft, message);
+    if (socketId !== null) this.server.in(socketId).socketsLeave(callChannel(roomId));
   }
 
   private limiterOf(socket: VoiceSocket): RateLimiter {

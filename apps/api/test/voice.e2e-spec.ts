@@ -29,6 +29,9 @@ interface Client {
   emit<T>(event: string, payload?: unknown): Promise<Ack<T>>;
 }
 
+/** Long enough to reconnect within on a slow machine, short enough to wait out in a test. */
+const RESUME_GRACE_MS = 800;
+
 const OFFER: VoiceSignal = { description: { type: 'offer', sdp: 'v=0' } };
 
 describe('voice calls', () => {
@@ -41,6 +44,7 @@ describe('voice calls', () => {
     process.env.PGLITE_DATA_DIR = 'memory://';
     process.env.JWT_SECRET = 'test-secret';
     process.env.VOICE_MAX_PEERS = '3';
+    process.env.VOICE_RESUME_GRACE_MS = String(RESUME_GRACE_MS);
     delete process.env.VOICE_ICE_SERVERS;
 
     const { AppModule } = await import('../src/app.module.js');
@@ -275,6 +279,69 @@ describe('voice calls', () => {
     const joined = await join(dave, room.id);
     if (!joined.ok) throw new Error('dave was refused');
     expect(joined.data.peers.map((peer) => peer.peerId)).toEqual([alice.socket.id]);
+  });
+
+  it('keeps a place for a connection that drops, and gives it back under the same name', async () => {
+    const [alice, bob, mallory] = [
+      await createClient('ResumeAlice'),
+      await createClient('ResumeBob'),
+      await createClient('ResumeMallory'),
+    ];
+    const room = await roomOf(alice, bob, mallory);
+    const bobPeer = 'bob-peer-0001';
+    expect((await join(alice, room.id)).ok).toBe(true);
+    const first = await bob.emit<VoiceJoined>(ClientEvents.VoiceJoin, {
+      roomId: room.id,
+      peerId: bobPeer,
+    });
+    expect(first).toMatchObject({ ok: true, data: { peerId: bobPeer, resumed: false } });
+    await bob.emit(ClientEvents.VoiceMute, { roomId: room.id, muted: true });
+    await waitFor(() => alice.muted[0], 'alice to hear bob muted');
+
+    // The name alone does not open the place to someone else.
+    expect(
+      await mallory.emit(ClientEvents.VoiceJoin, { roomId: room.id, peerId: bobPeer }),
+    ).toMatchObject({ ok: false, error: { code: ErrorCodes.Forbidden } });
+
+    bob.socket.disconnect();
+    const back = listen(bob.session, await connect(bob.session.accessToken));
+    const again = await back.emit<VoiceJoined>(ClientEvents.VoiceJoin, {
+      roomId: room.id,
+      peerId: bobPeer,
+    });
+    if (!again.ok) throw new Error('bob was refused his own place');
+    expect(again.data.resumed).toBe(true);
+    expect(again.data.peers.map((peer) => peer.peerId)).toEqual([alice.socket.id]);
+
+    // Alice is told he is back, never that he left, and what she sends him finds the new socket.
+    await waitFor(() => alice.joined[1], 'alice to hear bob is back');
+    expect(alice.joined[1]).toMatchObject({ peer: { peerId: bobPeer, muted: true } });
+    await alice.emit(ClientEvents.VoiceSignal, {
+      roomId: room.id,
+      toPeerId: bobPeer,
+      signal: OFFER,
+    });
+    expect(await waitFor(() => back.signals[0], 'bob to get the offer')).toMatchObject({
+      fromPeerId: alice.socket.id,
+    });
+    await new Promise((resolve) => setTimeout(resolve, RESUME_GRACE_MS + 200));
+    expect(alice.left).toEqual([]);
+
+    // Nothing comes back this time: once the wait is over, the place is given up.
+    back.socket.disconnect();
+    expect(
+      await alice.emit(ClientEvents.VoiceSignal, {
+        roomId: room.id,
+        toPeerId: bobPeer,
+        signal: OFFER,
+      }),
+    ).toEqual({ ok: true, data: null });
+    await new Promise((resolve) => setTimeout(resolve, RESUME_GRACE_MS / 2));
+    expect(alice.left).toEqual([]);
+    expect(await waitFor(() => alice.left[0], 'alice to hear bob is gone')).toEqual({
+      roomId: room.id,
+      peerId: bobPeer,
+    });
   });
 
   it('takes someone out of the call when they leave the room', async () => {
