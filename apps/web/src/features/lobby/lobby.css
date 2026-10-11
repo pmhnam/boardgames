@@ -260,16 +260,6 @@
   margin-left: auto;
 }
 
-.skeleton-line {
-  width: 14rem;
-  max-width: 100%;
-  height: 0.9rem;
-}
-
-.skeleton-line.short {
-  width: 8rem;
-}
-
 /* Creating a room */
 
 .create-dialog {

@@ -38,6 +38,28 @@ const BOT_LEVEL_KEYS: Record<BotLevel, MessageKey> = {
 /** How long the copy button says it worked. */
 const COPIED_FOR_MS = 2000;
 
+const PLACEHOLDER_SEATS = [0, 1, 2];
+
+function RoomSkeleton({ label }: { label: string }) {
+  return (
+    <div className="card" aria-busy="true">
+      <span className="sr-only" role="status">
+        {label}
+      </span>
+      <span className="skeleton skeleton-line room-skeleton-title" aria-hidden="true" />
+      <span className="skeleton room-skeleton-invite" aria-hidden="true" />
+      <ul className="player-list" aria-hidden="true">
+        {PLACEHOLDER_SEATS.map((seat) => (
+          <li key={seat}>
+            <span className="skeleton skeleton-line" />
+            <span className="skeleton skeleton-line short" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function RoomPage() {
   const { roomId = '' } = useParams();
   const navigate = useNavigate();
@@ -149,7 +171,7 @@ export function RoomPage() {
 
   useDocumentTitle(room.data ? t('roomPage.title', { code: room.data.code }) : null);
 
-  if (room.isLoading) return <p className="muted">{t('roomPage.loading')}</p>;
+  if (room.isLoading) return <RoomSkeleton label={t('roomPage.loading')} />;
   if (room.isError || !room.data) return <p className="error">{errorText(t, room.error)}</p>;
 
   const data = room.data;

@@ -11,6 +11,7 @@ import { useT } from '../../shared/i18n/useT';
 import { useDocumentTitle } from '../../shared/useDocumentTitle';
 import { useConnectionLost, useIsConnected } from '../../shared/websocket/SocketProvider';
 import { ActionErrorToast } from './ActionErrorToast';
+import { MatchSkeleton } from './MatchSkeleton';
 import { useMatchState } from './useMatchState';
 import './match.css';
 
@@ -64,7 +65,7 @@ export function MatchPage() {
 
   if (loadError) return <p className="error">{errorText(t, loadError)}</p>;
   if (match.isError) return <p className="error">{errorText(t, match.error)}</p>;
-  if (!message || !match.data) return <p className="muted">{t('match.loading')}</p>;
+  if (!message || !match.data) return <MatchSkeleton label={t('match.loading')} />;
 
   const GameComponent = definition?.component;
   const winners = match.data.result?.winnerPlayerIds ?? [];

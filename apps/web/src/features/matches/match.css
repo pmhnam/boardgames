@@ -39,6 +39,17 @@
   }
 }
 
+/* Loading */
+
+.match-skeleton-bar {
+  height: 3rem;
+}
+
+.match-skeleton-board {
+  height: min(60dvh, 32rem);
+  border-radius: var(--radius-lg);
+}
+
 /* Offline */
 
 .match-page {
@@ -58,4 +69,22 @@
   .match-page {
     transition: none;
   }
+}
+
+/* My matches */
+
+.history h1,
+.history p {
+  margin: 0;
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
 }
