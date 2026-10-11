@@ -1,4 +1,5 @@
 import type { CatanView, Costs } from '@bgp/game-catan';
+import { memo } from 'react';
 import type { IconName } from '../art/icons';
 import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
@@ -16,8 +17,11 @@ const ICONS: Array<[keyof Costs, IconName]> = [
   ['developmentCard', 'card'],
 ];
 
-/** What things cost and what they are worth, read from what the match plays by. */
-export function CostsGuide({ view }: { view: Rules }) {
+/**
+ * What things cost and what they are worth, read from what the match plays by. None of it
+ * changes during a match, so this is drawn once.
+ */
+export const CostsGuide = memo(function CostsGuide({ view }: { view: Rules }) {
   const text = useCatanText();
   const { guide } = text;
   const items: Record<keyof Costs, [label: string, note: string]> = {
@@ -73,4 +77,4 @@ export function CostsGuide({ view }: { view: Rules }) {
       </p>
     </details>
   );
-}
+});

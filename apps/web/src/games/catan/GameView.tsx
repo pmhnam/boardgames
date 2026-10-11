@@ -7,7 +7,7 @@ import {
   type Resource,
   type ResourceCounts,
 } from '@bgp/game-catan';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { playerName, type GameViewProps } from '../types';
 import type { IconName } from './art/icons';
 import { Board } from './components/Board';
@@ -25,10 +25,13 @@ import { useHints, type Hint, type StepHint } from './hints';
 import { CARD_ICON, playerColors } from './layout';
 import { useCatanText } from './useCatanText';
 import { useHandChange } from './useHandChange';
+import { useSharedView } from './useSharedView';
 import './catan.css';
 
 /** What the player is about to place on the board. UI state only. */
 type Tool = 'road' | 'settlement' | 'city';
+
+const NO_TARGETS: readonly string[] = [];
 
 /** A card that needs a choice before it can be played. UI state only. */
 type CardPick = { type: 'invention'; picks: Resource[] } | { type: 'monopoly' } | null;
@@ -64,7 +67,7 @@ export function CatanGameView({
 }: GameViewProps<CatanView, CatanAction>) {
   const text = useCatanText();
   const hints = useHints();
-  const view = message.state;
+  const view = useSharedView(message.state);
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
   const playing = view.phase === 'PLAYING';
@@ -79,6 +82,24 @@ export function CatanGameView({
       .map((resource) => text.amount(cost[resource], resource))
       .join(', ');
   const colors = useMemo(() => playerColors(view.turnOrder), [view.turnOrder]);
+  // What the match plays by, apart from everything that moves: the panels that only quote
+  // these numbers are then not drawn again for every move.
+  const rules = useMemo(
+    () => ({
+      costs: view.costs,
+      victoryPointsToWin: view.victoryPointsToWin,
+      longestRouteMinimum: view.longestRouteMinimum,
+      largestArmyMinimum: view.largestArmyMinimum,
+      discardLimit: view.discardLimit,
+    }),
+    [
+      view.costs,
+      view.victoryPointsToWin,
+      view.longestRouteMinimum,
+      view.largestArmyMinimum,
+      view.discardLimit,
+    ],
+  );
 
   const [tool, setTool] = useState<Tool | null>(null);
   const [robberHex, setRobberHex] = useState<string | null>(null);
@@ -96,12 +117,15 @@ export function CatanGameView({
 
   // A choice only makes sense for the state it was made in. A tool is kept while there is
   // still somewhere to use it, so several roads can be built without picking it again.
-  useEffect(() => {
+  // Put right while the new state is being drawn, so it is drawn once and not twice.
+  const [drawnVersion, setDrawnVersion] = useState(message.version);
+  if (drawnVersion !== message.version) {
+    setDrawnVersion(message.version);
     setRobberHex(null);
     setCardPick(null);
     if (!toolStillUsable) setTool(null);
     if (!legal.canTrade) setTradeOpen(false);
-  }, [message.version]);
+  }
 
   useEffect(() => {
     if (!tradeOpen) return;
@@ -116,34 +140,52 @@ export function CatanGameView({
   // The steps where the board is the only thing to click, with no tool to pick first.
   const forced = opening || robbing || placingFreeRoads;
 
-  let vertexTargets: string[] = [];
-  let edgeTargets: string[] = [];
-  let hexTargets: string[] = [];
-  if (canAct) {
+  // Where the board may be clicked. It goes by what the rules allow, not by `canAct`: the
+  // places stay marked while an action is in flight, and a click on one then does nothing.
+  const robberHexes = useMemo(() => Object.keys(legal.robberTargets), [legal.robberTargets]);
+  let vertexTargets = NO_TARGETS;
+  let edgeTargets = NO_TARGETS;
+  let hexTargets = NO_TARGETS;
+  if (playing && seat !== undefined) {
     if (turn.step === 'SETUP_SETTLEMENT') vertexTargets = legal.settlementVertices;
     else if (turn.step === 'SETUP_ROAD' || placingFreeRoads) edgeTargets = legal.roadEdges;
-    else if (robbing) hexTargets = robberHex === null ? Object.keys(legal.robberTargets) : [];
+    else if (robbing) hexTargets = robberHex === null ? robberHexes : NO_TARGETS;
     else if (tool === 'road') edgeTargets = legal.roadEdges;
     else if (tool === 'settlement') vertexTargets = legal.settlementVertices;
     else if (tool === 'city') vertexTargets = legal.cityVertices;
   }
 
   const onVertex = (vertex: string) => {
+    if (!canAct) return;
     if (turn.step === 'SETUP_SETTLEMENT') sendAction({ type: 'PLACE_SETUP_SETTLEMENT', vertex });
     else if (tool === 'city') sendAction({ type: 'BUILD_CITY', vertex });
     else sendAction({ type: 'BUILD_SETTLEMENT', vertex });
   };
-  const onEdge = (edge: string) =>
+  const onEdge = (edge: string) => {
+    if (!canAct) return;
     sendAction(
       turn.step === 'SETUP_ROAD'
         ? { type: 'PLACE_SETUP_ROAD', edge }
         : { type: 'BUILD_ROAD', edge },
     );
+  };
   const onHex = (hex: string) => {
+    if (!canAct) return;
     const victims = legal.robberTargets[hex] ?? [];
     if (victims.length > 1) setRobberHex(hex);
     else sendAction({ type: 'MOVE_ROBBER', hex, victimId: victims[0] });
   };
+  // The board and the trade panel are handed the same functions for as long as they live, so
+  // a handler made anew by every render is no reason to draw either of them again.
+  const latest = useRef({ onVertex, onEdge, onHex, sendAction });
+  latest.current = { onVertex, onEdge, onHex, sendAction };
+  const [stable] = useState(() => ({
+    vertex: (vertex: string) => latest.current.onVertex(vertex),
+    edge: (edge: string) => latest.current.onEdge(edge),
+    hex: (hex: string) => latest.current.onHex(hex),
+    send: (action: CatanAction) => latest.current.sendAction(action),
+    closeTrade: () => setTradeOpen(false),
+  }));
 
   const playCard = (type: PlayableCardType) => {
     if (type === 'knight') sendAction({ type: 'PLAY_KNIGHT' });
@@ -377,7 +419,7 @@ export function CatanGameView({
                   name={nameOf(playerId)}
                   player={player}
                   color={colors[playerId] ?? 'transparent'}
-                  rules={view}
+                  rules={rules}
                   mine={playerId === me}
                   active={playing && turn.activePlayerId === playerId}
                   pairedNext={playing && turn.pairedPlayerId === playerId}
@@ -392,12 +434,15 @@ export function CatanGameView({
           </div>
           {playing && (
             <TradePanel
-              view={view}
-              me={me}
+              seat={seat}
+              supply={view.supply}
+              mayTrade={legal.canTrade}
+              mayOffer={legal.canOffer}
+              offerOpen={Boolean(turn.offer)}
               disabled={disabled}
-              sendAction={sendAction}
+              sendAction={stable.send}
               open={tradeOpen}
-              onClose={() => setTradeOpen(false)}
+              onClose={stable.closeTrade}
             />
           )}
           <section className="card catan-bank">
@@ -435,18 +480,20 @@ export function CatanGameView({
 
         <div className="catan-stage">
           <Board
-            view={view}
+            board={view.board}
+            buildings={view.buildings}
+            roads={view.roads}
             colors={colors}
-            nameOf={nameOf}
+            players={players}
             rolled={turn.roll ? turn.roll[0] + turn.roll[1] : null}
             accent={me === null ? undefined : colors[me]}
             vertexTargets={vertexTargets}
             edgeTargets={edgeTargets}
             hexTargets={hexTargets}
             selectedHex={robberHex}
-            onVertex={onVertex}
-            onEdge={onEdge}
-            onHex={onHex}
+            onVertex={stable.vertex}
+            onEdge={stable.edge}
+            onHex={stable.hex}
           />
           {prompt && !seat && <div className="catan-prompt">{prompt}</div>}
         </div>
@@ -565,7 +612,7 @@ export function CatanGameView({
         )}
       </div>
 
-      <CostsGuide view={view} />
+      <CostsGuide view={rules} />
       {tradeOpen && <div className="catan-backdrop" onClick={() => setTradeOpen(false)} />}
     </div>
   );

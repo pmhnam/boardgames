@@ -1,5 +1,5 @@
 import type { PlayerView, TradeResponse } from '@bgp/game-catan';
-import type { CSSProperties } from 'react';
+import { memo, type CSSProperties } from 'react';
 import type { IconName } from '../art/icons';
 import { useHints, type Hint, type HintRules } from '../hints';
 import { useCatanText } from '../useCatanText';
@@ -43,7 +43,7 @@ function Stat({
   );
 }
 
-export function PlayerPanel({
+export const PlayerPanel = memo(function PlayerPanel({
   name,
   player,
   color,
@@ -168,4 +168,4 @@ export function PlayerPanel({
       )}
     </section>
   );
-}
+});

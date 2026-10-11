@@ -2,10 +2,11 @@ import {
   RESOURCES,
   type CatanAction,
   type CatanView,
+  type PlayerView,
   type Resource,
   type ResourceCounts,
 } from '@bgp/game-catan';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useHints, type Hint } from '../hints';
 import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
@@ -21,19 +22,28 @@ type Partner = 'supply' | 'players';
 
 /**
  * Where the viewer puts a trade together. On a wide screen it is always beside the table; on
- * a narrow one it is a sheet over it, shown while `open`.
+ * a narrow one it is a sheet over it, shown while `open`. It is given only what it reads, so
+ * a move elsewhere on the table does not draw it again.
  */
-export function TradePanel({
-  view,
-  me,
+export const TradePanel = memo(function TradePanel({
+  seat,
+  supply,
+  mayTrade,
+  mayOffer,
+  offerOpen,
   disabled,
   sendAction,
   open,
   onClose,
 }: {
-  view: CatanView;
-  /** The viewer's seat, or null when they are only watching. */
-  me: string | null;
+  /** The viewer's seat, or undefined when they are only watching. */
+  seat: PlayerView | undefined;
+  supply: CatanView['supply'];
+  /** What the rules allow the viewer right now: to trade at all, and to make players an offer. */
+  mayTrade: boolean;
+  mayOffer: boolean;
+  /** An offer is already on the table. */
+  offerOpen: boolean;
   disabled: boolean;
   sendAction(action: CatanAction): void;
   open: boolean;
@@ -41,8 +51,6 @@ export function TradePanel({
 }) {
   const text = useCatanText();
   const hints = useHints();
-  const { legal, turn, supply } = view;
-  const seat = me === null ? undefined : view.players[me];
   const hand = seat?.resources ?? NO_RESOURCES;
 
   const [partner, setPartner] = useState<Partner>('supply');
@@ -58,7 +66,7 @@ export function TradePanel({
   const giving = Object.fromEntries(
     RESOURCES.map((resource) => [resource, Math.min(offered[resource], hand[resource])]),
   ) as ResourceCounts;
-  const canTrade = !disabled && legal.canTrade;
+  const canTrade = !disabled && mayTrade;
   const rate = give === null ? 0 : seat.supplyRates[give];
   const canSupplyTrade =
     canTrade &&
@@ -68,7 +76,7 @@ export function TradePanel({
     hand[give] >= rate &&
     supply[receive] > 0;
   // A paired turn trades with the supply only.
-  const canMakeOffers = canTrade && legal.canOffer;
+  const canMakeOffers = canTrade && mayOffer;
   const canOffer = canMakeOffers && totalOf(giving) > 0 && totalOf(asked) > 0;
 
   const partnerTab = (kind: Partner, icon: 'swap' | 'handshake', label: string, hint: Hint) => (
@@ -105,10 +113,10 @@ export function TradePanel({
         {partnerTab('supply', 'swap', text.bankAndPorts, hints.bankTrade)}
         {partnerTab('players', 'handshake', text.players, hints.playerTrade)}
       </div>
-      {!legal.canTrade && (
-        <p className="muted hint">{turn.offer ? text.oneOfferAtATime : text.tradeOpensLater}</p>
+      {!mayTrade && (
+        <p className="muted hint">{offerOpen ? text.oneOfferAtATime : text.tradeOpensLater}</p>
       )}
-      {partner === 'players' && legal.canTrade && !legal.canOffer && (
+      {partner === 'players' && mayTrade && !mayOffer && (
         <p className="muted hint">{text.noOffersOnPairedTurn}</p>
       )}
 
@@ -209,4 +217,4 @@ export function TradePanel({
       )}
     </section>
   );
-}
+});
