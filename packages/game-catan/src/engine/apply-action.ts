@@ -20,9 +20,12 @@ import { getDiscardsOwed, listCards } from '../rules/robber.rules.js';
 import { getSupplyRates } from '../rules/trade.rules.js';
 import {
   getNextPlayerId,
+  getNextPlayerIdAfterPaired,
+  getPairedPlayerId,
   getPlayer,
   getSetupPlayerId,
   getSetupTurns,
+  hasPairedTurns,
   isLastSetupRound,
 } from '../rules/turn.rules.js';
 import { resolveLongestRoute } from '../scoring/longest-route.js';
@@ -88,13 +91,19 @@ function withLongestRoute(state: CatanState): CatanState {
   return { ...state, longestRoutePlayerId: resolveLongestRoute(state) };
 }
 
-function startTurn(state: CatanState, activePlayerId: string, step: CatanTurn['step']): CatanState {
+function startTurn(
+  state: CatanState,
+  activePlayerId: string,
+  step: CatanTurn['step'],
+  paired = false,
+): CatanState {
   return {
     ...state,
     turn: {
       number: state.turn.number + 1,
       activePlayerId,
       step,
+      paired,
       roll: null,
       developmentCardPlayed: false,
       freeRoads: 0,
@@ -169,8 +178,9 @@ function applyMoveRobber(
   hex: string,
   victimId: string | undefined,
 ): CatanState {
-  // A knight played before the roll leaves the roll still to come.
-  let moved = withTurn({ ...state, robber: hex }, { step: state.turn.roll ? 'MAIN' : 'ROLL' });
+  // A knight played before the roll leaves the roll still to come. A paired turn has none.
+  const rollDone = state.turn.roll !== null || state.turn.paired;
+  let moved = withTurn({ ...state, robber: hex }, { step: rollDone ? 'MAIN' : 'ROLL' });
   if (victimId === undefined) return moved;
 
   const { source, next } = drawRandom(moved.random);
@@ -287,6 +297,17 @@ function applyConfirmTrade(state: CatanState, playerId: string, partnerId: strin
   return withTurn(hand(given, partnerId, playerId, offer.receive), { offer: null });
 }
 
+/**
+ * At a table of five or six a turn is followed by the paired turn of the third player to the
+ * left, which starts past the roll. The dice then go to the left of whoever rolled last.
+ */
+function applyEndTurn(state: CatanState, playerId: string): CatanState {
+  if (!hasPairedTurns(state)) return startTurn(state, getNextPlayerId(state, playerId), 'ROLL');
+  return state.turn.paired
+    ? startTurn(state, getNextPlayerIdAfterPaired(state, playerId), 'ROLL')
+    : startTurn(state, getPairedPlayerId(state, playerId), 'MAIN', true);
+}
+
 function reduce(state: CatanState, action: CatanAction, playerId: string): CatanState {
   switch (action.type) {
     case 'PLACE_SETUP_SETTLEMENT':
@@ -345,7 +366,7 @@ function reduce(state: CatanState, action: CatanAction, playerId: string): Catan
     case 'CANCEL_TRADE':
       return withTurn(state, { offer: null });
     case 'END_TURN':
-      return startTurn(state, getNextPlayerId(state, playerId), 'ROLL');
+      return applyEndTurn(state, playerId);
   }
 }
 

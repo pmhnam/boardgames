@@ -67,7 +67,9 @@ export function TradePanel({
     give !== receive &&
     hand[give] >= rate &&
     supply[receive] > 0;
-  const canOffer = canTrade && totalOf(giving) > 0 && totalOf(asked) > 0;
+  // A paired turn trades with the supply only.
+  const canMakeOffers = canTrade && legal.canOffer;
+  const canOffer = canMakeOffers && totalOf(giving) > 0 && totalOf(asked) > 0;
 
   const partnerTab = (kind: Partner, icon: 'swap' | 'handshake', label: string, hint: Hint) => (
     <Tip hint={<HintText hint={hint} />}>
@@ -105,6 +107,9 @@ export function TradePanel({
       </div>
       {!legal.canTrade && (
         <p className="muted hint">{turn.offer ? text.oneOfferAtATime : text.tradeOpensLater}</p>
+      )}
+      {partner === 'players' && legal.canTrade && !legal.canOffer && (
+        <p className="muted hint">{text.noOffersOnPairedTurn}</p>
       )}
 
       {partner === 'supply' ? (
@@ -174,7 +179,7 @@ export function TradePanel({
               value={giving}
               onChange={setOffered}
               max={(resource) => (asked[resource] > 0 ? 0 : hand[resource])}
-              disabled={!canTrade}
+              disabled={!canMakeOffers}
             />
           </div>
           <div className="catan-trade-side">
@@ -184,7 +189,7 @@ export function TradePanel({
               value={asked}
               onChange={setAsked}
               max={(resource) => (giving[resource] > 0 ? 0 : MAX_ASK)}
-              disabled={!canTrade}
+              disabled={!canMakeOffers}
             />
           </div>
           <button

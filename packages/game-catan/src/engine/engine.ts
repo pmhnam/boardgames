@@ -9,6 +9,7 @@ import type {
   ParseActionResult,
   ParseConfigResult,
   ParseSettingsResult,
+  ValidateSetupInput,
 } from '@bgp/game-core';
 import type { CatanAction } from '../domain/actions.js';
 import { CATAN_ENGINE_VERSION, CATAN_GAME_TYPE } from '../domain/config.js';
@@ -16,6 +17,7 @@ import {
   DEFAULT_CATAN_CONFIG,
   parseConfig,
   parseSettings,
+  validateSetup,
   type CatanConfig,
   type CatanSettings,
 } from '../domain/game-config.js';
@@ -45,6 +47,10 @@ export class CatanEngine implements GameEngine<
 
   parseSettings(raw: unknown, config: CatanConfig): ParseSettingsResult<CatanSettings> {
     return parseSettings(raw, config);
+  }
+
+  validateSetup(input: ValidateSetupInput<CatanConfig, CatanSettings>): GameValidationResult {
+    return validateSetup(input.settings, input.playerCount);
   }
 
   createInitialState(input: CreateInitialStateInput<CatanConfig, CatanSettings>): CatanState {

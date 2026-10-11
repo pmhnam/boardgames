@@ -162,6 +162,13 @@ export function CatanGameView({
   };
 
   const activeName = nameOf(turn.activePlayerId);
+  const turnTitle = turn.paired
+    ? mine
+      ? text.yourPairedTurn
+      : text.pairedTurnOf(activeName)
+    : mine
+      ? text.yourTurn
+      : text.turnOf(activeName);
   const discarding = Object.keys(turn.pendingDiscards);
   const say = text.status;
   const status = (() => {
@@ -179,7 +186,7 @@ export function CatanGameView({
       if (turn.step === 'SETUP_ROAD') return say.placingRoad(activeName);
       if (turn.step === 'ROBBER') return say.movingRobber(activeName);
       if (turn.step === 'ROLL') return say.aboutToRoll(activeName);
-      return say.building(activeName);
+      return turn.paired ? say.pairedBuilding(activeName) : say.building(activeName);
     }
     if (turn.offer) return say.yourOffer;
     if (turn.step === 'SETUP_SETTLEMENT') return say.placeSettlement;
@@ -197,7 +204,8 @@ export function CatanGameView({
     if (turn.step === 'ROLL') {
       return legal.playableCards.length > 0 ? say.rollOrCard : say.roll;
     }
-    return tool ? say.tool[tool] : say.main;
+    if (tool) return say.tool[tool];
+    return turn.paired ? say.pairedMain : say.main;
   })();
 
   // What the "?" beside the status explains: the step itself, where the status only names it.
@@ -214,7 +222,7 @@ export function CatanGameView({
     if (turn.step === 'ROBBER') return 'robber';
     if (turn.freeRoads > 0) return 'freeRoads';
     if (turn.step === 'ROLL') return 'roll';
-    return 'build';
+    return turn.paired ? 'paired' : 'build';
   })();
 
   const heldCards = DEVELOPMENT_CARD_TYPES.map((type) => ({
@@ -337,7 +345,7 @@ export function CatanGameView({
           <div className="catan-status-text">
             <p className="catan-turn">
               {playing && <span className="catan-seat" aria-hidden="true" />}
-              {!playing ? text.gameOver : mine ? text.yourTurn : text.turnOf(activeName)}
+              {!playing ? text.gameOver : turnTitle}
               <span className="catan-turn-number">{text.turnNumber(turn.number)}</span>
             </p>
             <p>
@@ -372,6 +380,7 @@ export function CatanGameView({
                   rules={view}
                   mine={playerId === me}
                   active={playing && turn.activePlayerId === playerId}
+                  pairedNext={playing && turn.pairedPlayerId === playerId}
                   winner={view.winnerPlayerIds.includes(playerId)}
                   longestRoute={view.longestRoutePlayerId === playerId}
                   largestArmy={view.largestArmyPlayerId === playerId}

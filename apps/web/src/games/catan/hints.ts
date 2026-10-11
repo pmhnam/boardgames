@@ -36,6 +36,7 @@ export type StepHint =
   | 'offer'
   | 'respond'
   | 'build'
+  | 'paired'
   | 'waiting'
   | 'watching'
   | 'finished';
@@ -133,6 +134,11 @@ function vi(t: CatanText): Hints {
         title: 'Xây và giao thương',
         body: `Sau khi đổ xúc xắc, bạn làm bao nhiêu việc tuỳ thích, theo thứ tự bất kỳ: xây đường, nhà, thành phố, mua thẻ phát triển, đổi bài với ngân hàng hoặc với người khác. Xong thì bấm “${t.endTurn}”.`,
         advice: `Mục tiêu: đạt ${rules.victoryPointsToWin} điểm trong lượt của mình trước mọi người.`,
+      }),
+      paired: (rules) => ({
+        title: 'Lượt ghép đôi',
+        body: `Bàn 5–6 người chơi theo cặp: khi người đổ xúc xắc kết thúc lượt, người ngồi thứ ba bên trái họ được chơi một lượt không đổ xúc xắc. Trong lượt này bạn xây, mua và dùng thẻ phát triển, đổi bài với ngân hàng và cảng, nhưng không mời người chơi khác đổi bài. Xong thì bấm “${t.endTurn}”.`,
+        advice: `Lượt ghép đôi cũng là lượt của bạn: đạt ${rules.victoryPointsToWin} điểm ở đây là thắng.`,
       }),
       waiting: () => ({
         title: 'Chờ tới lượt',
@@ -304,6 +310,11 @@ function en(t: CatanText): Hints {
         title: 'Build and trade',
         body: `After the roll you may do as much as you can pay for, in any order: build roads, settlements and cities, buy development cards, and trade with the bank or the other players. Press “${t.endTurn}” when you are done.`,
         advice: `The goal: reach ${rules.victoryPointsToWin} points on your own turn before anyone else.`,
+      }),
+      paired: (rules) => ({
+        title: 'Paired turn',
+        body: `A table of five or six plays in pairs: when the player who rolled ends their turn, the third player to their left takes a turn without dice. On it you build, buy and play development cards, and trade with the bank and the ports, but you make the other players no offers. Press “${t.endTurn}” when you are done.`,
+        advice: `A paired turn is a turn of your own: reaching ${rules.victoryPointsToWin} points on it wins.`,
       }),
       waiting: () => ({
         title: 'Waiting for your turn',

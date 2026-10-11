@@ -76,6 +76,10 @@ describe('CATAN bot', { timeout: 30_000 }, () => {
     [['hard', 'hard', 'hard'], 'e', 1500],
     [['hard', 'hard', 'hard', 'hard'], 'f', 1500],
     [['easy', 'normal', 'hard', 'easy'], 'g', 3000],
+    // Five and six play the extension, where every seat also takes paired turns.
+    [['easy', 'easy', 'easy', 'easy', 'easy'], 'h', 3000],
+    [['normal', 'normal', 'normal', 'normal', 'normal', 'normal'], 'k', 1500],
+    [['easy', 'normal', 'hard', 'easy', 'normal', 'hard'], 'n', 3000],
   ])('finishes a game: %j', (levels, seed, maxActions) => {
     const { state } = playBotMatch(engine, CatanBot, { seed, levels, maxActions });
     expect(state.phase).toBe('FINISHED');
@@ -154,6 +158,21 @@ describe('CATAN bot', { timeout: 30_000 }, () => {
         const action = choose(state, level, playerId);
         expect(validate(state, action, playerId)).toEqual({ valid: true });
       }
+    }
+  });
+
+  it('takes a paired turn: it trades with the supply and builds, without dice', () => {
+    const paired = apply(inMain({ players: 6 }), { type: 'END_TURN' });
+    const me = active(paired);
+    // Nothing to build with: the turn is handed on.
+    for (const level of BOT_LEVELS) expect(choose(paired, level)).toEqual({ type: 'END_TURN' });
+
+    // A city within reach of a trade, then within reach outright.
+    const short = hold(build(paired, me, corner(0, 0, 0)), me, { brick: 4, wheat: 2, ore: 2 });
+    expect(choose(short, 'hard')).toEqual({ type: 'SUPPLY_TRADE', give: 'brick', receive: 'ore' });
+    const ready = hold(short, me, { wheat: 2, ore: 3 });
+    for (const level of BOT_LEVELS) {
+      expect(choose(ready, level)).toEqual({ type: 'BUILD_CITY', vertex: corner(0, 0, 0) });
     }
   });
 });

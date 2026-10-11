@@ -8,7 +8,7 @@ export type CatanPhase = 'PLAYING' | 'FINISHED';
 /**
  * Where the turn stands. The two SETUP steps are the opening, where each player places a
  * settlement and then a road. After that a turn is ROLL, then MAIN; a 7 or a knight puts
- * DISCARD and ROBBER in between.
+ * DISCARD and ROBBER in between. A paired turn has no ROLL: it starts at MAIN.
  */
 export type TurnStep = 'SETUP_SETTLEMENT' | 'SETUP_ROAD' | 'ROLL' | 'DISCARD' | 'ROBBER' | 'MAIN';
 
@@ -29,6 +29,11 @@ export interface CatanTurn {
   number: number;
   activePlayerId: string;
   step: TurnStep;
+  /**
+   * At a table of five or six, the turn the second player of a pair takes once the first has
+   * ended theirs: no dice and no offers to the other players.
+   */
+  paired: boolean;
   /** This turn's dice, once rolled. */
   roll: [number, number] | null;
   developmentCardPlayed: boolean;

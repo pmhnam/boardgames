@@ -1,5 +1,5 @@
 import type { GameValidationResult } from '@bgp/game-core';
-import { SETUP_ROUNDS } from '../domain/config.js';
+import { BASE_MAX_PLAYERS, PAIRED_SEAT_OFFSET, SETUP_ROUNDS } from '../domain/config.js';
 import { CatanRuleCodes, VALID, invalid } from '../domain/errors.js';
 import type { CatanState, PlayerState, TurnStep } from '../domain/state.js';
 
@@ -9,11 +9,39 @@ export function getPlayer(state: Pick<CatanState, 'players'>, playerId: string):
   return player;
 }
 
-export function getNextPlayerId(state: Pick<CatanState, 'turnOrder'>, playerId: string): string {
+/** The player a number of seats to the left of another; to the right when negative. */
+function getPlayerAt(
+  state: Pick<CatanState, 'turnOrder'>,
+  playerId: string,
+  seats: number,
+): string {
+  const count = state.turnOrder.length;
   const index = state.turnOrder.indexOf(playerId);
-  const next = state.turnOrder[(index + 1) % state.turnOrder.length];
-  if (index === -1 || next === undefined) throw new Error(`Unknown player ${playerId}`);
-  return next;
+  const found = state.turnOrder[(((index + seats) % count) + count) % count];
+  if (index === -1 || found === undefined) throw new Error(`Unknown player ${playerId}`);
+  return found;
+}
+
+export function getNextPlayerId(state: Pick<CatanState, 'turnOrder'>, playerId: string): string {
+  return getPlayerAt(state, playerId, 1);
+}
+
+/** More players than the base game seats take their turns in pairs. */
+export function hasPairedTurns(state: Pick<CatanState, 'turnOrder'>): boolean {
+  return state.turnOrder.length > BASE_MAX_PLAYERS;
+}
+
+/** Who takes the paired turn once a player has ended theirs: the third player to their left. */
+export function getPairedPlayerId(state: Pick<CatanState, 'turnOrder'>, playerId: string): string {
+  return getPlayerAt(state, playerId, PAIRED_SEAT_OFFSET);
+}
+
+/** Who rolls once a paired turn is over: the player to the left of the one it was paired with. */
+export function getNextPlayerIdAfterPaired(
+  state: Pick<CatanState, 'turnOrder'>,
+  pairedPlayerId: string,
+): string {
+  return getPlayerAt(state, pairedPlayerId, 1 - PAIRED_SEAT_OFFSET);
 }
 
 /** How many turns the opening takes: every player places once per round. */

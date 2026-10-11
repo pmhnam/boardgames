@@ -1,7 +1,13 @@
 import { GameRuleError, type CreateInitialStateInput } from '@bgp/game-core';
 import { CATAN_ENGINE_VERSION, MAX_PLAYERS, MIN_PLAYERS } from '../domain/config.js';
 import type { Tile } from '../domain/default-board.js';
-import { resolveSetup, type CatanConfig, type CatanSettings } from '../domain/game-config.js';
+import {
+  getTable,
+  resolveSetup,
+  validateSetup,
+  type CatanConfig,
+  type CatanSettings,
+} from '../domain/game-config.js';
 import { hexCorner, hexKey, hexSideEdge } from '../domain/hex.js';
 import { RESOURCES, addResources, emptyResources } from '../domain/resources.js';
 import type { Building, CatanState, PlayerState } from '../domain/state.js';
@@ -19,7 +25,11 @@ export function createInitialState(
     );
   }
 
+  const fits = validateSetup(input.settings, playerCount);
+  if (!fits.valid) throw new GameRuleError(fits.code, fits.message);
+
   const { config } = input;
+  const table = getTable(config, playerCount);
   const seated = [...input.players]
     .sort((a, b) => a.seat - b.seat)
     .map((player) => player.playerId);
@@ -37,17 +47,17 @@ export function createInitialState(
   if (firstPlayerId === undefined) throw new Error('No players');
 
   const tiles: Record<string, Tile> = {};
-  config.hexes.forEach((hex, index) => {
+  table.hexes.forEach((hex, index) => {
     const tile = setup.tiles[index];
     if (!tile) throw new Error(`No tile for hex ${hexKey(hex)}`);
     tiles[hexKey(hex)] = tile;
   });
   // The robber starts on the desert.
-  const desert = config.hexes.find((hex) => tiles[hexKey(hex)]?.terrain === 'desert');
+  const desert = table.hexes.find((hex) => tiles[hexKey(hex)]?.terrain === 'desert');
   if (!desert) throw new Error('The board has no desert');
 
   const supply = emptyResources();
-  for (const resource of RESOURCES) supply[resource] = config.resourcesPerType;
+  for (const resource of RESOURCES) supply[resource] = table.resourcesPerType;
 
   const newPlayer = (): PlayerState => ({
     resources: emptyResources(),
@@ -59,12 +69,13 @@ export function createInitialState(
     id: input.gameId,
     engineVersion: CATAN_ENGINE_VERSION,
     phase: 'PLAYING',
-    config: resolveSetup(config, setup.ports),
+    config: resolveSetup(config, table.hexes, setup.ports),
     turnOrder,
     turn: {
       number: 1,
       activePlayerId: firstPlayerId,
       step: 'SETUP_SETTLEMENT',
+      paired: false,
       roll: null,
       developmentCardPlayed: false,
       freeRoads: 0,

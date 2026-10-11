@@ -57,8 +57,11 @@ export function portLabel(type: PortType): string {
   return type === 'any' ? '3:1' : '2:1';
 }
 
-/** One colour per seat, in seat order. Every piece is outlined, so the light one shows too. */
-const PLAYER_COLORS = ['#d9433b', '#2f6fde', '#f2992e', '#f3f3ef'];
+/**
+ * One colour per seat, in seat order: the base game's four, then the extension's green and
+ * brown. Every piece is outlined, so the light one shows too.
+ */
+const PLAYER_COLORS = ['#d9433b', '#2f6fde', '#f2992e', '#f3f3ef', '#17a673', '#7b4a2d'];
 
 export function playerColors(playerIds: readonly string[]): Record<string, string> {
   return Object.fromEntries(

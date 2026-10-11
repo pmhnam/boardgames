@@ -82,6 +82,8 @@ const en = {
   gameOver: 'Game over',
   yourTurn: 'Your turn',
   turnOf: (name: string) => `${name}’s turn`,
+  yourPairedTurn: 'Your paired turn',
+  pairedTurnOf: (name: string) => `${name}’s paired turn`,
   turnNumber: (turn: number) => `Turn ${turn}`,
   status: {
     won: (names: string[]) => `${names.join(' & ')} won the game.`,
@@ -96,6 +98,7 @@ const en = {
     movingRobber: (name: string) => `${name} is moving the robber.`,
     aboutToRoll: (name: string) => `${name} is about to roll.`,
     building: (name: string) => `${name} is building and trading.`,
+    pairedBuilding: (name: string) => `${name} is building, with no dice and no offers.`,
     yourOffer: 'Your offer is on the table. Close it with a player, or withdraw it.',
     placeSettlement: 'Place a settlement on a highlighted corner.',
     placeRoad: 'Place a road from that settlement.',
@@ -107,6 +110,7 @@ const en = {
     rollOrCard: 'Roll the dice, or play a development card first.',
     roll: 'Roll the dice.',
     main: 'Build, trade, play a card, or end your turn.',
+    pairedMain: 'No dice this turn: build, trade with the bank, play a card, or end your turn.',
     tool: {
       road: 'Pick a highlighted edge for your road.',
       settlement: 'Pick a highlighted corner for your settlement.',
@@ -156,6 +160,8 @@ const en = {
   // The table of players.
   you: '(you)',
   turnMark: 'Turn',
+  pairedNext: 'Paired',
+  pairedNextHint: 'Takes a paired turn once this one is over.',
   pointsOnTable: 'Points on the table',
   yourPoints: 'Your points',
   points: 'points',
@@ -185,6 +191,7 @@ const en = {
   players: 'Players',
   oneOfferAtATime: 'One offer at a time: this one has to be closed first.',
   tradeOpensLater: 'Trading opens on your own turn, once the dice are rolled.',
+  noOffersOnPairedTurn: 'On a paired turn you trade with the bank and the ports only.',
   youGive: 'You give',
   youGet: 'You get',
   youWant: 'You want',
@@ -255,6 +262,8 @@ const vi: CatanText = {
   gameOver: 'Ván đã kết thúc',
   yourTurn: 'Lượt của bạn',
   turnOf: (name) => `Lượt của ${name}`,
+  yourPairedTurn: 'Lượt ghép đôi của bạn',
+  pairedTurnOf: (name) => `Lượt ghép đôi của ${name}`,
   turnNumber: (turn) => `Lượt ${turn}`,
   status: {
     won: (names) => `${names.join(' & ')} đã thắng ván này.`,
@@ -268,6 +277,7 @@ const vi: CatanText = {
     movingRobber: (name) => `${name} đang di chuyển kẻ cướp.`,
     aboutToRoll: (name) => `${name} sắp đổ xúc xắc.`,
     building: (name) => `${name} đang xây và giao thương.`,
+    pairedBuilding: (name) => `${name} đang xây, không đổ xúc xắc và không mời đổi bài.`,
     yourOffer: 'Lời mời của bạn đang chờ. Chốt với một người chơi, hoặc rút lại.',
     placeSettlement: 'Đặt một ngôi nhà lên một góc được đánh dấu.',
     placeRoad: 'Đặt một con đường nối từ ngôi nhà đó.',
@@ -279,6 +289,7 @@ const vi: CatanText = {
     rollOrCard: 'Đổ xúc xắc, hoặc dùng một thẻ phát triển trước.',
     roll: 'Đổ xúc xắc.',
     main: 'Xây, giao thương, dùng thẻ, hoặc kết thúc lượt.',
+    pairedMain: 'Lượt này không đổ xúc xắc: xây, đổi với ngân hàng, dùng thẻ, hoặc kết thúc lượt.',
     tool: {
       road: 'Chọn một cạnh được đánh dấu để đặt đường.',
       settlement: 'Chọn một góc được đánh dấu để đặt nhà.',
@@ -324,6 +335,8 @@ const vi: CatanText = {
 
   you: '(bạn)',
   turnMark: 'Lượt',
+  pairedNext: 'Ghép đôi',
+  pairedNextHint: 'Được chơi một lượt ghép đôi ngay sau lượt này.',
   pointsOnTable: 'Điểm đang thấy trên bàn',
   yourPoints: 'Điểm của bạn',
   points: 'điểm',
@@ -352,6 +365,7 @@ const vi: CatanText = {
   players: 'Người chơi',
   oneOfferAtATime: 'Mỗi lúc chỉ một lời mời: phải chốt hoặc rút lời mời này trước.',
   tradeOpensLater: 'Chỉ đổi bài được trong lượt của bạn, sau khi đổ xúc xắc.',
+  noOffersOnPairedTurn: 'Trong lượt ghép đôi, bạn chỉ đổi được với ngân hàng và cảng.',
   youGive: 'Bạn đưa',
   youGet: 'Bạn nhận',
   youWant: 'Bạn muốn',

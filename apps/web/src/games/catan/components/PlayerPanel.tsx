@@ -50,6 +50,7 @@ export function PlayerPanel({
   rules,
   mine,
   active,
+  pairedNext,
   winner,
   longestRoute,
   largestArmy,
@@ -63,6 +64,8 @@ export function PlayerPanel({
   rules: HintRules;
   mine: boolean;
   active: boolean;
+  /** At a table of five or six: takes the paired turn that follows the one being played. */
+  pairedNext: boolean;
   winner: boolean;
   longestRoute: boolean;
   largestArmy: boolean;
@@ -148,8 +151,13 @@ export function PlayerPanel({
         </p>
       </div>
       {/* News about this player, pinned to the panel's corner so that nothing moves for it. */}
-      {(owes > 0 || response) && (
+      {(owes > 0 || response || pairedNext) && (
         <p className="catan-flags">
+          {pairedNext && (
+            <span className="catan-badge quiet" title={text.pairedNextHint}>
+              {text.pairedNext}
+            </span>
+          )}
           {owes > 0 && <span className="catan-badge warn">{text.discarding(owes)}</span>}
           {response && (
             <span className={response === 'accepted' ? 'catan-badge' : 'catan-badge quiet'}>

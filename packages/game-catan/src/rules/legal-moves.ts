@@ -41,8 +41,10 @@ export interface LegalMoves {
   robberTargets: Record<string, string[]>;
   canBuyDevelopmentCard: boolean;
   playableCards: PlayableCardType[];
-  /** Whether the player may trade with the supply and make offers to the others. */
+  /** Whether the player may trade with the supply. */
   canTrade: boolean;
+  /** Whether the player may make offers to the others: not on a paired turn. */
+  canOffer: boolean;
   /** An offer is waiting for this player's answer. */
   canRespond: boolean;
   /** They hold what it asks for, so the answer may be yes. */
@@ -63,6 +65,7 @@ export const NO_LEGAL_MOVES: LegalMoves = {
   canBuyDevelopmentCard: false,
   playableCards: [],
   canTrade: false,
+  canOffer: false,
   canRespond: false,
   canAccept: false,
   accepters: [],
@@ -130,6 +133,7 @@ export function getLegalMoves(state: CatanState, playerId: string): LegalMoves {
     canBuyDevelopmentCard: validateBuyDevelopmentCard(state, playerId).valid,
     playableCards,
     canTrade: true,
+    canOffer: !turn.paired,
     canEndTurn: true,
   };
 }

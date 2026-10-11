@@ -61,7 +61,7 @@ export function validateSupplyTrade(
   return VALID;
 }
 
-/** Both sides give something, and nothing is traded for itself. */
+/** Both sides give something, and nothing is traded for itself. Never on a paired turn. */
 export function validateProposeTrade(
   state: CatanState,
   playerId: string,
@@ -70,6 +70,12 @@ export function validateProposeTrade(
 ): GameValidationResult {
   const step = validateStep(state, 'MAIN');
   if (!step.valid) return step;
+  if (state.turn.paired) {
+    return invalid(
+      CatanRuleCodes.NoOffersOnPairedTurn,
+      'On a paired turn you trade with the supply only.',
+    );
+  }
   if (countResources(give) === 0 || countResources(receive) === 0) {
     return invalid(CatanRuleCodes.InvalidTrade, 'Both sides of a trade must give something.');
   }

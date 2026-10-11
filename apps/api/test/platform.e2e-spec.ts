@@ -1063,6 +1063,44 @@ describe('platform MVP flow', () => {
     expect(Object.keys(ack.data.state.buildings)).toHaveLength(6);
     expect(ack.data.state.board.hexes[0]).toEqual({ q: 0, r: -2, terrain: 'desert', number: null });
     expect(ack.data.state.turn.step).not.toBe('SETUP_SETTLEMENT');
+
+    // Six seats play the extension: a larger island, and not the fixed setup, which has
+    // pieces for four.
+    const { body: largeRoom } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'catan',
+      settings: { boardSetup: 'fixed' },
+    });
+    for (let bot = 0; bot < 5; bot++) {
+      await host.api('POST', `/rooms/${largeRoom.id}/bots`, { level: 'easy' });
+    }
+    const seventh = await host.api<{ error: { code: string } }>(
+      'POST',
+      `/rooms/${largeRoom.id}/bots`,
+      { level: 'easy' },
+    );
+    expect(seventh.body.error.code).toBe(ErrorCodes.RoomFull);
+    await host.api('POST', `/rooms/${largeRoom.id}/ready`, { ready: true });
+    const tooLarge = await host.api<{ error: { code: string; details?: { rule?: string } } }>(
+      'POST',
+      `/rooms/${largeRoom.id}/start`,
+    );
+    expect(tooLarge.body.error).toMatchObject({
+      code: ErrorCodes.InvalidRoomSettings,
+      details: { rule: 'FIXED_SETUP_TOO_LARGE' },
+    });
+    await host.api('PUT', `/rooms/${largeRoom.id}/settings`, {
+      settings: { boardSetup: 'variable' },
+    });
+    await host.api('POST', `/rooms/${largeRoom.id}/ready`, { ready: true });
+    const { body: large } = await host.api<StartRoomResponse>(
+      'POST',
+      `/rooms/${largeRoom.id}/start`,
+    );
+    const six = await host.emit<CatanState>(ClientEvents.GameSync, { gameId: large.matchId });
+    if (!six.ok) throw new Error(six.error.code);
+    expect(six.data.state.turnOrder).toHaveLength(6);
+    expect(six.data.state.board.hexes).toHaveLength(30);
+    expect(six.data.state.board.ports).toHaveLength(11);
   });
 
   it('plays a game of hidden hands, where a card asks an answer of another player', async () => {

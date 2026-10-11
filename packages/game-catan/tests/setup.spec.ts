@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { createSeededRandom } from '@bgp/game-core';
 import { seats } from '@bgp/game-core/testing';
 import { CatanRuleCodes } from '../src/domain/errors.js';
 import { layFrame, type BoardSetup } from '../src/domain/game-config.js';
 import { hexKey, hexNeighbours } from '../src/domain/hex.js';
 import { TERRAINS, countResources, type Terrain } from '../src/domain/resources.js';
 import type { CatanState } from '../src/domain/state.js';
-import { layNumberDiscs } from '../src/random/setup-randomizer.js';
+import { layNumberDiscs, shuffleFrame } from '../src/random/setup-randomizer.js';
 import { getSetupPlayerId } from '../src/rules/turn.rules.js';
 import {
   active,
@@ -31,7 +32,7 @@ function create(playerCount: number, seed = 'seed', boardSetup: BoardSetup = 'va
 }
 
 describe('setting up', () => {
-  it.each([2, 5])('refuses %i players', (count) => {
+  it.each([2, 7])('refuses %i players', (count) => {
     expect(() => create(count)).toThrowError(
       expect.objectContaining({ code: 'INVALID_PLAYER_COUNT' }),
     );
@@ -158,6 +159,125 @@ describe('the variable setup', () => {
       layouts.add(JSON.stringify(ports));
     }
     expect(layouts.size).toBeGreaterThan(10);
+  });
+});
+
+describe.each([5, 6])('a table of %i', (players) => {
+  const { extension } = gameConfig;
+
+  it('plays on the island of the extension, with its cards', () => {
+    const state = create(players, 'large');
+    const tiles = Object.values(state.tiles);
+    expect(Object.keys(state.tiles).sort()).toEqual(extension.hexes.map(hexKey).sort());
+    expect(state.config.hexes).toEqual(extension.hexes);
+    for (const terrain of TERRAINS) {
+      expect(tiles.filter((tile) => tile.terrain === terrain)).toHaveLength(
+        extension.terrainCounts[terrain],
+      );
+    }
+    const numbers = tiles.flatMap((tile) => (tile.number === null ? [] : [tile.number]));
+    expect(numbers.sort((a, b) => a - b)).toEqual([...extension.numberDiscs].sort((a, b) => a - b));
+    expect(state.tiles[state.robber]).toEqual({ terrain: 'desert', number: null });
+
+    expect(state.supply).toEqual({ brick: 24, wood: 24, wool: 24, wheat: 24, ore: 24 });
+    expect(state.developmentDeck).toHaveLength(34);
+    expect(state.developmentDeck.filter((type) => type === 'knight')).toHaveLength(20);
+    expect(Object.keys(state.players)).toHaveLength(players);
+    expect(state.turn.step).toBe('SETUP_SETTLEMENT');
+  });
+
+  it('has eleven ports, each on its own stretch of coast', () => {
+    const layouts = new Set<string>();
+    for (let index = 0; index < 20; index += 1) {
+      const { ports } = create(players, `frame-${index}`).config;
+      expect(ports.map((port) => port.type).sort()).toEqual(
+        [
+          ...['any', 'any', 'any', 'any', 'any'],
+          ...['brick', 'ore', 'wheat', 'wood', 'wool', 'wool'],
+        ].sort(),
+      );
+      // No corner trades through two ports.
+      const corners = ports.flatMap((port) => port.edge.split('/'));
+      expect(new Set(corners).size).toBe(corners.length);
+      layouts.add(JSON.stringify(ports));
+    }
+    expect(layouts.size).toBeGreaterThan(10);
+  });
+
+  it('never puts two red numbers side by side', () => {
+    for (let index = 0; index < 200; index += 1) {
+      const state = create(players, `red-${index}`);
+      const isRed = (key: string) => [6, 8].includes(state.tiles[key]?.number ?? 0);
+      for (const hex of state.config.hexes) {
+        if (!isRed(hexKey(hex))) continue;
+        expect(hexNeighbours(hex).map(hexKey).filter(isRed)).toEqual([]);
+      }
+    }
+  });
+
+  it('opens round the table and back, then the first player rolls', () => {
+    const state = newGame({}, { players });
+    const placers: string[] = [];
+    const done = playOpening(state, (current) => {
+      if (current.turn.step === 'SETUP_SETTLEMENT') placers.push(active(current));
+    });
+
+    expect(placers).toEqual([...state.turnOrder, ...[...state.turnOrder].reverse()]);
+    expect(Object.keys(done.buildings)).toHaveLength(2 * players);
+    expect(done.turn).toMatchObject({
+      number: 2 * players + 1,
+      activePlayerId: state.turnOrder[0],
+      step: 'ROLL',
+      paired: false,
+    });
+  });
+
+  it('cannot play the fixed setup, which has pieces for four', () => {
+    const settings = { boardSetup: 'fixed' as const };
+    expect(engine.validateSetup({ config: gameConfig, settings, playerCount: players })).toEqual({
+      valid: false,
+      code: CatanRuleCodes.FixedSetupTooLarge,
+      message: expect.any(String),
+    });
+    expect(() => create(players, 'any', 'fixed')).toThrowError(
+      expect.objectContaining({ code: CatanRuleCodes.FixedSetupTooLarge }),
+    );
+    // The variable setup is open to every table, and the fixed one to the base game's.
+    expect(
+      engine.validateSetup({
+        config: gameConfig,
+        settings: { boardSetup: 'variable' },
+        playerCount: players,
+      }),
+    ).toEqual({ valid: true });
+    expect(engine.validateSetup({ config: gameConfig, settings, playerCount: 4 })).toEqual({
+      valid: true,
+    });
+  });
+});
+
+describe('shuffling the frame', () => {
+  const lengths = (pieces: readonly { length: number }[]) => pieces.map((piece) => piece.length);
+
+  it('moves the pieces of the base game exactly as a plain shuffle would', () => {
+    const { pieces } = gameConfig.frame;
+    expect(shuffleFrame(createSeededRandom('frame'), pieces)).toEqual(
+      createSeededRandom('frame').shuffle(pieces),
+    );
+  });
+
+  it('keeps the short pieces of the extension where a short piece was', () => {
+    const { pieces } = gameConfig.extension.frame;
+    const orders = new Set<string>();
+    for (let index = 0; index < 20; index += 1) {
+      const shuffled = shuffleFrame(createSeededRandom(`frame-${index}`), pieces);
+      expect(lengths(shuffled)).toEqual(lengths(pieces));
+      expect([...shuffled].map((piece) => JSON.stringify(piece)).sort()).toEqual(
+        pieces.map((piece) => JSON.stringify(piece)).sort(),
+      );
+      orders.add(JSON.stringify(shuffled));
+    }
+    expect(orders.size).toBeGreaterThan(10);
   });
 });
 

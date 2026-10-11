@@ -42,6 +42,30 @@ describe('the default config', () => {
     expect(gameConfig.pieces).toEqual({ roads: 15, settlements: 5, cities: 4 });
     expect(gameConfig.victoryPointsToWin).toBe(10);
   });
+
+  it('carries the 5–6 player extension: 30 hexes, 120 resource cards, 34 development cards', () => {
+    const { extension } = gameConfig;
+    expect(extension.hexes).toHaveLength(30);
+    expect(extension.terrainCounts).toEqual({
+      hills: 5,
+      forest: 6,
+      pasture: 6,
+      fields: 6,
+      mountains: 5,
+      desert: 2,
+    });
+    expect(extension.numberDiscs).toHaveLength(28);
+    // The base game's eighteen discs and ten more.
+    const tally = (discs: readonly number[], number: number) =>
+      discs.filter((disc) => disc === number).length;
+    for (const number of [2, 12]) expect(tally(extension.numberDiscs, number)).toBe(2);
+    for (const number of [3, 4, 5, 6, 8, 9, 10, 11]) {
+      expect(tally(extension.numberDiscs, number)).toBe(3);
+    }
+    expect(extension.frame.pieces.flatMap((piece) => piece.ports)).toHaveLength(11);
+    expect(extension.resourcesPerType * 5).toBe(120);
+    expect(Object.values(extension.developmentCards).reduce((sum, count) => sum + count)).toBe(34);
+  });
 });
 
 describe('parseConfig', () => {
@@ -244,6 +268,53 @@ describe('parseConfig', () => {
       configWith((c) => (c.discardLimit = 0)),
       /discardLimit must be an integer from 1/,
     ],
+    [
+      'no extension',
+      configWith((c) => delete (c as Partial<CatanConfig>).extension),
+      /extension must be an object/,
+    ],
+    [
+      'an extension too small for the opening of six',
+      configWith((c) => (c.extension.hexes = c.extension.hexes.filter((hex) => hex.r < 0))),
+      /extension\.hexes must give the board at least 45 corners/,
+    ],
+    [
+      'an extension whose terrains do not cover its island',
+      configWith((c) => (c.extension.terrainCounts.desert = 1)),
+      /extension\.terrainCounts must add up to the 30 hexes/,
+    ],
+    [
+      'an extension with too few number discs',
+      configWith((c) => c.extension.numberDiscs.pop()),
+      /extension\.numberDiscs must be a list of 28 numbers/,
+    ],
+    [
+      'an extension with a 7 disc',
+      configWith((c) => (c.extension.numberDiscs[0] = 7)),
+      /extension\.numberDiscs\[0\] must not be 7/,
+    ],
+    [
+      'an extension frame that stops short of going round',
+      configWith((c) => c.extension.frame.pieces.pop()),
+      /extension\.frame\.pieces must cover the 38 edges of the coast, not 36/,
+    ],
+    [
+      'an extension with no resource cards',
+      configWith((c) => (c.extension.resourcesPerType = 0)),
+      /extension\.resourcesPerType must be an integer from 1/,
+    ],
+    [
+      'an extension missing a kind of development card',
+      configWith(
+        (c) => delete (c.extension.developmentCards as Partial<Record<string, number>>).knight,
+      ),
+      /extension\.developmentCards\.knight must be an integer/,
+    ],
+    [
+      'a price the extension has too few cards to pay',
+      configWith((c) => (c.extension.resourcesPerType = 2)),
+      /costs\.city\.ore must be an integer from 0 to 2/,
+    ],
   ])('refuses %s', (_name, raw, message) => {
     expectRejected(raw, message);
   });
@@ -322,6 +393,40 @@ describe('a match from another config', { timeout: 30_000 }, () => {
       ).toBeLessThanOrEqual(8);
       expect(held?.developmentCards.every((card) => card.type !== 'monopoly')).toBe(true);
     }
+  });
+
+  it('sets a table of six up from its extension, and a table of four from the rest', () => {
+    const stocked = configWith((config) => {
+      config.extension.resourcesPerType = 30;
+      config.extension.developmentCards = {
+        knight: 10,
+        victoryPoint: 2,
+        roadBuilding: 0,
+        invention: 0,
+        monopoly: 0,
+      };
+      // One piece all the way round the longer coast, with a single wool port at its start.
+      config.extension.frame.pieces = [{ length: 38, ports: [{ at: 0, type: 'wool' }] }];
+    });
+    const create = (players: number) =>
+      engine.createInitialState({
+        gameId: 'g',
+        players: seats(players),
+        seed: 'stocked',
+        config: stocked,
+        settings: { boardSetup: 'variable' },
+      });
+
+    expect(engine.parseConfig(stocked)).toEqual({ ok: true, config: stocked });
+    const six = create(6);
+    expect(six.supply).toEqual({ brick: 30, wood: 30, wool: 30, wheat: 30, ore: 30 });
+    expect(six.developmentDeck).toHaveLength(12);
+    expect(six.config.ports).toEqual([{ edge: hexSideEdge({ q: 0, r: -3 }, 'NW'), type: 'wool' }]);
+
+    const four = create(4);
+    expect(four.supply).toEqual({ brick: 19, wood: 19, wool: 19, wheat: 19, ore: 19 });
+    expect(four.developmentDeck).toHaveLength(25);
+    expect(four.config.ports).toHaveLength(9);
   });
 
   it('does not change a match that is already running', () => {

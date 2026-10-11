@@ -26,7 +26,8 @@ export interface FramePiece {
 
 /**
  * The sea frame. Its pieces are laid end to end clockwise from `start`: in the order given for
- * the fixed setup, shuffled for the variable one.
+ * the fixed setup. The variable setup shuffles them, each piece taking the place of one of its
+ * own length.
  */
 export interface Frame {
   start: HexSideRef;
@@ -107,6 +108,67 @@ export const DEFAULT_FRAME: Frame = {
       ],
     },
     { length: 5, ports: [{ at: 2, type: 'ore' }] },
+  ],
+};
+
+/** The island for five and six players: rows of 3, 4, 5, 6, 5, 4 and 3 hexes. */
+export const EXTENSION_HEXES: Hex[] = [];
+for (let r = -3; r <= 3; r += 1) {
+  for (let q = Math.max(-3, -3 - r); q <= Math.min(2, 2 - r); q += 1) {
+    EXTENSION_HEXES.push({ q, r });
+  }
+}
+
+/** The base game's hexes with the extension's eleven: two of each terrain and a second desert. */
+export const EXTENSION_TERRAIN_COUNTS: Record<Terrain, number> = {
+  hills: 5,
+  forest: 6,
+  pasture: 6,
+  fields: 6,
+  mountains: 5,
+  desert: 2,
+};
+
+/** The extension's number discs in the order of the letters on their backs, A to Zc. */
+export const EXTENSION_NUMBER_DISCS = [
+  2, 5, 4, 6, 3, 9, 8, 11, 11, 10, 6, 3, 8, 4, 8, 10, 11, 12, 10, 5, 4, 9, 5, 9, 12, 3, 2, 6,
+];
+
+/**
+ * The base game's six pieces with the extension's four short ones, which lengthen the four
+ * long sides of the island. Two of the short pieces carry a port.
+ */
+export const EXTENSION_FRAME: Frame = {
+  start: { q: 0, r: -3, side: 'NW' },
+  pieces: [
+    {
+      length: 5,
+      ports: [
+        { at: 0, type: 'any' },
+        { at: 3, type: 'wool' },
+      ],
+    },
+    { length: 5, ports: [{ at: 2, type: 'any' }] },
+    { length: 2, ports: [] },
+    {
+      length: 5,
+      ports: [
+        { at: 0, type: 'any' },
+        { at: 3, type: 'brick' },
+      ],
+    },
+    { length: 2, ports: [{ at: 0, type: 'wool' }] },
+    { length: 5, ports: [{ at: 2, type: 'wood' }] },
+    {
+      length: 5,
+      ports: [
+        { at: 0, type: 'any' },
+        { at: 3, type: 'wheat' },
+      ],
+    },
+    { length: 2, ports: [] },
+    { length: 5, ports: [{ at: 2, type: 'ore' }] },
+    { length: 2, ports: [{ at: 0, type: 'any' }] },
   ],
 };
 

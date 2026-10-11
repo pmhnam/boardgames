@@ -1,12 +1,16 @@
-import type { ParseConfigResult, ParseSettingsResult } from '@bgp/game-core';
+import type { GameValidationResult, ParseConfigResult, ParseSettingsResult } from '@bgp/game-core';
 import { listCoast, type HexSideRef } from './coast.js';
-import { MAX_PLAYERS, ROBBER_ROLL, SETUP_ROUNDS } from './config.js';
+import { BASE_MAX_PLAYERS, MAX_PLAYERS, ROBBER_ROLL, SETUP_ROUNDS } from './config.js';
 import {
   DEFAULT_FIXED_SETUP,
   DEFAULT_FRAME,
   DEFAULT_HEXES,
   DEFAULT_NUMBER_DISCS,
   DEFAULT_TERRAIN_COUNTS,
+  EXTENSION_FRAME,
+  EXTENSION_HEXES,
+  EXTENSION_NUMBER_DISCS,
+  EXTENSION_TERRAIN_COUNTS,
   type FixedSetup,
   type Frame,
   type FramePiece,
@@ -18,6 +22,7 @@ import {
   type Tile,
 } from './default-board.js';
 import { DEVELOPMENT_CARD_TYPES, type DevelopmentCardType } from './development-cards.js';
+import { CatanRuleCodes, VALID, invalid } from './errors.js';
 import { HEX_SIDES, hexCorner, hexKey, hexSideEdge, isHexSide, type Hex } from './hex.js';
 import {
   RESOURCES,
@@ -45,8 +50,8 @@ export interface Costs {
   developmentCard: ResourceCounts;
 }
 
-/** Everything about CATAN that can change without changing its rules. */
-export interface CatanConfig {
+/** The island and the cards that one size of table plays with. */
+export interface TableConfig {
   /** The hexes of the island. */
   hexes: Hex[];
   /** How many hexes of each terrain the variable setup deals. */
@@ -56,13 +61,22 @@ export interface CatanConfig {
    * in that order from a corner of the island, counterclockwise and inwards, skipping deserts.
    */
   numberDiscs: number[];
-  /** The board and the starting pieces for a first game. */
-  fixedSetup: FixedSetup;
   /** The sea frame and the ports on it. */
   frame: Frame;
   /** Resource cards of each kind in the supply. */
   resourcesPerType: number;
   developmentCards: Record<DevelopmentCardType, number>;
+}
+
+/**
+ * Everything about CATAN that can change without changing its rules. The table at the top
+ * level is the base game's, for three and four players.
+ */
+export interface CatanConfig extends TableConfig {
+  /** The board and the starting pieces for a first game of the base game. */
+  fixedSetup: FixedSetup;
+  /** What five and six players play with instead: the 5–6 player extension. */
+  extension: TableConfig;
   pieces: Pieces;
   costs: Costs;
   victoryPointsToWin: number;
@@ -114,6 +128,14 @@ const copyPlacement = (placement: StartingPlacement): StartingPlacement => ({
   road: { ...placement.road },
 });
 
+const copyFrame = (frame: Frame): Frame => ({
+  start: { ...frame.start },
+  pieces: frame.pieces.map((piece) => ({
+    length: piece.length,
+    ports: piece.ports.map((port) => ({ ...port })),
+  })),
+});
+
 export const DEFAULT_CATAN_CONFIG: CatanConfig = {
   hexes: DEFAULT_HEXES.map((hex) => ({ ...hex })),
   terrainCounts: { ...DEFAULT_TERRAIN_COUNTS },
@@ -125,15 +147,19 @@ export const DEFAULT_CATAN_CONFIG: CatanConfig = {
       second: copyPlacement(seat.second),
     })),
   },
-  frame: {
-    start: { ...DEFAULT_FRAME.start },
-    pieces: DEFAULT_FRAME.pieces.map((piece) => ({
-      length: piece.length,
-      ports: piece.ports.map((port) => ({ ...port })),
-    })),
-  },
+  frame: copyFrame(DEFAULT_FRAME),
   resourcesPerType: 19,
   developmentCards: { knight: 14, victoryPoint: 5, roadBuilding: 2, invention: 2, monopoly: 2 },
+  // The base game's cards with the extension's: five more of each resource, six knights and
+  // one more of each progress card.
+  extension: {
+    hexes: EXTENSION_HEXES.map((hex) => ({ ...hex })),
+    terrainCounts: { ...EXTENSION_TERRAIN_COUNTS },
+    numberDiscs: [...EXTENSION_NUMBER_DISCS],
+    frame: copyFrame(EXTENSION_FRAME),
+    resourcesPerType: 24,
+    developmentCards: { knight: 20, victoryPoint: 5, roadBuilding: 3, invention: 3, monopoly: 3 },
+  },
   pieces: { roads: 15, settlements: 5, cities: 4 },
   costs: {
     road: cost({ brick: 1, wood: 1 }),
@@ -168,10 +194,22 @@ export function layFrame(
   return ports;
 }
 
-/** What a match keeps of the config: `ports` are the ones its own frame was laid with. */
-export function resolveSetup(config: CatanConfig, ports: readonly Port[]): CatanSetup {
+/** What a table of that many plays with: the base game, or the extension past four players. */
+export function getTable(config: CatanConfig, playerCount: number): TableConfig {
+  return playerCount > BASE_MAX_PLAYERS ? config.extension : config;
+}
+
+/**
+ * What a match keeps of the config: the island of its own table, and the ports its own frame
+ * was laid with.
+ */
+export function resolveSetup(
+  config: CatanConfig,
+  hexes: readonly Hex[],
+  ports: readonly Port[],
+): CatanSetup {
   return {
-    hexes: config.hexes.map((hex) => ({ ...hex })),
+    hexes: hexes.map((hex) => ({ ...hex })),
     ports: ports.map((port) => ({ ...port })),
     pieces: { ...config.pieces },
     costs: {
@@ -205,6 +243,17 @@ export function parseSettings(
   return { ok: true, settings: { boardSetup: boardSetup as BoardSetup } };
 }
 
+/** The fixed setup has pieces for the base game's seats only: a larger table deals its island. */
+export function validateSetup(settings: CatanSettings, playerCount: number): GameValidationResult {
+  if (settings.boardSetup === 'fixed' && playerCount > BASE_MAX_PLAYERS) {
+    return invalid(
+      CatanRuleCodes.FixedSetupTooLarge,
+      `The fixed setup is for up to ${BASE_MAX_PLAYERS} players.`,
+    );
+  }
+  return VALID;
+}
+
 const MAX_HEXES = 61;
 const MAX_COORDINATE = 10;
 const MAX_FRAME_PIECES = 30;
@@ -216,10 +265,10 @@ const MIN_NUMBER = 2;
 const MAX_NUMBER = 12;
 
 /**
- * Corners the board needs for the opening: every settlement rules out itself and at most
- * three neighbours, so the last one placed still finds a free corner.
+ * Corners a board needs for the opening of that many players: every settlement rules out
+ * itself and at most three neighbours, so the last one placed still finds a free corner.
  */
-const MIN_VERTICES = 4 * (SETUP_ROUNDS * MAX_PLAYERS - 1) + 1;
+const minVertices = (seats: number) => 4 * (SETUP_ROUNDS * seats - 1) + 1;
 
 /** Thrown inside the parser and turned into a ParseConfigResult at its edge. */
 class ConfigError extends Error {}
@@ -246,31 +295,32 @@ function parseArray(value: unknown, what: string, min: number, max: number): unk
   return value;
 }
 
-function parseHexes(raw: unknown): Hex[] {
-  const hexes = parseArray(raw, 'hexes', 1, MAX_HEXES).map((hex, index): Hex => {
-    const at = `hexes[${index}]`;
+/** `what` names the list in messages: `hexes`, or `extension.hexes`. */
+function parseHexes(raw: unknown, what: string, seats: number): Hex[] {
+  const hexes = parseArray(raw, what, 1, MAX_HEXES).map((hex, index): Hex => {
+    const at = `${what}[${index}]`;
     if (!isRecord(hex)) fail(`${at} must be an object.`);
     return {
       q: parseInteger(hex.q, `${at}.q`, -MAX_COORDINATE, MAX_COORDINATE),
       r: parseInteger(hex.r, `${at}.r`, -MAX_COORDINATE, MAX_COORDINATE),
     };
   });
-  if (new Set(hexes.map(hexKey)).size !== hexes.length) fail('hexes contains a duplicate.');
-  if (buildTopology(hexes).vertices.length < MIN_VERTICES) {
-    fail(`hexes must give the board at least ${MIN_VERTICES} corners to settle.`);
+  if (new Set(hexes.map(hexKey)).size !== hexes.length) fail(`${what} contains a duplicate.`);
+  if (buildTopology(hexes).vertices.length < minVertices(seats)) {
+    fail(`${what} must give the board at least ${minVertices(seats)} corners to settle.`);
   }
   return hexes;
 }
 
-function parseTerrainCounts(raw: unknown, hexCount: number): Record<Terrain, number> {
-  if (!isRecord(raw)) fail('terrainCounts must be an object with a count for each terrain.');
+function parseTerrainCounts(raw: unknown, what: string, hexCount: number): Record<Terrain, number> {
+  if (!isRecord(raw)) fail(`${what} must be an object with a count for each terrain.`);
   const counts = {} as Record<Terrain, number>;
   for (const terrain of TERRAINS) {
-    counts[terrain] = parseInteger(raw[terrain], `terrainCounts.${terrain}`, 0, MAX_HEXES);
+    counts[terrain] = parseInteger(raw[terrain], `${what}.${terrain}`, 0, MAX_HEXES);
   }
   const total = TERRAINS.reduce((sum, terrain) => sum + counts[terrain], 0);
-  if (total !== hexCount) fail(`terrainCounts must add up to the ${hexCount} hexes.`);
-  if (counts.desert < 1) fail('terrainCounts.desert must be at least 1: the robber starts there.');
+  if (total !== hexCount) fail(`${what} must add up to the ${hexCount} hexes.`);
+  if (counts.desert < 1) fail(`${what}.desert must be at least 1: the robber starts there.`);
   return counts;
 }
 
@@ -280,11 +330,11 @@ function parseNumber(value: unknown, what: string): number {
   return number;
 }
 
-function parseNumberDiscs(raw: unknown, producingHexes: number): number[] {
+function parseNumberDiscs(raw: unknown, what: string, producingHexes: number): number[] {
   if (!Array.isArray(raw) || raw.length !== producingHexes) {
-    fail(`numberDiscs must be a list of ${producingHexes} numbers, one per producing hex.`);
+    fail(`${what} must be a list of ${producingHexes} numbers, one per producing hex.`);
   }
-  return raw.map((value, index) => parseNumber(value, `numberDiscs[${index}]`));
+  return raw.map((value, index) => parseNumber(value, `${what}[${index}]`));
 }
 
 function sameItems(a: readonly (string | number)[], b: readonly (string | number)[]): boolean {
@@ -380,8 +430,8 @@ function parseFixedSeats(raw: unknown, hexes: readonly Hex[]): StartingPieces[] 
     return { settlement, road };
   };
 
-  if (!Array.isArray(raw) || raw.length !== MAX_PLAYERS) {
-    fail(`fixedSetup.seats must be a list of ${MAX_PLAYERS} seats.`);
+  if (!Array.isArray(raw) || raw.length !== BASE_MAX_PLAYERS) {
+    fail(`fixedSetup.seats must be a list of ${BASE_MAX_PLAYERS} seats.`);
   }
   return raw.map((seat, index): StartingPieces => {
     const at = `fixedSetup.seats[${index}]`;
@@ -414,17 +464,17 @@ function parsePortType(raw: unknown, what: string): PortType {
 }
 
 /** The pieces must go round the whole coast, which must be a single ring to go round. */
-function parseFrame(raw: unknown, hexes: readonly Hex[]): Frame {
-  if (!isRecord(raw)) fail('frame must be an object.');
-  const start = parseSideRef(raw.start, 'frame.start');
+function parseFrame(raw: unknown, what: string, hexes: readonly Hex[]): Frame {
+  if (!isRecord(raw)) fail(`${what} must be an object.`);
+  const start = parseSideRef(raw.start, `${what}.start`);
   const coast = listCoast(hexes, start);
   if (!coast) {
-    fail('frame.start must be a side of a hex that faces the sea, on an island with one coast.');
+    fail(`${what}.start must be a side of a hex that faces the sea, on an island with one coast.`);
   }
 
-  const pieces = parseArray(raw.pieces, 'frame.pieces', 1, MAX_FRAME_PIECES).map(
+  const pieces = parseArray(raw.pieces, `${what}.pieces`, 1, MAX_FRAME_PIECES).map(
     (piece, index): FramePiece => {
-      const at = `frame.pieces[${index}]`;
+      const at = `${what}.pieces[${index}]`;
       if (!isRecord(piece)) fail(`${at} must be an object.`);
       const length = parseInteger(piece.length, `${at}.length`, 1, coast.length);
       const ports = parseArray(piece.ports, `${at}.ports`, 0, length).map(
@@ -445,18 +495,43 @@ function parseFrame(raw: unknown, hexes: readonly Hex[]): Frame {
   );
   const covered = pieces.reduce((sum, piece) => sum + piece.length, 0);
   if (covered !== coast.length) {
-    fail(`frame.pieces must cover the ${coast.length} edges of the coast, not ${covered}.`);
+    fail(`${what}.pieces must cover the ${coast.length} edges of the coast, not ${covered}.`);
   }
   return { start, pieces };
 }
 
-function parseDevelopmentCards(raw: unknown): Record<DevelopmentCardType, number> {
-  if (!isRecord(raw)) fail('developmentCards must be an object with a count for each card.');
+function parseDevelopmentCards(raw: unknown, what: string): Record<DevelopmentCardType, number> {
+  if (!isRecord(raw)) fail(`${what} must be an object with a count for each card.`);
   const counts = {} as Record<DevelopmentCardType, number>;
   for (const type of DEVELOPMENT_CARD_TYPES) {
-    counts[type] = parseInteger(raw[type], `developmentCards.${type}`, 0, MAX_CARDS);
+    counts[type] = parseInteger(raw[type], `${what}.${type}`, 0, MAX_CARDS);
   }
   return counts;
+}
+
+/**
+ * One table's island and cards. `prefix` is what its fields are called in messages: nothing
+ * for the base game's, `extension.` for the extension's.
+ */
+function parseTable(raw: Record<string, unknown>, prefix: string, seats: number): TableConfig {
+  const hexes = parseHexes(raw.hexes, `${prefix}hexes`, seats);
+  const terrainCounts = parseTerrainCounts(
+    raw.terrainCounts,
+    `${prefix}terrainCounts`,
+    hexes.length,
+  );
+  return {
+    hexes,
+    terrainCounts,
+    numberDiscs: parseNumberDiscs(
+      raw.numberDiscs,
+      `${prefix}numberDiscs`,
+      hexes.length - terrainCounts.desert,
+    ),
+    frame: parseFrame(raw.frame, `${prefix}frame`, hexes),
+    resourcesPerType: parseInteger(raw.resourcesPerType, `${prefix}resourcesPerType`, 1, MAX_CARDS),
+    developmentCards: parseDevelopmentCards(raw.developmentCards, `${prefix}developmentCards`),
+  };
 }
 
 function parsePieces(raw: unknown): Pieces {
@@ -496,12 +571,17 @@ function parseCosts(raw: unknown, resourcesPerType: number): Costs {
 export function parseConfig(raw: unknown): ParseConfigResult<CatanConfig> {
   try {
     if (!isRecord(raw)) fail('Config must be an object.');
-    const hexes = parseHexes(raw.hexes);
-    const terrainCounts = parseTerrainCounts(raw.terrainCounts, hexes.length);
-    const numberDiscs = parseNumberDiscs(raw.numberDiscs, hexes.length - terrainCounts.desert);
-    const fixedSetup = parseFixedSetup(raw.fixedSetup, hexes, terrainCounts, numberDiscs);
-    const frame = parseFrame(raw.frame, hexes);
-    const resourcesPerType = parseInteger(raw.resourcesPerType, 'resourcesPerType', 1, MAX_CARDS);
+    const base = parseTable(raw, '', BASE_MAX_PLAYERS);
+    const fixedSetup = parseFixedSetup(
+      raw.fixedSetup,
+      base.hexes,
+      base.terrainCounts,
+      base.numberDiscs,
+    );
+    if (!isRecord(raw.extension)) {
+      fail('extension must be an object: what five and six players play with.');
+    }
+    const extension = parseTable(raw.extension, 'extension.', MAX_PLAYERS);
     const pieces = parsePieces(raw.pieces);
 
     // The opening alone is worth this much, and buildings alone must be able to win.
@@ -517,15 +597,12 @@ export function parseConfig(raw: unknown): ParseConfigResult<CatanConfig> {
     return {
       ok: true,
       config: {
-        hexes,
-        terrainCounts,
-        numberDiscs,
+        ...base,
         fixedSetup,
-        frame,
-        resourcesPerType,
-        developmentCards: parseDevelopmentCards(raw.developmentCards),
+        extension,
         pieces,
-        costs: parseCosts(raw.costs, resourcesPerType),
+        // A price must be payable from either table's supply.
+        costs: parseCosts(raw.costs, Math.min(base.resourcesPerType, extension.resourcesPerType)),
         victoryPointsToWin,
         longestRouteMinimum: parseInteger(
           raw.longestRouteMinimum,

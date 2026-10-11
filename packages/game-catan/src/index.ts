@@ -19,9 +19,9 @@ export const CatanGame: GameModule<CatanEngine> = {
 };
 
 export { CatanBot, CatanEngine };
-export { CATAN_GAME_TYPE } from './domain/config.js';
+export { BASE_MAX_PLAYERS, CATAN_GAME_TYPE } from './domain/config.js';
 export { CatanRuleCodes } from './domain/errors.js';
-export { BOARD_SETUPS, DEFAULT_CATAN_CONFIG } from './domain/game-config.js';
+export { BOARD_SETUPS, DEFAULT_CATAN_CONFIG, validateSetup } from './domain/game-config.js';
 export type {
   BoardSetup,
   CatanConfig,
@@ -30,6 +30,7 @@ export type {
   Costs,
   Port,
   Pieces,
+  TableConfig,
 } from './domain/game-config.js';
 export type {
   FixedSetup,

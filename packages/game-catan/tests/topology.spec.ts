@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { listCoast } from '../src/domain/coast.js';
-import { DEFAULT_FRAME, DEFAULT_HEXES } from '../src/domain/default-board.js';
+import { DEFAULT_FRAME, DEFAULT_HEXES, EXTENSION_HEXES } from '../src/domain/default-board.js';
 import { layFrame } from '../src/domain/game-config.js';
 import {
   HEX_SIDES,
   hexCorners,
+  hexDistance,
   hexKey,
   hexNeighbour,
   hexSideEdge,
   parseEdgeId,
+  type Hex,
   type HexSide,
 } from '../src/domain/hex.js';
 import { listSpiral } from '../src/domain/spiral.js';
@@ -187,5 +189,33 @@ describe('the spiral the number discs follow', () => {
       starts.add(spiral[0] as string);
     }
     expect([...starts].sort()).toEqual(['-2,0', '-2,2', '0,-2', '0,2', '2,-2', '2,0']);
+  });
+
+  it('goes round the longer island of the extension the same way', () => {
+    const spiral = listSpiral(EXTENSION_HEXES, 0).map(hexKey);
+    // Round the sixteen hexes of the coast, the ten inside them, then the four in the middle.
+    expect(spiral.slice(0, 16)).toEqual([
+      ...['2,-3', '1,-3', '0,-3', '-1,-2', '-2,-1', '-3,0', '-3,1', '-3,2'],
+      ...['-3,3', '-2,3', '-1,3', '0,2', '1,1', '2,0', '2,-1', '2,-2'],
+    ]);
+    expect(spiral.slice(16, 26)).toEqual([
+      ...['1,-2', '0,-2', '-1,-1', '-2,0', '-2,1'],
+      ...['-2,2', '-1,2', '0,1', '1,0', '1,-1'],
+    ]);
+    expect(spiral.slice(26)).toEqual(['0,-1', '-1,0', '-1,1', '0,0']);
+  });
+
+  it('never lifts off the island of the extension, from any of its six corners', () => {
+    const starts = new Set<string>();
+    for (let corner = 0; corner < 6; corner += 1) {
+      const spiral = listSpiral(EXTENSION_HEXES, corner);
+      expect(spiral.map(hexKey).sort()).toEqual(EXTENSION_HEXES.map(hexKey).sort());
+      // Each hex is next to the one before it, so the discs are laid in one unbroken line.
+      spiral.slice(1).forEach((hex, index) => {
+        expect(hexDistance(hex, spiral[index] as Hex)).toBe(1);
+      });
+      starts.add(hexKey(spiral[0] as Hex));
+    }
+    expect([...starts].sort()).toEqual(['-1,3', '-3,0', '-3,3', '0,-3', '2,-3', '2,0']);
   });
 });

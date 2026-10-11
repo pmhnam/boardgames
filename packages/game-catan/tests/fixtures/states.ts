@@ -3,6 +3,7 @@ import { deepFreeze, seats } from '@bgp/game-core/testing';
 import type { CatanAction } from '../../src/domain/actions.js';
 import type { DevelopmentCardType } from '../../src/domain/development-cards.js';
 import type { Tile } from '../../src/domain/default-board.js';
+import { BASE_MAX_PLAYERS } from '../../src/domain/config.js';
 import { layFrame, type CatanConfig } from '../../src/domain/game-config.js';
 import { hexCorners, hexKey, hexSideEdge, type HexSide } from '../../src/domain/hex.js';
 import {
@@ -63,18 +64,20 @@ const TEST_TILES: Tile[] = [
 /**
  * A fresh game at the start of the opening, frozen so mutation fails loudly. Unless asked
  * otherwise it is given the test island and the frame in its fixed order, so tests know what
- * is on every hex and where every port is.
+ * is on every hex and where every port is. A table of five or six keeps the island it was
+ * dealt: the test island is the base game's.
  */
 export function newGame(overrides: Partial<CatanState> = {}, options: GameOptions = {}) {
   const config = options.config ?? gameConfig;
+  const players = options.players ?? 3;
   const state = engine.createInitialState({
     gameId: 'g',
-    players: seats(options.players ?? 3),
+    players: seats(players),
     seed: options.seed ?? 'fixture',
     config,
     settings: { boardSetup: 'variable' },
   });
-  if (options.dealt) return deepFreeze({ ...state, ...overrides });
+  if (options.dealt || players > BASE_MAX_PLAYERS) return deepFreeze({ ...state, ...overrides });
 
   const known: Partial<CatanState> = {
     tiles: Object.fromEntries(

@@ -1,8 +1,16 @@
 export const CATAN_GAME_TYPE = 'catan';
-export const CATAN_ENGINE_VERSION = 1;
+export const CATAN_ENGINE_VERSION = 2;
 
 export const MIN_PLAYERS = 3;
-export const MAX_PLAYERS = 4;
+/** The most the base game seats. A larger table plays with the 5–6 player extension. */
+export const BASE_MAX_PLAYERS = 4;
+export const MAX_PLAYERS = 6;
+
+/**
+ * At a table of five or six every turn is shared by two players: the one who rolls, and the
+ * third player to their left, who then takes a turn without dice or offers.
+ */
+export const PAIRED_SEAT_OFFSET = 3;
 
 /** Each player places a settlement and a road this many times before the first roll. */
 export const SETUP_ROUNDS = 2;

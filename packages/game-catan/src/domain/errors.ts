@@ -26,6 +26,8 @@ export const CatanRuleCodes = {
   NoOffer: 'NO_OFFER',
   AlreadyResponded: 'ALREADY_RESPONDED',
   OfferNotAccepted: 'OFFER_NOT_ACCEPTED',
+  NoOffersOnPairedTurn: 'NO_OFFERS_ON_PAIRED_TURN',
+  FixedSetupTooLarge: 'FIXED_SETUP_TOO_LARGE',
 } as const;
 
 export const VALID: GameValidationResult = { valid: true };

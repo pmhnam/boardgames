@@ -71,7 +71,7 @@ export function scriptFullGame(
     let action: CatanAction;
     if (scoring.length > 0) {
       action = random.pick(scoring);
-    } else if (view.legal.canTrade && held.length > 0 && random.next() < OFFER_CHANCE) {
+    } else if (view.legal.canOffer && held.length > 0 && random.next() < OFFER_CHANCE) {
       const give = random.pick(held);
       const receive = random.pick(RESOURCES.filter((resource) => resource !== give));
       action = { type: 'PROPOSE_TRADE', give: { [give]: 1 }, receive: { [receive]: 1 } };

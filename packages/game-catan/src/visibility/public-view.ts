@@ -15,6 +15,7 @@ import type {
 import { NO_LEGAL_MOVES, getLegalMoves, type LegalMoves } from '../rules/legal-moves.js';
 import { getPiecesLeft } from '../rules/placement.rules.js';
 import { getSupplyRates } from '../rules/trade.rules.js';
+import { getPairedPlayerId, hasPairedTurns } from '../rules/turn.rules.js';
 import { getRouteLength } from '../scoring/longest-route.js';
 import { getPoints, getPublicPoints } from '../scoring/score.js';
 
@@ -57,6 +58,13 @@ export interface TurnView {
   number: number;
   activePlayerId: string;
   step: TurnStep;
+  /** The active player is taking a paired turn: no dice, and no offers to the others. */
+  paired: boolean;
+  /**
+   * At a table of five or six, who takes the paired turn that follows this one. Null on a
+   * paired turn, in the opening and at a smaller table.
+   */
+  pairedPlayerId: string | null;
   roll: [number, number] | null;
   developmentCardPlayed: boolean;
   freeRoads: number;
@@ -119,6 +127,13 @@ function getPlayerView(
   };
 }
 
+function getPairedPlayerView(state: CatanState): string | null {
+  const { turn } = state;
+  const opening = turn.step === 'SETUP_SETTLEMENT' || turn.step === 'SETUP_ROAD';
+  if (!hasPairedTurns(state) || turn.paired || opening) return null;
+  return getPairedPlayerId(state, turn.activePlayerId);
+}
+
 function getHexViews(state: CatanState): HexView[] {
   return state.config.hexes.map((hex) => {
     const tile = state.tiles[hexKey(hex)];
@@ -154,6 +169,8 @@ export function getPublicView(state: CatanState, viewer: GameViewer): CatanView 
       number: turn.number,
       activePlayerId: turn.activePlayerId,
       step: turn.step,
+      paired: turn.paired,
+      pairedPlayerId: getPairedPlayerView(state),
       roll: turn.roll ? [turn.roll[0], turn.roll[1]] : null,
       developmentCardPlayed: turn.developmentCardPlayed,
       freeRoads: turn.freeRoads,

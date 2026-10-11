@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { deepFreeze, runMatch, seats } from '@bgp/game-core/testing';
 import type { CatanAction } from '../src/domain/actions.js';
-import { DEFAULT_HEXES } from '../src/domain/default-board.js';
 import { CatanRuleCodes } from '../src/domain/errors.js';
+import { getTable } from '../src/domain/game-config.js';
 import { RESOURCES, type Resource } from '../src/domain/resources.js';
 import type { CatanState } from '../src/domain/state.js';
 import { buildTopology, neighboursOf } from '../src/domain/topology.js';
@@ -25,8 +25,6 @@ import {
   started,
   validate,
 } from './fixtures/states.js';
-
-const topology = buildTopology(DEFAULT_HEXES);
 
 /** Corners far enough apart to all be built on. */
 const SITES = [
@@ -53,6 +51,7 @@ describe('a turn', () => {
       number: state.turn.number + 1,
       activePlayerId: others(state)[0],
       step: 'ROLL',
+      paired: false,
       roll: null,
       developmentCardPlayed: false,
       freeRoads: 0,
@@ -203,10 +202,14 @@ describe('untrusted actions', () => {
   });
 });
 
-/** What must hold after every action of every game. */
+/** What must hold after every action of every game, at a table of any size. */
 function expectSound(state: CatanState): void {
-  expect(countAll(state)).toEqual({ brick: 19, wood: 19, wool: 19, wheat: 19, ore: 19 });
-  for (const resource of RESOURCES) expect(state.supply[resource]).toBeGreaterThanOrEqual(0);
+  const table = getTable(engine.defaultConfig, state.turnOrder.length);
+  const board = buildTopology(state.config.hexes);
+  for (const resource of RESOURCES) {
+    expect(countAll(state)[resource]).toBe(table.resourcesPerType);
+    expect(state.supply[resource]).toBeGreaterThanOrEqual(0);
+  }
 
   let cardsOut = state.developmentDeck.length;
   for (const playerId of state.turnOrder) {
@@ -217,12 +220,20 @@ function expectSound(state: CatanState): void {
     const left = getPiecesLeft(state, playerId);
     expect(Math.min(left.roads, left.settlements, left.cities)).toBeGreaterThanOrEqual(0);
   }
-  expect(cardsOut).toBeLessThanOrEqual(25);
+  expect(cardsOut).toBeLessThanOrEqual(
+    Object.values(table.developmentCards).reduce((sum, count) => sum + count),
+  );
 
   for (const vertex of Object.keys(state.buildings)) {
-    expect(
-      neighboursOf(topology, vertex).filter((neighbour) => state.buildings[neighbour]),
-    ).toEqual([]);
+    expect(neighboursOf(board, vertex).filter((neighbour) => state.buildings[neighbour])).toEqual(
+      [],
+    );
+  }
+  // Only a table of five or six takes paired turns, and never with dice.
+  if (state.turn.paired) {
+    expect(state.turnOrder.length).toBeGreaterThan(4);
+    expect(state.turn.roll).toBeNull();
+    expect(state.turn.offer).toBeNull();
   }
   if (state.phase === 'PLAYING') {
     expect(engine.getCurrentPlayerIds(state).length).toBeGreaterThan(0);
@@ -234,6 +245,7 @@ const sortedKeys = (action: CatanAction) => JSON.stringify(action, Object.keys(a
 
 /** Every action anyone could try, short of discards and offers, which have no end. */
 function universe(state: CatanState): CatanAction[] {
+  const topology = buildTopology(state.config.hexes);
   const pairs = RESOURCES.flatMap((first, index) =>
     RESOURCES.slice(index).map((second): Resource[] => [first, second]),
   );
@@ -292,6 +304,9 @@ const GAMES = [
   { seed: 'bravo', players: 3 },
   { seed: 'india', players: 4 },
   { seed: 'bravo', players: 4 },
+  // With the extension, and so with paired turns.
+  { seed: 'lima', players: 5 },
+  { seed: 'juliet', players: 6 },
 ];
 
 /** Each game is written once and read by every test that needs it. */
