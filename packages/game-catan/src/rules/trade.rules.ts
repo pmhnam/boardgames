@@ -13,11 +13,7 @@ import { endsOf } from '../domain/topology.js';
 import { getTopology } from './placement.rules.js';
 import { getPlayer, validateStep } from './turn.rules.js';
 
-/**
- * How many cards of each resource a player gives for one from the supply. A building on either
- * corner of a port's edge gives its rate.
- */
-export function getSupplyRates(
+function workOutSupplyRates(
   state: Pick<CatanState, 'config' | 'buildings'>,
   playerId: string,
 ): Record<Resource, number> {
@@ -38,6 +34,36 @@ export function getSupplyRates(
     else lower(port.type, RESOURCE_PORT_RATE);
   }
   return rates;
+}
+
+// Rates change only when a building goes up, and are asked for with every view of the table:
+// kept with the buildings they were worked out from.
+interface KnownRates {
+  config: CatanState['config'];
+  rates: Map<string, Record<Resource, number>>;
+}
+const knownRates = new WeakMap<CatanState['buildings'], KnownRates>();
+
+/**
+ * How many cards of each resource a player gives for one from the supply. A building on either
+ * corner of a port's edge gives its rate.
+ */
+export function getSupplyRates(
+  state: Pick<CatanState, 'config' | 'buildings'>,
+  playerId: string,
+): Record<Resource, number> {
+  let known = knownRates.get(state.buildings);
+  if (!known || known.config !== state.config) {
+    known = { config: state.config, rates: new Map() };
+    knownRates.set(state.buildings, known);
+  }
+  let rates = known.rates.get(playerId);
+  if (!rates) {
+    rates = workOutSupplyRates(state, playerId);
+    known.rates.set(playerId, rates);
+  }
+  // A copy: what is kept must not change under whoever is handed it.
+  return { ...rates };
 }
 
 export function validateSupplyTrade(

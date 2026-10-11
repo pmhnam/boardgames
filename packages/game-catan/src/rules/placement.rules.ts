@@ -6,8 +6,16 @@ import { buildTopology, edgesAt, endsOf, neighboursOf, type Topology } from '../
 
 type Board = Pick<CatanState, 'config' | 'buildings' | 'roads'>;
 
+// A match's config never changes, so its topology is found again by the config itself: the
+// rules ask for it many times for every action, and need not spell the board out each time.
+const topologies = new WeakMap<CatanState['config'], Topology>();
+
 export function getTopology(state: Pick<CatanState, 'config'>): Topology {
-  return buildTopology(state.config.hexes);
+  const known = topologies.get(state.config);
+  if (known) return known;
+  const topology = buildTopology(state.config.hexes);
+  topologies.set(state.config, topology);
+  return topology;
 }
 
 /** The pieces a player has not put on the board yet. A city hands its settlement back. */

@@ -8,7 +8,7 @@ type Board = Pick<CatanState, 'config' | 'roads' | 'buildings'>;
  * The longest unbroken run of a player's roads: no road counted twice, and no passing through
  * a corner somebody else has built on. A run may start or end at such a corner.
  */
-export function getRouteLength(state: Board, playerId: string): number {
+function measureRoute(state: Board, playerId: string): number {
   const topology = getTopology(state);
   const own = Object.keys(state.roads).filter((edge) => state.roads[edge] === playerId);
   const isBroken = (vertex: string) => {
@@ -33,6 +33,31 @@ export function getRouteLength(state: Board, playerId: string): number {
   let longest = 0;
   for (const vertex of starts) longest = Math.max(longest, walk(vertex));
   return longest;
+}
+
+// A route only changes when a road or a building does, and the table is shown to every seat
+// after every action, each time asking for every player's route. So the lengths measured for
+// one set of roads are kept with it, for as long as the buildings around them are the same.
+interface Measured {
+  config: Board['config'];
+  buildings: Board['buildings'];
+  lengths: Map<string, number>;
+}
+const measured = new WeakMap<Board['roads'], Measured>();
+
+/** The length of a player's longest route: see `measureRoute` for what counts. */
+export function getRouteLength(state: Board, playerId: string): number {
+  let known = measured.get(state.roads);
+  if (!known || known.buildings !== state.buildings || known.config !== state.config) {
+    known = { config: state.config, buildings: state.buildings, lengths: new Map() };
+    measured.set(state.roads, known);
+  }
+  let length = known.lengths.get(playerId);
+  if (length === undefined) {
+    length = measureRoute(state, playerId);
+    known.lengths.set(playerId, length);
+  }
+  return length;
 }
 
 /**
