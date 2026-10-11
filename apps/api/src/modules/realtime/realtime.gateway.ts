@@ -236,7 +236,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   /** Each player gets their own view; nobody is ever sent the raw state. */
   @OnEvent(PlatformEvents.MatchStateChanged)
   async onMatchStateChanged(event: MatchStateChangedEvent): Promise<void> {
-    const access = await this.matches.getAccessForBroadcast(event.matchId);
+    const access = event.snapshot ?? (await this.matches.getAccessForBroadcast(event.matchId));
     if (!access) return;
     const { match, players } = access;
 

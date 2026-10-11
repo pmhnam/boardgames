@@ -17,7 +17,7 @@ import {
 import { AppConfig } from '../../config/app-config.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { GameActionService } from '../matches/game-action.service.js';
-import { MatchRepository } from '../matches/match.repository.js';
+import { MatchRepository, type MatchSnapshot } from '../matches/match.repository.js';
 
 type StepOutcome = 'acted' | 'retry' | 'idle';
 
@@ -68,12 +68,27 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
 
   @OnEvent(PlatformEvents.MatchStateChanged)
   onMatchStateChanged(event: MatchStateChangedEvent): void {
+    // Told what was saved, a table with no computer player to move needs no look at all.
+    if (event.snapshot && !this.awaitsComputer(event.snapshot)) return;
     this.wake(event.matchId);
   }
 
   @OnEvent(PlatformEvents.MatchControlChanged)
   onMatchControlChanged(event: MatchStateChangedEvent): void {
     this.wake(event.matchId);
+  }
+
+  /** Whether the state just saved leaves a computer player to move. */
+  private awaitsComputer({ match, players }: MatchSnapshot): boolean {
+    if (match.status !== 'playing') return false;
+    const automated = players.filter(
+      (player) => player.botLevel !== null || player.autoplayLevel !== null,
+    );
+    if (automated.length === 0) return false;
+    const game = this.registry.get(match.gameType);
+    if (!game.bot || game.engine.engineVersion !== match.engineVersion) return false;
+    const toMove = game.engine.getCurrentPlayerIds(match.state);
+    return automated.some((player) => toMove.includes(player.playerId));
   }
 
   /**

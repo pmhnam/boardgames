@@ -27,6 +27,7 @@ import {
   type MatchListFilter,
   type MatchPlayerRecord,
   type MatchRecord,
+  type MatchSnapshot,
   type MatchSummaryRecord,
 } from './match.repository.js';
 
@@ -110,10 +111,12 @@ export class MatchesService {
 
   /** Loads a match and decides whether the user may see it at all. */
   async getAccess(matchId: string, userId: string): Promise<MatchAccess> {
-    const match = await this.matches.findById(matchId);
+    const [match, players] = await Promise.all([
+      this.matches.findById(matchId),
+      this.matches.listPlayers(matchId),
+    ]);
     if (!match) throw new AppError(ErrorCodes.MatchNotFound, 'Match not found.', 404);
 
-    const players = await this.matches.listPlayers(matchId);
     const player = players.find((candidate) => candidate.userId === userId) ?? null;
 
     if (!player && !this.registry.get(match.gameType).definition.supportsSpectators) {
@@ -123,12 +126,12 @@ export class MatchesService {
   }
 
   /** For server-initiated fan-out, where there is no requesting user. */
-  async getAccessForBroadcast(
-    matchId: string,
-  ): Promise<{ match: MatchRecord; players: MatchPlayerRecord[] } | null> {
-    const match = await this.matches.findById(matchId);
-    if (!match) return null;
-    return { match, players: await this.matches.listPlayers(matchId) };
+  async getAccessForBroadcast(matchId: string): Promise<MatchSnapshot | null> {
+    const [match, players] = await Promise.all([
+      this.matches.findById(matchId),
+      this.matches.listPlayers(matchId),
+    ]);
+    return match ? { match, players } : null;
   }
 
   async getMatch(matchId: string, userId: string): Promise<MatchDto> {

@@ -11,7 +11,7 @@ import {
 } from '../../common/events/platform-events.js';
 import type { OpaqueGameState } from '../../infrastructure/database/schema.js';
 import { GameRegistry } from '../games/game-registry.js';
-import { MatchRepository } from './match.repository.js';
+import { MatchRepository, type MatchRecord } from './match.repository.js';
 
 export interface AbandonMatchCommand {
   matchId: string;
@@ -50,19 +50,21 @@ export class GameActionService {
   async execute(command: ExecuteGameActionCommand): Promise<GameActionAccepted> {
     const startedAt = performance.now();
 
-    const match = await this.matches.findById(command.matchId);
+    // None of the three depends on another, so they are asked for together.
+    const [match, players, repeated] = await Promise.all([
+      this.matches.findById(command.matchId),
+      this.matches.listPlayers(command.matchId),
+      this.matches.hasAction(command.matchId, command.requestId),
+    ]);
     if (!match) throw new AppError(ErrorCodes.MatchNotFound, 'Match not found.', 404);
 
-    const players = await this.matches.listPlayers(match.id);
     const player = players.find((candidate) => candidate.userId === command.userId);
     if (!player) {
       throw new AppError(ErrorCodes.Forbidden, 'You are not a player in this match.', 403);
     }
 
     // Idempotency: a retried request reports success without applying anything twice.
-    if (await this.matches.hasAction(match.id, command.requestId)) {
-      return this.accepted(command, match.stateVersion, true);
-    }
+    if (repeated) return this.accepted(command, match.stateVersion, true);
 
     if (match.status !== 'playing') throw this.notPlaying();
 
@@ -103,6 +105,15 @@ export class GameActionService {
     const nextVersion = match.stateVersion + 1;
     const actionType = (parsed.action as { type: string }).type;
 
+    const saved: MatchRecord = {
+      ...match,
+      state: newState,
+      stateVersion: nextVersion,
+      status: finished ? 'finished' : 'playing',
+      result: finished ? engine.getResult(newState) : null,
+      finishedAt: finished ? command.now : null,
+    };
+
     const outcome = await this.matches.saveActionAndState({
       matchId: match.id,
       expectedVersion: match.stateVersion,
@@ -114,10 +125,10 @@ export class GameActionService {
         requestId: command.requestId,
         createdAt: command.now,
       },
-      state: newState,
-      status: finished ? 'finished' : 'playing',
-      result: finished ? engine.getResult(newState) : null,
-      finishedAt: finished ? command.now : null,
+      state: saved.state,
+      status: saved.status,
+      result: saved.result,
+      finishedAt: saved.finishedAt,
       control: { automated: Boolean(command.automation), version: player.controlVersion },
     });
 
@@ -145,7 +156,11 @@ export class GameActionService {
       durationMs: Math.round(performance.now() - startedAt),
     });
 
-    const changed: MatchStateChangedEvent = { matchId: match.id };
+    // What was saved goes along, so telling the table does not start by reading it back.
+    const changed: MatchStateChangedEvent = {
+      matchId: match.id,
+      snapshot: { match: saved, players },
+    };
     await this.events.emitAsync(PlatformEvents.MatchStateChanged, changed);
     if (finished) {
       const finishedEvent: MatchFinishedEvent = { matchId: match.id, roomId: match.roomId };

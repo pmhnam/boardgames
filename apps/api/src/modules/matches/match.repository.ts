@@ -73,6 +73,12 @@ export interface MatchPlayerRecord {
   controlVersion: number;
 }
 
+/** A match and who is seated at it, as of one moment. */
+export interface MatchSnapshot {
+  match: MatchRecord;
+  players: MatchPlayerRecord[];
+}
+
 export interface SaveActionAndStateInput {
   matchId: string;
   expectedVersion: number;
@@ -308,8 +314,9 @@ export class MatchRepository {
     const nextVersion = input.expectedVersion + 1;
     try {
       const duplicateRequest = await this.connection.db.transaction(async (tx) => {
+        // Only what the checks below read: the lock does not need the whole state sent back.
         const [match] = await tx
-          .select()
+          .select({ status: matches.status, stateVersion: matches.stateVersion })
           .from(matches)
           .where(eq(matches.id, input.matchId))
           .for('update');

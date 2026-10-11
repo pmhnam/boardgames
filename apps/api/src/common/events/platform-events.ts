@@ -1,3 +1,5 @@
+import type { MatchSnapshot } from '../../modules/matches/match.repository.js';
+
 /** In-process domain events. Consumers (realtime today; analytics, ranking later) subscribe. */
 export const PlatformEvents = {
   RoomUpdated: 'room.updated',
@@ -20,6 +22,11 @@ export interface MatchStartedEvent {
 
 export interface MatchStateChangedEvent {
   matchId: string;
+  /**
+   * What was just saved, when the one who saved it has it at hand: it spares every listener
+   * reading it back. Never leaves the process. Without it, a listener loads the match itself.
+   */
+  snapshot?: MatchSnapshot;
 }
 
 export interface MatchFinishedEvent {
