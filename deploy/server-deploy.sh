@@ -52,8 +52,17 @@ compose() {
 # the registry cannot be reached or the images are not public: slower, and it takes the
 # server's processor and memory away from the matches being played.
 echo "Fetching ${sha:0:7}..."
-if ! compose pull --quiet api web; then
-  echo "Could not pull the images; building ${sha:0:7} here instead..."
+# An image for another processor pulls without complaint and then cannot start.
+made_for_this_server() {
+  local wanted image
+  wanted="$(docker version --format '{{.Server.Arch}}')"
+  for image in $(compose config --images | grep '/boardgames/'); do
+    [[ "$(docker image inspect --format '{{.Architecture}}' "$image")" == "$wanted" ]] || return 1
+  done
+}
+
+if ! compose pull --quiet api web || ! made_for_this_server; then
+  echo "No usable images to pull; building ${sha:0:7} here instead..."
   compose build --quiet
 fi
 
