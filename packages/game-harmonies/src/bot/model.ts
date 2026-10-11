@@ -10,6 +10,15 @@ import type { HarmoniesView } from '../visibility/public-view.js';
 export interface BotContext extends Pick<HarmoniesSetup, 'boardCells' | 'waterScoring' | 'cards'> {
   /** hexKeys of the cells on the map, for fast lookups. */
   onBoard: ReadonlySet<string>;
+  /** The same keys, in the order of `boardCells`: a cell is then known by its place in it. */
+  cellKeys: readonly string[];
+  /** Each key's place in `boardCells`. */
+  placeOf: ReadonlyMap<string, number>;
+  /**
+   * For each card looked at so far, where its habitat could sit on this map. Filled in as the
+   * bot thinks; shared by every context made from this one.
+   */
+  habitatPlacements: Map<AnimalCard, HabitatPlacements>;
   /**
    * What the bot thinks an empty cell is worth keeping. Zero means it does not think about
    * running out of room.
@@ -18,6 +27,12 @@ export interface BotContext extends Pick<HarmoniesSetup, 'boardCells' | 'waterSc
   /** Scores a board; used to choose between several places for an animal. Null: take the first. */
   cubeChooser: ((board: PlayerBoard) => number) | null;
 }
+
+/**
+ * Indexed by the cell the animal would stand on: every rotation that keeps the whole habitat
+ * on the map, as the places in `boardCells` of the habitat's other cells.
+ */
+export type HabitatPlacements = ReadonlyArray<ReadonlyArray<readonly number[]>>;
 
 export interface CubePlacement {
   cardId: string;
@@ -33,12 +48,16 @@ export function readView(
 
   // Every card the bot can reason about: the ones it holds and the ones on offer.
   const cards = [...mine.cards.map((owned) => owned.card), ...view.cardRiver];
+  const cellKeys = view.boardCells.map(hexKey);
   return {
     context: {
       boardCells: view.boardCells,
       waterScoring: view.waterScoring,
       cards,
-      onBoard: new Set(view.boardCells.map(hexKey)),
+      onBoard: new Set(cellKeys),
+      cellKeys,
+      placeOf: new Map(cellKeys.map((key, place) => [key, place])),
+      habitatPlacements: new Map(),
       emptyCellValue: 0,
       cubeChooser: null,
     },

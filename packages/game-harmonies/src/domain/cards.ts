@@ -1,4 +1,5 @@
 import type { TerrainKind } from './board.js';
+import { HEX_ROTATIONS, type Hex } from './hex.js';
 
 export const CARD_TERRAINS = ['WATER', 'FIELD', 'TREE', 'MOUNTAIN', 'BUILDING'] as const;
 
@@ -57,4 +58,36 @@ export function getAnimalSlot(card: AnimalCard): HabitatCell {
   const slot = card.habitat.cells.find((cell) => cell.animalSlot);
   if (!slot) throw new Error(`Card ${card.id} has no animal slot`);
   return slot;
+}
+
+/** A habitat laid out for matching: its slot, and where its other cells lie in each rotation. */
+export interface HabitatShape {
+  slot: HabitatCell;
+  /** Every cell but the slot. */
+  others: readonly HabitatCell[];
+  /**
+   * One entry for each of the six rotations: how far each of `others`, in the same order, lies
+   * from the slot.
+   */
+  rotations: ReadonlyArray<readonly Hex[]>;
+}
+
+// Worked out once for a card and kept for as long as the card is: looking for a habitat asks
+// for it at every cell of every board that is considered.
+const SHAPES = new WeakMap<AnimalCard, HabitatShape>();
+
+export function getHabitatShape(card: AnimalCard): HabitatShape {
+  const known = SHAPES.get(card);
+  if (known) return known;
+  const slot = getAnimalSlot(card);
+  const others = card.habitat.cells.filter((cell) => !cell.animalSlot);
+  const shape: HabitatShape = {
+    slot,
+    others,
+    rotations: HEX_ROTATIONS.map((rotate) =>
+      others.map((part) => rotate({ q: part.q - slot.q, r: part.r - slot.r })),
+    ),
+  };
+  SHAPES.set(card, shape);
+  return shape;
 }

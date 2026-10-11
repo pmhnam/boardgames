@@ -1,11 +1,12 @@
-import { classifyStack, hasCube, stackAt, type PlayerBoard } from '../domain/board.js';
+import { NO_STACK, isTerrain, type PlayerBoard } from '../domain/board.js';
 import {
   TERRAIN_KIND_OF,
-  getAnimalSlot,
+  getHabitatShape,
   type AnimalCard,
   type HabitatCell,
+  type HabitatShape,
 } from '../domain/cards.js';
-import { HEX_ROTATIONS, addHex, parseHexKey, type Hex } from '../domain/hex.js';
+import { hexKey, hexKeyAt, knownHex, type Hex } from '../domain/hex.js';
 
 /**
  * Exact terrain and exact height. Cells off the board never hold a stack, so they can never
@@ -13,14 +14,26 @@ import { HEX_ROTATIONS, addHex, parseHexKey, type Hex } from '../domain/hex.js';
  */
 function satisfies(
   board: PlayerBoard,
-  cell: Hex,
+  key: string,
   required: Pick<HabitatCell, 'terrain' | 'height'>,
 ): boolean {
-  const terrain = classifyStack(stackAt(board, cell));
-  return (
-    terrain !== null &&
-    terrain.kind === TERRAIN_KIND_OF[required.terrain] &&
-    terrain.height === required.height
+  return isTerrain(
+    board.stacks[key] ?? NO_STACK,
+    TERRAIN_KIND_OF[required.terrain],
+    required.height,
+  );
+}
+
+/** The rest of a habitat around a slot already known to be right, in any of the rotations. */
+function othersMatchAround(board: PlayerBoard, shape: HabitatShape, cell: Hex): boolean {
+  return shape.rotations.some((offsets) =>
+    shape.others.every((part, index) => {
+      const offset = offsets[index];
+      return (
+        offset !== undefined &&
+        satisfies(board, hexKeyAt(cell.q + offset.q, cell.r + offset.r), part)
+      );
+    }),
   );
 }
 
@@ -30,20 +43,21 @@ function satisfies(
  * images do not count. Says nothing about whether `cell` is free.
  */
 export function habitatMatchesAt(board: PlayerBoard, card: AnimalCard, cell: Hex): boolean {
-  const slot = getAnimalSlot(card);
-  if (!satisfies(board, cell, slot)) return false;
-
-  const others = card.habitat.cells.filter((part) => !part.animalSlot);
-  return HEX_ROTATIONS.some((rotate) =>
-    others.every((part) =>
-      satisfies(board, addHex(cell, rotate({ q: part.q - slot.q, r: part.r - slot.r })), part),
-    ),
-  );
+  const shape = getHabitatShape(card);
+  return satisfies(board, hexKey(cell), shape.slot) && othersMatchAround(board, shape, cell);
 }
 
 /** Cells where a cube from this card may be placed right now: a matching, unoccupied slot. */
 export function getCubeTargets(board: PlayerBoard, card: AnimalCard): Hex[] {
-  return Object.keys(board.stacks)
-    .map(parseHexKey)
-    .filter((cell) => !hasCube(board, cell) && habitatMatchesAt(board, card, cell));
+  const shape = getHabitatShape(card);
+  const slotKind = TERRAIN_KIND_OF[shape.slot.terrain];
+  const targets: Hex[] = [];
+  for (const key of Object.keys(board.stacks)) {
+    // The cheapest question first: most stacks are not what the animal stands on.
+    const stack = board.stacks[key] ?? NO_STACK;
+    if (!isTerrain(stack, slotKind, shape.slot.height) || board.cubes.includes(key)) continue;
+    const cell = knownHex(key);
+    if (othersMatchAround(board, shape, cell)) targets.push({ q: cell.q, r: cell.r });
+  }
+  return targets;
 }

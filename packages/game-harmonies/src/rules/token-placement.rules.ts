@@ -72,7 +72,9 @@ export function getLegalTokenCells(
   board: PlayerBoard,
   color: TokenColor,
 ): Hex[] {
+  // The cells come from the board itself, so the one check `validateTokenPlacement` makes
+  // that these two do not (is it on the board at all?) has nothing to find.
   return config.boardCells.filter(
-    (cell) => validateTokenPlacement(config, board, color, cell).valid,
+    (cell) => !hasCube(board, cell) && canStack(stackAt(board, cell), color),
   );
 }

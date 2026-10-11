@@ -1,7 +1,7 @@
-import { classifyStack, stackAt, type PlayerBoard } from '../domain/board.js';
+import { terrainKindOf, type PlayerBoard, type TerrainKind } from '../domain/board.js';
 import { getCard, getCardPoints, type AnimalCard } from '../domain/cards.js';
 import type { HarmoniesSetup } from '../domain/game-config.js';
-import { hexKey, hexNeighbours, parseHexKey, type Hex } from '../domain/hex.js';
+import { hexKey, neighbourKeys, type Hex } from '../domain/hex.js';
 import type { HarmoniesState } from '../domain/state.js';
 
 export interface ScoreBreakdown {
@@ -39,40 +39,55 @@ export const SCORING_RULES = {
   islandPoints: ISLAND_POINTS,
 } as const;
 
-/** Scoring reads only what has been built, so it needs no knowledge of the board's shape. */
-function cellsOfKind(board: PlayerBoard, kind: string): Hex[] {
-  return Object.keys(board.stacks)
-    .map(parseHexKey)
-    .filter((cell) => classifyStack(stackAt(board, cell))?.kind === kind);
+/**
+ * Scoring reads only what has been built, so it needs no knowledge of the board's shape. It
+ * works on the keys of the cells: a board is scored thousands of times while a bot thinks.
+ */
+type KeysByKind = Record<TerrainKind, string[]>;
+
+/** Every finished stack on the board under what it counts as, in one pass over the board. */
+function sortByKind(board: PlayerBoard): KeysByKind {
+  const sorted: KeysByKind = { water: [], field: [], mountain: [], tree: [], building: [] };
+  for (const key of Object.keys(board.stacks)) {
+    const kind = terrainKindOf(board.stacks[key] ?? []);
+    if (kind !== null) sorted[kind].push(key);
+  }
+  return sorted;
+}
+
+const heightPoints = (board: PlayerBoard, key: string): number =>
+  HEIGHT_POINTS[board.stacks[key]?.length ?? 0] ?? 0;
+
+function treePoints(board: PlayerBoard, trees: readonly string[]): number {
+  return trees.reduce((sum, key) => sum + heightPoints(board, key), 0);
 }
 
 /** A tree scores by its height: 1, 3 or 7. */
 export function scoreTrees(board: PlayerBoard): number {
-  return cellsOfKind(board, 'tree').reduce(
-    (sum, cell) => sum + (HEIGHT_POINTS[stackAt(board, cell).length] ?? 0),
-    0,
-  );
+  return treePoints(board, sortByKind(board).tree);
+}
+
+function mountainPoints(board: PlayerBoard, mountains: readonly string[]): number {
+  const keys = new Set(mountains);
+  return mountains
+    .filter((key) => neighbourKeys(key).some((neighbour) => keys.has(neighbour)))
+    .reduce((sum, key) => sum + heightPoints(board, key), 0);
 }
 
 /** A mountain scores by its height (1, 3 or 7), but only next to another mountain. */
 export function scoreMountains(board: PlayerBoard): number {
-  const mountains = cellsOfKind(board, 'mountain');
-  const keys = new Set(mountains.map(hexKey));
-  return mountains
-    .filter((cell) => hexNeighbours(cell).some((neighbour) => keys.has(hexKey(neighbour))))
-    .reduce((sum, cell) => sum + (HEIGHT_POINTS[stackAt(board, cell).length] ?? 0), 0);
+  return mountainPoints(board, sortByKind(board).mountain);
 }
 
-function connectedGroups(cells: readonly Hex[]): Hex[][] {
-  const remaining = new Map(cells.map((cell) => [hexKey(cell), cell]));
-  const groups: Hex[][] = [];
-  for (const start of cells) {
-    if (!remaining.delete(hexKey(start))) continue;
+function connectedGroups(keys: readonly string[]): string[][] {
+  const remaining = new Set(keys);
+  const groups: string[][] = [];
+  for (const start of keys) {
+    if (!remaining.delete(start)) continue;
     const group = [start];
-    for (const cell of group) {
-      for (const neighbour of hexNeighbours(cell)) {
-        const found = remaining.get(hexKey(neighbour));
-        if (found && remaining.delete(hexKey(neighbour))) group.push(found);
+    for (const key of group) {
+      for (const neighbour of neighbourKeys(key)) {
+        if (remaining.delete(neighbour)) group.push(neighbour);
       }
     }
     groups.push(group);
@@ -80,21 +95,21 @@ function connectedGroups(cells: readonly Hex[]): Hex[][] {
   return groups;
 }
 
-/** Every separate field of two or more cells scores 5. */
-export function scoreFields(board: PlayerBoard): number {
-  return (
-    connectedGroups(cellsOfKind(board, 'field')).filter((group) => group.length >= 2).length *
-    FIELD_GROUP_POINTS
-  );
+function fieldPoints(fields: readonly string[]): number {
+  return connectedGroups(fields).filter((group) => group.length >= 2).length * FIELD_GROUP_POINTS;
 }
 
-/** A building scores 5 when the tokens around it show at least three different colours. */
-export function scoreBuildings(board: PlayerBoard): number {
+/** Every separate field of two or more cells scores 5. */
+export function scoreFields(board: PlayerBoard): number {
+  return fieldPoints(sortByKind(board).field);
+}
+
+function buildingPoints(board: PlayerBoard, buildings: readonly string[]): number {
   return (
-    cellsOfKind(board, 'building').filter((cell) => {
+    buildings.filter((key) => {
       const colors = new Set(
-        hexNeighbours(cell)
-          .map((neighbour) => stackAt(board, neighbour).at(-1))
+        neighbourKeys(key)
+          .map((neighbour) => board.stacks[neighbour]?.at(-1))
           .filter((color) => color !== undefined),
       );
       return colors.size >= BUILDING_MIN_NEIGHBOUR_COLORS;
@@ -102,20 +117,24 @@ export function scoreBuildings(board: PlayerBoard): number {
   );
 }
 
+/** A building scores 5 when the tokens around it show at least three different colours. */
+export function scoreBuildings(board: PlayerBoard): number {
+  return buildingPoints(board, sortByKind(board).building);
+}
+
 /** Length of a river: the two cells furthest apart, counted along the water. */
-function riverLength(group: Hex[]): number {
-  const keys = new Set(group.map(hexKey));
+function riverLength(group: readonly string[]): number {
+  const keys = new Set(group);
   let longest = 0;
   for (const start of group) {
-    const distance = new Map([[hexKey(start), 1]]);
+    const distance = new Map([[start, 1]]);
     const queue = [start];
-    for (const cell of queue) {
-      const here = distance.get(hexKey(cell)) ?? 1;
+    for (const key of queue) {
+      const here = distance.get(key) ?? 1;
       longest = Math.max(longest, here);
-      for (const neighbour of hexNeighbours(cell)) {
-        const key = hexKey(neighbour);
-        if (keys.has(key) && !distance.has(key)) {
-          distance.set(key, here + 1);
+      for (const neighbour of neighbourKeys(key)) {
+        if (keys.has(neighbour) && !distance.has(neighbour)) {
+          distance.set(neighbour, here + 1);
           queue.push(neighbour);
         }
       }
@@ -131,10 +150,13 @@ export function riverPoints(length: number): number {
     : (RIVER_POINTS[lastIndex] ?? 0) + (length - lastIndex) * RIVER_EXTRA_POINTS;
 }
 
+function longestRiverPoints(water: readonly string[]): number {
+  return riverPoints(Math.max(0, ...connectedGroups(water).map(riverLength)));
+}
+
 /** Only the longest river scores. */
 export function scoreRiver(board: PlayerBoard): number {
-  const longest = Math.max(0, ...connectedGroups(cellsOfKind(board, 'water')).map(riverLength));
-  return riverPoints(longest);
+  return longestRiverPoints(sortByKind(board).water);
 }
 
 /**
@@ -142,7 +164,7 @@ export function scoreRiver(board: PlayerBoard): number {
  * separate from the rest. A board with no water at all is therefore a single island.
  */
 export function countIslands(boardCells: readonly Hex[], board: PlayerBoard): number {
-  const land = boardCells.filter((cell) => stackAt(board, cell).at(-1) !== 'water');
+  const land = boardCells.map(hexKey).filter((key) => board.stacks[key]?.at(-1) !== 'water');
   return connectedGroups(land).length;
 }
 
@@ -151,16 +173,24 @@ export function scoreIslands(boardCells: readonly Hex[], board: PlayerBoard): nu
   return countIslands(boardCells, board) * ISLAND_POINTS;
 }
 
-export function scoreWater(
+function waterPoints(
   config: Pick<HarmoniesSetup, 'boardCells' | 'waterScoring'>,
   board: PlayerBoard,
+  water: readonly string[],
 ): number {
   switch (config.waterScoring) {
     case 'islands':
       return scoreIslands(config.boardCells, board);
     case 'river':
-      return scoreRiver(board);
+      return longestRiverPoints(water);
   }
+}
+
+export function scoreWater(
+  config: Pick<HarmoniesSetup, 'boardCells' | 'waterScoring'>,
+  board: PlayerBoard,
+): number {
+  return waterPoints(config, board, sortByKind(board).water);
 }
 
 export function scoreAnimals(cards: readonly AnimalCard[], board: PlayerBoard): number {
@@ -174,12 +204,13 @@ export function calculateBoardScore(
   config: Pick<HarmoniesSetup, 'boardCells' | 'waterScoring' | 'cards'>,
   board: PlayerBoard,
 ): ScoreBreakdown {
+  const sorted = sortByKind(board);
   const parts = {
-    trees: scoreTrees(board),
-    mountains: scoreMountains(board),
-    fields: scoreFields(board),
-    buildings: scoreBuildings(board),
-    water: scoreWater(config, board),
+    trees: treePoints(board, sorted.tree),
+    mountains: mountainPoints(board, sorted.mountain),
+    fields: fieldPoints(sorted.field),
+    buildings: buildingPoints(board, sorted.building),
+    water: waterPoints(config, board, sorted.water),
     animals: scoreAnimals(config.cards, board),
   };
   return { ...parts, total: Object.values(parts).reduce((sum, value) => sum + value, 0) };

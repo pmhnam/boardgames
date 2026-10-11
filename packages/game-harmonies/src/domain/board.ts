@@ -44,8 +44,11 @@ export function createEmptyBoard(): PlayerBoard {
   return { stacks: {}, cubes: [], cards: [] };
 }
 
+/** What every empty cell holds: one stack that is never added to, in place of a new one each time. */
+export const NO_STACK = Object.freeze([]) as unknown as Stack;
+
 export function stackAt(board: Pick<PlayerBoard, 'stacks'>, hex: Hex): Stack {
-  return board.stacks[hexKey(hex)] ?? [];
+  return board.stacks[hexKey(hex)] ?? NO_STACK;
 }
 
 export function hasCube(board: Pick<PlayerBoard, 'cubes'>, hex: Hex): boolean {
@@ -63,6 +66,45 @@ export type TerrainKind = (typeof TERRAIN_KINDS)[number];
 export interface Terrain {
   kind: TerrainKind;
   height: number;
+}
+
+/**
+ * `classifyStack(stack)?.kind`, without making the terrain: asked of every stack on a board
+ * each time that board is scored.
+ */
+export function terrainKindOf(stack: readonly TokenColor[]): TerrainKind | null {
+  switch (stack.at(-1)) {
+    case 'water':
+      return 'water';
+    case 'field':
+      return 'field';
+    case 'mountain':
+      return 'mountain';
+    case 'leaf':
+      return 'tree';
+    case 'building':
+      return stack.length === 2 ? 'building' : null;
+    default:
+      return null;
+  }
+}
+
+/** Whether a stack is exactly this terrain at this height, without making the terrain. */
+export function isTerrain(
+  stack: readonly TokenColor[],
+  kind: TerrainKind,
+  height: number,
+): boolean {
+  if (terrainKindOf(stack) !== kind) return false;
+  switch (kind) {
+    case 'water':
+    case 'field':
+      return height === 1;
+    case 'building':
+      return height === 2;
+    default:
+      return height === stack.length;
+  }
 }
 
 /**
