@@ -12,11 +12,19 @@ export function gameInitial(displayName: string): string {
 }
 
 /** A game's emoji on its colour. Decoration: the game's name is always written beside it. */
-export function GameIcon({ gameType, displayName }: { gameType: string; displayName: string }) {
+export function GameIcon({
+  gameType,
+  displayName,
+  size,
+}: {
+  gameType: string;
+  displayName: string;
+  size?: 'small' | 'large';
+}) {
   const card = getGameUi(gameType)?.card;
   return (
     <span
-      className={card ? 'game-icon tinted' : 'game-icon'}
+      className={['game-icon', card ? 'tinted' : null, size].filter(Boolean).join(' ')}
       style={gameHueStyle(card?.hue)}
       aria-hidden="true"
     >

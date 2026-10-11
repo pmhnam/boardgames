@@ -65,6 +65,26 @@ export function partitionRooms(
   return { mine, others };
 }
 
+/** The games with a room in the list, in the list's own order, and how many rooms each has. */
+export function countRoomsByGame(rooms: readonly ListedRoom[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const { room } of rooms) counts.set(room.gameType, (counts.get(room.gameType) ?? 0) + 1);
+  return counts;
+}
+
+/**
+ * The list narrowed to one game. A game with no room left in the list narrows it to nothing,
+ * so the choice is dropped and everything is shown again.
+ */
+export function filterRooms(
+  rooms: readonly ListedRoom[],
+  gameType: string | null,
+): { active: string | null; shown: readonly ListedRoom[] } {
+  if (gameType === null) return { active: null, shown: rooms };
+  const shown = rooms.filter(({ room }) => room.gameType === gameType);
+  return shown.length > 0 ? { active: gameType, shown } : { active: null, shown: rooms };
+}
+
 export function countBots(room: RoomDto): number {
   return room.members.filter((member) => member.botLevel !== null).length;
 }

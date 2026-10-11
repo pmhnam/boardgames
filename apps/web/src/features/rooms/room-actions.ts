@@ -34,3 +34,27 @@ export function primaryAction(
   if (me.status !== 'ready') return 'ready';
   return room.hostUserId === userId && blocker === null ? 'start' : null;
 }
+
+/** The seats nobody has taken, as the room page draws them. */
+export interface EmptySeats {
+  /** Seats that have to be filled before the match can start. */
+  required: number;
+  /** Seats that may stay empty: as many of them as are worth drawing. */
+  optional: number;
+  /** The rest of those, said as a number instead. */
+  more: number;
+}
+
+export function emptySeats(
+  room: Pick<RoomDto, 'members'>,
+  game: Pick<GameDefinitionDto, 'minPlayers' | 'maxPlayers'> | undefined,
+  mostOptional = 3,
+): EmptySeats {
+  // A game we know nothing about: draw the people who are here and nothing else.
+  if (!game) return { required: 0, optional: 0, more: 0 };
+  const seated = room.members.length;
+  const required = Math.max(0, game.minPlayers - seated);
+  const spare = Math.max(0, game.maxPlayers - seated) - required;
+  const optional = Math.min(Math.max(0, spare), mostOptional);
+  return { required, optional, more: Math.max(0, spare) - optional };
+}

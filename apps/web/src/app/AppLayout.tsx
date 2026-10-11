@@ -32,6 +32,9 @@ export function AppLayout() {
         <div className="app">
           <header className="app-header">
             <Link to="/" className="brand">
+              <span className="brand-mark" aria-hidden="true">
+                🎲
+              </span>
               {t('app.name')}
             </Link>
             <div className="app-header-tools">

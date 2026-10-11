@@ -8,11 +8,14 @@ export function GameCard({
   game,
   joinableRooms,
   onCreate,
+  onShowRooms,
 }: {
   game: GameDefinitionDto;
   /** Rooms of this game with a free seat right now. */
   joinableRooms: number;
   onCreate(): void;
+  /** Asked for when there are rooms to show: narrows the list below to this game. */
+  onShowRooms(): void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -21,7 +24,7 @@ export function GameCard({
   return (
     <li className={card ? 'game-card tinted' : 'game-card'} style={gameHueStyle(card?.hue)}>
       <div className="game-card-art" aria-hidden="true">
-        {card?.icon ?? gameInitial(game.displayName)}
+        <span className="game-card-emoji">{card?.icon ?? gameInitial(game.displayName)}</span>
       </div>
       <div className="game-card-body">
         <h3>{game.displayName}</h3>
@@ -33,17 +36,27 @@ export function GameCard({
               : t('players.range', { min: game.minPlayers, max: game.maxPlayers })}
           </li>
           {game.supportsBots && <li className="chip">{t('card.bots')}</li>}
-          {joinableRooms > 0 && (
-            <li className="badge success">{t('card.joinable', { count: joinableRooms })}</li>
-          )}
         </ul>
-        <button
-          type="button"
-          aria-label={`${t('create.submit')}: ${game.displayName}`}
-          onClick={onCreate}
-        >
-          {t('create.submit')}
-        </button>
+        <div className="game-card-actions">
+          {joinableRooms > 0 && (
+            <button
+              type="button"
+              className="secondary game-card-waiting"
+              aria-label={`${t('card.joinable', { count: joinableRooms })}: ${game.displayName}`}
+              onClick={onShowRooms}
+            >
+              <span className="live-dot" aria-hidden="true" />
+              {t('card.joinable', { count: joinableRooms })}
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={`${t('create.submit')}: ${game.displayName}`}
+            onClick={onCreate}
+          >
+            {t('create.submit')}
+          </button>
+        </div>
       </div>
     </li>
   );

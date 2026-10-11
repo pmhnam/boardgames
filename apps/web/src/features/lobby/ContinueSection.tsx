@@ -2,10 +2,11 @@ import type { GameDefinitionDto, RoomDto } from '@bgp/shared-types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../../shared/api/http';
+import { AvatarStack } from '../../shared/components/Avatar';
 import { errorText } from '../../shared/i18n/errors';
 import { useT } from '../../shared/i18n/useT';
 import { GameIcon } from './GameIcon';
-import { RoomFacts, roomHostLine } from './RoomRow';
+import { RoomFacts, roomFaces, roomHostLine } from './RoomRow';
 
 function MyRoom({ room, game }: { room: RoomDto; game: GameDefinitionDto | undefined }) {
   const t = useT();
@@ -42,6 +43,7 @@ function MyRoom({ room, game }: { room: RoomDto; game: GameDefinitionDto | undef
           </span>
         )}
       </div>
+      <AvatarStack people={roomFaces(room)} />
       <div className="room-row-action">
         {matchId ? (
           <Link className="button" to={`/matches/${matchId}`}>
@@ -81,7 +83,7 @@ export function ContinueSection({
   if (rooms.length === 0) return null;
 
   return (
-    <section aria-labelledby="continue-title">
+    <section className="lobby-section" aria-labelledby="continue-title">
       <h2 id="continue-title">{t('continue.title')}</h2>
       <ul className="room-rows mine">
         {rooms.map((room) => (

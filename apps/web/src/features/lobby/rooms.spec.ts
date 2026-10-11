@@ -1,6 +1,13 @@
 import type { RoomDto, RoomMemberDto } from '@bgp/shared-types';
 import { describe, expect, it } from 'vitest';
-import { classifyRoom, countBots, partitionRooms } from './rooms';
+import {
+  classifyRoom,
+  countBots,
+  countRoomsByGame,
+  filterRooms,
+  partitionRooms,
+  type ListedRoom,
+} from './rooms';
 
 const game = { gameType: 'splendor', maxPlayers: 3, supportsSpectators: true };
 const noSpectators = { ...game, gameType: 'secret', supportsSpectators: false };
@@ -113,5 +120,35 @@ describe('countBots', () => {
     const seated = [member('host'), member('bot-1', 'easy'), member('bot-2', 'hard')];
     expect(countBots(room({ id: 'a', members: seated }))).toBe(2);
     expect(countBots(room({ id: 'b' }))).toBe(0);
+  });
+});
+
+describe('narrowing the room list to one game', () => {
+  const listed = (id: string, gameType: string): ListedRoom => ({
+    room: room({ id, gameType }),
+    standing: 'joinable',
+  });
+  const rooms = [listed('a', 'catan'), listed('b', 'splendor'), listed('c', 'catan')];
+
+  it('counts the rooms of each game, in the order the games first appear', () => {
+    expect([...countRoomsByGame(rooms)]).toEqual([
+      ['catan', 2],
+      ['splendor', 1],
+    ]);
+    expect(countRoomsByGame([]).size).toBe(0);
+  });
+
+  it('shows every room while no game is picked', () => {
+    expect(filterRooms(rooms, null)).toEqual({ active: null, shown: rooms });
+  });
+
+  it('shows only the rooms of the game picked, in their order', () => {
+    const { active, shown } = filterRooms(rooms, 'catan');
+    expect(active).toBe('catan');
+    expect(shown.map((entry) => entry.room.id)).toEqual(['a', 'c']);
+  });
+
+  it('drops the pick once that game has no room left', () => {
+    expect(filterRooms(rooms, 'avalon')).toEqual({ active: null, shown: rooms });
   });
 });

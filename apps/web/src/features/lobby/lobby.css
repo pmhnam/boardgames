@@ -8,8 +8,10 @@
 
 .lobby h1 {
   margin: 0;
-  font-size: var(--text-2xl);
-  line-height: 1.2;
+  font-size: clamp(1.6rem, 1.25rem + 1.6vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
 }
 
 .lobby h2 {
@@ -29,32 +31,107 @@
   margin: 0;
 }
 
-/* Greeting and the room-code box */
+/* The filter chips land the room list here; clear of the top edge when they do. */
+.lobby-section {
+  scroll-margin-top: var(--space-4);
+}
+
+/* Greeting, what is going on right now, and the room-code box */
 
 .lobby-hero {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4) var(--space-6);
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
+  padding: var(--space-5);
+  background:
+    radial-gradient(
+      120% 150% at 0% 0%,
+      color-mix(in srgb, var(--accent) 16%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 130% at 100% 100%,
+      color-mix(in srgb, var(--success) 13%, transparent),
+      transparent 55%
+    ),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
 }
 
 .lobby-hero-text {
   display: flex;
   flex: 1 1 18rem;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   min-width: 0;
+}
+
+.lobby-hero-lead {
+  max-width: 34rem;
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+
+.lobby-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0;
+  margin: var(--space-1) 0 0;
+  list-style: none;
+}
+
+.lobby-stat {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 0.2rem 0.7rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.lobby-stat.live {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+}
+
+/* Something is waiting on people right now. */
+.live-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--success);
+  border-radius: 50%;
+  animation: live-pulse 2s ease-out infinite;
+}
+
+@keyframes live-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 55%, transparent);
+  }
+
+  70%,
+  to {
+    box-shadow: 0 0 0 0.45rem transparent;
+  }
 }
 
 .join-code {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-4);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .join-code label {
@@ -64,13 +141,27 @@
 }
 
 .join-code input {
-  width: 9rem;
+  width: 10rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  letter-spacing: 0.15em;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+/* The example code is a hint, and should not pass for something typed. */
+.join-code input::placeholder {
+  font-weight: 400;
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.join-code button {
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .join-code .error {
-  max-width: 17rem;
+  max-width: 19rem;
   font-size: var(--text-sm);
 }
 
@@ -90,11 +181,21 @@
 }
 
 .lobby-empty {
-  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-6) var(--space-4);
   color: var(--muted);
   text-align: center;
   border: 1px dashed var(--border);
   border-radius: var(--radius-lg);
+}
+
+.lobby-empty-art {
+  font-size: 2rem;
+  line-height: 1;
+  filter: grayscale(0.35);
 }
 
 /* A game's emoji on its own colour */
@@ -116,11 +217,25 @@
   background: hsl(var(--game-hue) 65% 88%);
 }
 
+.game-icon.small {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+}
+
+.game-icon.large {
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 1.9rem;
+  border-radius: var(--radius-lg);
+}
+
 /* Games */
 
 .game-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
   gap: var(--space-4);
   padding: 0;
   margin: 0;
@@ -133,36 +248,52 @@
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   transition:
     border-color 0.15s,
-    box-shadow 0.15s;
+    box-shadow 0.15s,
+    transform 0.15s;
 }
 
-.game-card:hover {
-  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+.game-card:hover,
+.game-card:focus-within {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-.game-card.tinted:hover {
+.game-card.tinted:hover,
+.game-card.tinted:focus-within {
   border-color: hsl(var(--game-hue) 45% 55%);
 }
 
 .game-card-art {
+  position: relative;
   display: grid;
   place-items: center;
-  height: 5rem;
-  font-size: 2.5rem;
+  height: 6.5rem;
+  overflow: hidden;
+  font-size: 3.25rem;
   font-weight: 700;
+  line-height: 1;
   color: var(--muted);
   background: var(--ground);
 }
 
 .game-card.tinted .game-card-art {
-  background: linear-gradient(
-    135deg,
-    hsl(var(--game-hue) 70% 88%),
-    hsl(calc(var(--game-hue) + 35) 70% 80%)
-  );
+  background:
+    radial-gradient(circle at 78% 18%, rgb(255 255 255 / 55%), transparent 42%),
+    linear-gradient(135deg, hsl(var(--game-hue) 70% 88%), hsl(calc(var(--game-hue) + 35) 70% 78%));
+}
+
+.game-card-emoji {
+  filter: drop-shadow(0 4px 6px rgb(0 0 0 / 18%));
+  transition: transform 0.2s;
+}
+
+.game-card:hover .game-card-emoji,
+.game-card:focus-within .game-card-emoji {
+  transform: scale(1.12) rotate(-5deg);
 }
 
 .game-card-body {
@@ -182,20 +313,37 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
-  /* Room above the button even on the tallest card of a row, where the auto margin is nothing. */
+  /* Room above the buttons even on the tallest card of a row, where the auto margin is nothing. */
   padding: 0 0 var(--space-2);
   margin: 0;
   list-style: none;
 }
 
 /* Pushed to the bottom, so the buttons of a row of cards line up. */
-.game-card-body button {
+.game-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin-top: auto;
 }
 
+.game-card-actions button {
+  font-weight: 600;
+}
+
+.game-card-actions .game-card-waiting {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+}
+
 .game-card.placeholder {
-  height: 13.5rem;
+  height: 15.5rem;
   border-color: transparent;
+  box-shadow: none;
 }
 
 /* Rooms: the open ones, and the ones you are in */
@@ -210,9 +358,12 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
+/* The viewer's own rooms come first on the page and are marked as theirs. */
 .room-rows.mine {
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
   border-color: var(--accent);
 }
 
@@ -221,6 +372,57 @@
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3) var(--space-4);
+  transition: background-color 0.15s;
+}
+
+.room-row:hover {
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+}
+
+/* Nothing to do there but look: full, or already playing. */
+.room-row.closed .game-icon {
+  filter: grayscale(0.6);
+  opacity: 0.75;
+}
+
+/* One game's rooms out of all of them */
+
+.room-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.room-filter .filter-chip {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 0.25rem 0.7rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.room-filter .filter-chip:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.room-filter .filter-chip[aria-pressed='true'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: var(--accent);
+}
+
+.filter-chip-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 
 .room-row + .room-row {
@@ -352,15 +554,27 @@
   }
 
   .game-card.tinted .game-card-art {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--game-hue) 42% 27%),
-      hsl(calc(var(--game-hue) + 35) 45% 19%)
-    );
+    background:
+      radial-gradient(circle at 78% 18%, rgb(255 255 255 / 12%), transparent 42%),
+      linear-gradient(135deg, hsl(var(--game-hue) 42% 27%), hsl(calc(var(--game-hue) + 35) 45% 19%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
   }
 
-  .game-card:hover {
-    box-shadow: 0 4px 14px rgb(0 0 0 / 40%);
+  .game-card,
+  .game-card-emoji {
+    transition: none;
+  }
+
+  .game-card:hover,
+  .game-card:focus-within,
+  .game-card:hover .game-card-emoji,
+  .game-card:focus-within .game-card-emoji {
+    transform: none;
   }
 }
 
@@ -369,12 +583,12 @@
     gap: var(--space-5);
   }
 
-  .lobby h1 {
-    font-size: var(--text-xl);
-  }
-
   .lobby h2 {
     font-size: var(--text-lg);
+  }
+
+  .lobby-hero {
+    padding: var(--space-4);
   }
 
   .join-code {
@@ -397,8 +611,24 @@
   }
 
   .game-card-art {
-    height: 4rem;
-    font-size: 2rem;
+    height: 4.5rem;
+    font-size: 2.4rem;
+  }
+
+  .game-card.placeholder {
+    height: 13rem;
+  }
+
+  /* One line that slides, rather than chips stacking up above the rooms. */
+  .room-filter {
+    flex-wrap: nowrap;
+    padding-bottom: var(--space-1);
+    overflow-x: auto;
+  }
+
+  /* The count in the row's own text says who is in. */
+  .room-row .avatar-stack {
+    display: none;
   }
 
   .game-card-body {

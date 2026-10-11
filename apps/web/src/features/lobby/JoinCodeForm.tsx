@@ -31,6 +31,7 @@ export function JoinCodeForm() {
           maxLength={6}
           autoCapitalize="characters"
           autoComplete="off"
+          enterKeyHint="go"
           spellCheck={false}
           aria-invalid={join.isError}
           aria-describedby={join.isError ? 'join-code-error' : undefined}

@@ -1,6 +1,6 @@
 import type { RoomDto, RoomMemberDto } from '@bgp/shared-types';
 import { describe, expect, it } from 'vitest';
-import { primaryAction, startBlocker } from './room-actions';
+import { emptySeats, primaryAction, startBlocker } from './room-actions';
 
 const member = (userId: string, status: RoomMemberDto['status'] = 'ready'): RoomMemberDto => ({
   userId,
@@ -74,5 +74,32 @@ describe('primaryAction', () => {
   it('offers nothing once the room is no longer open', () => {
     expect(primaryAction(room(full, 'in_match'), 'host', null)).toBeNull();
     expect(primaryAction(room(full, 'in_match'), 'chi', null)).toBeNull();
+  });
+});
+
+describe('emptySeats', () => {
+  const limits = { minPlayers: 3, maxPlayers: 8 };
+  const seated = (count: number) =>
+    room(Array.from({ length: count }, (_, index) => member(`player-${index}`)));
+
+  it('draws the seats that must be filled, then a few of the ones that may stay empty', () => {
+    expect(emptySeats(seated(1), limits)).toEqual({ required: 2, optional: 3, more: 2 });
+  });
+
+  it('asks for nobody once there are enough players', () => {
+    expect(emptySeats(seated(3), limits)).toEqual({ required: 0, optional: 3, more: 2 });
+    expect(emptySeats(seated(6), limits)).toEqual({ required: 0, optional: 2, more: 0 });
+  });
+
+  it('draws nothing at a full table', () => {
+    expect(emptySeats(seated(8), limits)).toEqual({ required: 0, optional: 0, more: 0 });
+  });
+
+  it('draws as many spare seats as it is told to', () => {
+    expect(emptySeats(seated(3), limits, 1)).toEqual({ required: 0, optional: 1, more: 4 });
+  });
+
+  it('draws nothing for a game it knows nothing about', () => {
+    expect(emptySeats(seated(1), undefined)).toEqual({ required: 0, optional: 0, more: 0 });
   });
 });

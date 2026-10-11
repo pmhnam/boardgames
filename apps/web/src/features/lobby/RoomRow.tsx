@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
+import { AvatarStack, type AvatarPerson } from '../../shared/components/Avatar';
 import { errorText } from '../../shared/i18n/errors';
 import { useLocale, useT, type Translate } from '../../shared/i18n/useT';
 import { joinRoom } from '../rooms/joinRoom';
@@ -35,6 +36,21 @@ export function RoomFacts({ room, game }: { room: RoomDto; game: GameDefinitionD
   );
 }
 
+/** The room's members as faces, the host's first. */
+export function roomFaces(room: RoomDto): AvatarPerson[] {
+  return [...room.members]
+    .sort(
+      (a, b) =>
+        Number(b.userId === room.hostUserId) - Number(a.userId === room.hostUserId) ||
+        a.seat - b.seat,
+    )
+    .map((member) => ({
+      userId: member.userId,
+      displayName: member.displayName,
+      isBot: member.botLevel !== null,
+    }));
+}
+
 export function roomHostLine(t: Translate, room: RoomDto): string {
   const host = room.members.find((member) => member.userId === room.hostUserId);
   return t('room.hostedBy', { name: host?.displayName ?? t('room.unknownHost') });
@@ -64,7 +80,7 @@ export function RoomRow({
   const actionLabel = (action: string) => `${action}: ${gameName}, ${hostLine}`;
 
   return (
-    <li className="room-row">
+    <li className={standing === 'joinable' ? 'room-row' : 'room-row closed'}>
       <GameIcon gameType={room.gameType} displayName={gameName} />
       <div className="room-row-main">
         <span className="room-row-title">
@@ -78,6 +94,7 @@ export function RoomRow({
           </span>
         )}
       </div>
+      <AvatarStack people={roomFaces(room)} />
       <div className="room-row-action">
         {standing === 'joinable' && (
           <button

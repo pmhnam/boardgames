@@ -22,7 +22,10 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 5%);
+  --shadow-md: 0 2px 4px rgb(0 0 0 / 6%), 0 8px 22px rgb(0 0 0 / 10%);
   --text-sm: 0.85rem;
   --text-lg: 1.15rem;
   --text-xl: 1.4rem;
@@ -50,6 +53,8 @@
     --surface-hover: #2a2d32;
     --success: #5fc18b;
     --warning: #e0a94f;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+    --shadow-md: 0 2px 4px rgb(0 0 0 / 30%), 0 8px 22px rgb(0 0 0 / 40%);
   }
 }
 
@@ -199,10 +204,48 @@ h2 {
   margin: 0;
 }
 
+/* The first thing a newcomer sees: the way in, and nothing else. */
+.card.login {
+  gap: var(--space-3);
+  padding: var(--space-5);
+  margin-top: min(12vh, 5rem);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.card.login h1 {
+  margin: 0;
+}
+
+.card.login label {
+  font-weight: 600;
+}
+
+.card.login button {
+  padding: 0.6rem 0.8rem;
+  font-weight: 600;
+}
+
+.login-mark {
+  display: grid;
+  place-items: center;
+  align-self: flex-start;
+  width: 3.25rem;
+  height: 3.25rem;
+  font-size: 1.9rem;
+  line-height: 1;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  border-radius: var(--radius-lg);
+}
+
 .brand {
   font-weight: 700;
   color: var(--text);
   text-decoration: none;
+}
+
+.brand-mark {
+  margin-right: 0.4rem;
 }
 
 main {
@@ -598,6 +641,70 @@ td {
   background-size: 200% 100%;
   border-radius: var(--radius-sm);
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+/* A player's letters on a colour of their own. The hue comes from the element. */
+.avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: hsl(var(--avatar-hue, 220) 55% 38%);
+  border-radius: 50%;
+  user-select: none;
+}
+
+.avatar.small {
+  width: 1.65rem;
+  height: 1.65rem;
+  font-size: 0.65rem;
+}
+
+.avatar.large {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1rem;
+}
+
+.avatar.bot,
+.avatar.more {
+  color: var(--muted);
+  background: var(--ground);
+}
+
+.avatar.bot {
+  font-size: 1.15em;
+  font-weight: 400;
+}
+
+/* A seat nobody has taken. */
+.avatar.empty {
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: var(--muted);
+  background: transparent;
+  border: 1.5px dashed var(--border);
+}
+
+/* Faces overlapping in a row, each ringed in the colour of what is behind them. */
+.avatar-stack {
+  display: inline-flex;
+  flex: none;
+  /* The faces are ordered among themselves, and not against the rest of the page. */
+  isolation: isolate;
+}
+
+.avatar-stack .avatar {
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.avatar-stack .avatar + .avatar {
+  margin-left: -0.3rem;
 }
 
 /* A line of text that has not arrived yet. */

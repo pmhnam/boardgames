@@ -26,7 +26,10 @@ export function GuestLoginForm() {
     login.error instanceof ApiRequestError && login.error.code === ErrorCodes.PasswordRequired;
 
   return (
-    <form className="card narrow" onSubmit={submit}>
+    <form className="card narrow login" onSubmit={submit}>
+      <span className="login-mark" aria-hidden="true">
+        🎲
+      </span>
       <h1>{t('login.title')}</h1>
       <p className="muted login-intro">{t('login.intro')}</p>
       <label htmlFor="display-name">{t('login.displayName')}</label>
@@ -34,6 +37,8 @@ export function GuestLoginForm() {
         id="display-name"
         value={displayName}
         maxLength={32}
+        placeholder={t('login.placeholder')}
+        autoComplete="username"
         autoFocus
         onChange={(event) => setDisplayName(event.target.value)}
       />

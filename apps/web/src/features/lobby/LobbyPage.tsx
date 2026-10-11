@@ -31,10 +31,20 @@ const PLACEHOLDER_CARDS = [0, 1, 2, 3];
 
 const isDemo = (game: GameDefinitionDto) => getGameUi(game.gameType)?.card?.demo === true;
 
+/** Brings the room list into view, without the glide for someone who asked for less motion. */
+function scrollToRooms() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document
+    .getElementById('open-rooms')
+    ?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
 export function LobbyPage() {
   const t = useT();
   const user = useAuthStore((state) => state.session?.user);
   const [creating, setCreating] = useState<GameDefinitionDto | null>(null);
+  /** The game the room list is narrowed to. */
+  const [roomFilter, setRoomFilter] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const socket = useSocket();
 
@@ -87,20 +97,35 @@ export function LobbyPage() {
     }
     return counts;
   }, [others]);
+  const waitingRooms = others.filter((entry) => entry.standing === 'joinable').length;
+  const matchesInPlay = (rooms.data ?? []).filter((room) => room.status === 'in_match').length;
 
   return (
     <div className="lobby">
       <div className="lobby-hero">
         <div className="lobby-hero-text">
           <h1>{t('lobby.greeting', { name: user?.displayName ?? '' })}</h1>
-          <p className="muted">{t('lobby.subtitle')}</p>
+          <p className="lobby-hero-lead">{t('lobby.subtitle')}</p>
+          {(waitingRooms > 0 || matchesInPlay > 0) && (
+            <ul className="lobby-stats">
+              {waitingRooms > 0 && (
+                <li className="lobby-stat live">
+                  <span className="live-dot" aria-hidden="true" />
+                  {t('lobby.stat.waiting', { count: waitingRooms })}
+                </li>
+              )}
+              {matchesInPlay > 0 && (
+                <li className="lobby-stat">{t('lobby.stat.playing', { count: matchesInPlay })}</li>
+              )}
+            </ul>
+          )}
         </div>
         <JoinCodeForm />
       </div>
 
       <ContinueSection rooms={mine} gameByType={gameByType} />
 
-      <section aria-labelledby="games-title">
+      <section className="lobby-section" aria-labelledby="games-title">
         <h2 id="games-title">{t('lobby.games')}</h2>
         {games.isPending ? (
           <ul className="game-grid" aria-busy="true">
@@ -120,6 +145,10 @@ export function LobbyPage() {
                 game={game}
                 joinableRooms={joinableByGame.get(game.gameType) ?? 0}
                 onCreate={() => setCreating(game)}
+                onShowRooms={() => {
+                  setRoomFilter(game.gameType);
+                  scrollToRooms();
+                }}
               />
             ))}
           </ul>
@@ -129,6 +158,8 @@ export function LobbyPage() {
       <RoomList
         rooms={others}
         gameByType={gameByType}
+        filter={roomFilter}
+        onFilter={setRoomFilter}
         isPending={rooms.isPending}
         error={rooms.error}
         onRetry={() => void rooms.refetch()}

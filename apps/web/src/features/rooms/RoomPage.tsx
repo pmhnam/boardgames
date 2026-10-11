@@ -17,8 +17,8 @@ import { gamesQuery } from '../../games/gamesQuery';
 import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
 import { api } from '../../shared/api/http';
+import { Avatar } from '../../shared/components/Avatar';
 import { ConfirmDialog } from '../../shared/components/ConfirmDialog';
-import { PlayerList } from '../../shared/components/PlayerList';
 import { errorText } from '../../shared/i18n/errors';
 import { useLocale, useT } from '../../shared/i18n/useT';
 import type { MessageKey } from '../../shared/i18n/vi';
@@ -26,7 +26,9 @@ import { useDocumentTitle } from '../../shared/useDocumentTitle';
 import { useVoiceRoom } from '../../shared/voice/VoiceProvider';
 import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
-import { primaryAction, startBlocker } from './room-actions';
+import { GameIcon } from '../lobby/GameIcon';
+import '../lobby/lobby.css';
+import { emptySeats, primaryAction, startBlocker } from './room-actions';
 import './room.css';
 
 const BOT_LEVELS: BotLevel[] = ['easy', 'normal', 'hard'];
@@ -43,20 +45,31 @@ const PLACEHOLDER_SEATS = [0, 1, 2];
 
 function RoomSkeleton({ label }: { label: string }) {
   return (
-    <div className="card" aria-busy="true">
+    <div className="room" aria-busy="true">
       <span className="sr-only" role="status">
         {label}
       </span>
-      <span className="skeleton skeleton-line room-skeleton-title" aria-hidden="true" />
-      <span className="skeleton room-skeleton-invite" aria-hidden="true" />
-      <ul className="player-list" aria-hidden="true">
-        {PLACEHOLDER_SEATS.map((seat) => (
-          <li key={seat}>
-            <span className="skeleton skeleton-line" />
-            <span className="skeleton skeleton-line short" />
-          </li>
-        ))}
-      </ul>
+      <div className="room-header" aria-hidden="true">
+        <span className="game-icon large skeleton" />
+        <div className="room-header-text">
+          <span className="skeleton skeleton-line room-skeleton-title" />
+          <span className="skeleton skeleton-line short" />
+        </div>
+      </div>
+      <div className="room-layout" aria-hidden="true">
+        <div className="room-main">
+          <div className="room-panel">
+            <ul className="seat-grid">
+              {PLACEHOLDER_SEATS.map((seat) => (
+                <li key={seat} className="seat skeleton" />
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="room-side">
+          <span className="skeleton room-skeleton-invite" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -208,11 +221,10 @@ export function RoomPage() {
     removeBot.error ??
     changeSettings.error;
   const game = games.data?.find((definition) => definition.gameType === data.gameType);
+  const gameName = game?.displayName ?? data.gameType;
+  const isOpen = data.status === 'open';
   const canAddBot =
-    isHost &&
-    data.status === 'open' &&
-    game?.supportsBots === true &&
-    data.members.length < game.maxPlayers;
+    isHost && isOpen && game?.supportsBots === true && data.members.length < game.maxPlayers;
   const blocker = startBlocker(data, game);
   const primary = primaryAction(data, userId, blocker);
   const startHint =
@@ -221,176 +233,314 @@ export function RoomPage() {
       : blocker?.kind === 'notReady'
         ? t('roomPage.waitingReady', { count: blocker.waiting })
         : isHost
-          ? null
+          ? t('roomPage.canStart')
           : t('roomPage.waitingHost');
+  const readyCount = data.members.filter((member) => member.status === 'ready').length;
+  const empty = emptySeats(data, game);
 
   return (
-    <div className="card">
+    <div className="room">
+      <Link className="room-back" to="/">
+        <span aria-hidden="true">←</span> {t('join.backToLobby')}
+      </Link>
+
       <header className="room-header">
-        <h1>{t('roomPage.title', { code: data.code })}</h1>
-        <p className="muted">
-          {game?.displayName ?? data.gameType}
-          {settingsSummary && ` · ${settingsSummary}`}
-        </p>
+        <GameIcon gameType={data.gameType} displayName={gameName} size="large" />
+        <div className="room-header-text">
+          <div className="room-title">
+            <h1>{gameName}</h1>
+            <span className="badge">
+              {data.visibility === 'private' ? t('create.private') : t('create.public')}
+            </span>
+          </div>
+          <p className="muted">
+            {t('roomPage.title', { code: data.code })}
+            {settingsSummary && ` · ${settingsSummary}`}
+          </p>
+        </div>
       </header>
 
-      <div className="room-invite">
-        <span className="room-invite-label">{t('roomPage.inviteLink')}</span>
-        <code>{inviteLink}</code>
-        <button type="button" className="secondary" onClick={() => void copy(inviteLink)}>
-          {copyState === 'copied' ? t('roomPage.copied') : t('roomPage.copy')}
-        </button>
-        {canShare && (
-          <button
-            type="button"
-            className="secondary"
-            onClick={() =>
-              void share({
-                title: t('roomPage.title', { code: data.code }),
-                text: t('roomPage.shareText', { game: game?.displayName ?? data.gameType }),
-                url: inviteLink,
-              })
-            }
-          >
-            {t('roomPage.share')}
-          </button>
-        )}
-        <span className={copyState === 'failed' ? 'error' : 'sr-only'} aria-live="polite">
-          {copyState === 'copied' && t('roomPage.copied')}
-          {copyState === 'failed' && t('roomPage.copyFailed')}
-        </span>
-      </div>
-
-      <PlayerList
-        players={data.members.map((member) => ({
-          id: member.userId,
-          name: member.displayName,
-          isYou: member.userId === userId,
-          detail: (
-            <span className="row">
-              {member.userId === data.hostUserId && `${t('roomPage.host')} · `}
-              {member.botLevel &&
-                `${t('roomPage.computer', { level: t(BOT_LEVEL_KEYS[member.botLevel]) })} · `}
-              {member.status === 'ready' ? t('roomPage.ready') : t('roomPage.notReady')}
-              {member.botLevel && isHost && data.status === 'open' && (
-                <button
-                  type="button"
-                  className="link"
-                  disabled={removeBot.isPending}
-                  onClick={() => removeBot.mutate(member.userId)}
-                >
-                  {t('roomPage.removeBot')}
-                </button>
-              )}
-              {!member.botLevel && member.userId !== userId && isHost && data.status === 'open' && (
-                <button
-                  type="button"
-                  className="link"
-                  onClick={() => {
-                    kick.reset();
-                    setKicking(member);
-                  }}
-                >
-                  {t('roomPage.kick')}
-                </button>
-              )}
-            </span>
-          ),
-        }))}
-      />
-
       {data.status === 'in_match' && data.currentMatchId && (
-        <p>
-          {t('roomPage.matchInProgress')}{' '}
-          <Link to={`/matches/${data.currentMatchId}`}>{t('continue.resume')}</Link>
-        </p>
-      )}
-
-      {SettingsForm && gameConfig.data && isHost && data.status === 'open' && (
-        <div className="stack-small">
-          <SettingsForm
-            config={gameConfig.data.config}
-            value={data.settings}
-            playerCount={data.members.length}
-            onChange={(settings) => {
-              // A start refused over the settings is answered by changing them.
-              start.reset();
-              changeSettings.mutate({ settings });
-            }}
-          />
-          <span className="muted hint">{t('roomPage.settingsHint')}</span>
+        <div className="room-banner">
+          <span>{t('roomPage.matchInProgress')}</span>
+          <Link className="button" to={`/matches/${data.currentMatchId}`}>
+            {t('continue.resume')}
+          </Link>
         </div>
       )}
 
-      {canAddBot && (
-        <div className="row wrap">
-          <label className="row">
-            <span>{t('roomPage.computerPlayer')}</span>
-            <select
-              value={botLevel}
-              onChange={(event) => setBotLevel(event.target.value as BotLevel)}
-            >
-              {BOT_LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {t(BOT_LEVEL_KEYS[level])}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="secondary"
-            disabled={addBot.isPending}
-            onClick={() => addBot.mutate({ level: botLevel })}
-          >
-            {t('roomPage.addBot')}
-          </button>
-        </div>
-      )}
-
-      {data.status === 'open' && (
-        <div className="room-actions">
-          <div className="row wrap">
-            {!me && (
-              <button type="button" onClick={() => join.mutate()}>
-                {t('roomPage.takeSeat')}
-              </button>
+      <div className="room-layout">
+        <div className="room-main">
+          <section className="room-panel room-seats" aria-labelledby="room-seats-title">
+            <div className="room-panel-head">
+              <h2 id="room-seats-title">
+                {t('roomPage.players')}
+                <span className="chip">
+                  {game
+                    ? t('room.seats', { count: data.members.length, max: game.maxPlayers })
+                    : data.members.length}
+                </span>
+              </h2>
+              {isOpen && (
+                <span className="room-ready-count">
+                  {t('roomPage.readyCount', { count: readyCount, total: data.members.length })}
+                </span>
+              )}
+            </div>
+            {isOpen && (
+              <div className="room-progress" aria-hidden="true">
+                <span style={{ width: `${(readyCount / data.members.length) * 100}%` }} />
+              </div>
             )}
-            {me && (
+
+            <ul className="seat-grid">
+              {data.members.map((member) => {
+                const isYou = member.userId === userId;
+                const isReady = member.status === 'ready';
+                const isBot = member.botLevel !== null;
+                const className = ['seat', isOpen && isReady ? 'ready' : null, isYou ? 'you' : null]
+                  .filter(Boolean)
+                  .join(' ');
+                return (
+                  <li key={member.userId} className={className}>
+                    <Avatar
+                      person={{ userId: member.userId, displayName: member.displayName, isBot }}
+                      size="large"
+                    />
+                    <div className="seat-text">
+                      <span className="seat-name">
+                        {member.displayName}
+                        {isYou && <span className="muted"> ({t('common.you')})</span>}
+                      </span>
+                      <span className="seat-meta">
+                        {member.userId === data.hostUserId && (
+                          <span className="badge host">{t('roomPage.host')}</span>
+                        )}
+                        {member.botLevel && (
+                          <span>
+                            {t('roomPage.computer', { level: t(BOT_LEVEL_KEYS[member.botLevel]) })}
+                          </span>
+                        )}
+                        {isOpen && (
+                          <span className={isReady ? 'seat-status ready' : 'seat-status'}>
+                            {isReady ? (
+                              <>
+                                <span aria-hidden="true">✓ </span>
+                                {t('roomPage.ready')}
+                              </>
+                            ) : (
+                              t('roomPage.notReady')
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {isBot && isHost && isOpen && (
+                      <button
+                        type="button"
+                        className="seat-remove"
+                        title={t('roomPage.removeBot')}
+                        aria-label={`${t('roomPage.removeBot')}: ${member.displayName}`}
+                        disabled={removeBot.isPending}
+                        onClick={() => removeBot.mutate(member.userId)}
+                      >
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    )}
+                    {!isBot && !isYou && isHost && isOpen && (
+                      <button
+                        type="button"
+                        className="seat-remove"
+                        title={t('roomPage.kick')}
+                        aria-label={`${t('roomPage.kick')}: ${member.displayName}`}
+                        onClick={() => {
+                          kick.reset();
+                          setKicking(member);
+                        }}
+                      >
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+              {isOpen &&
+                Array.from({ length: empty.required + empty.optional }, (_, index) => {
+                  const needed = index < empty.required;
+                  return (
+                    <li
+                      key={`empty-${index}`}
+                      className={needed ? 'seat empty needed' : 'seat empty'}
+                    >
+                      <span className="avatar large empty" aria-hidden="true">
+                        +
+                      </span>
+                      <div className="seat-text">
+                        <span className="seat-name">{t('roomPage.emptySeat')}</span>
+                        <span className="seat-status">
+                          {needed ? t('roomPage.seatNeeded') : t('roomPage.seatOpen')}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+            </ul>
+            {isOpen && empty.more > 0 && (
+              <p className="muted hint">{t('roomPage.moreSeats', { count: empty.more })}</p>
+            )}
+
+            {canAddBot && (
+              <div className="room-add-bot">
+                <label className="row">
+                  <span>{t('roomPage.computerPlayer')}</span>
+                  <select
+                    value={botLevel}
+                    onChange={(event) => setBotLevel(event.target.value as BotLevel)}
+                  >
+                    {BOT_LEVELS.map((level) => (
+                      <option key={level} value={level}>
+                        {t(BOT_LEVEL_KEYS[level])}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={addBot.isPending}
+                  onClick={() => addBot.mutate({ level: botLevel })}
+                >
+                  <span aria-hidden="true">+ </span>
+                  {t('roomPage.addBot')}
+                </button>
+              </div>
+            )}
+          </section>
+
+          {isOpen && (
+            <div className="room-actions">
+              <p className="room-actions-hint" role="status">
+                {startHint}
+              </p>
+              {me && (
+                <button
+                  type="button"
+                  className="link room-leave"
+                  disabled={leave.isPending}
+                  onClick={() => leave.mutate()}
+                >
+                  {t('continue.leave')}
+                </button>
+              )}
+              <div className="room-actions-buttons">
+                {!me && (
+                  <button type="button" disabled={join.isPending} onClick={() => join.mutate()}>
+                    {t('roomPage.takeSeat')}
+                  </button>
+                )}
+                {me && (
+                  <button
+                    type="button"
+                    className={primary === 'ready' ? undefined : 'secondary'}
+                    disabled={setReady.isPending}
+                    onClick={() => setReady.mutate({ ready: me.status !== 'ready' })}
+                  >
+                    {me.status === 'ready' ? t('roomPage.cancelReady') : t('roomPage.imReady')}
+                  </button>
+                )}
+                {isHost && (
+                  <button
+                    type="button"
+                    className={primary === 'start' ? undefined : 'secondary'}
+                    disabled={blocker !== null || start.isPending}
+                    onClick={() => start.mutate()}
+                  >
+                    {t('roomPage.start')}
+                  </button>
+                )}
+              </div>
+              {error && (
+                <p className="error" role="alert">
+                  {errorText(t, error)}
+                </p>
+              )}
+            </div>
+          )}
+          {!isOpen && error && (
+            <p className="error" role="alert">
+              {errorText(t, error)}
+            </p>
+          )}
+        </div>
+
+        <div className="room-side">
+          <section className="room-panel room-invite" aria-labelledby="room-invite-title">
+            <h2 id="room-invite-title">{t('roomPage.invite')}</h2>
+            <div className="room-code">
+              <span className="room-invite-label">{t('roomPage.code')}</span>
+              <strong>{data.code}</strong>
+            </div>
+            <div className="room-link">
+              <span className="room-invite-label">{t('roomPage.inviteLink')}</span>
+              <code>{inviteLink}</code>
+            </div>
+            <div className="room-invite-actions">
               <button
                 type="button"
-                className={primary === 'ready' ? undefined : 'secondary'}
-                disabled={setReady.isPending}
-                onClick={() => setReady.mutate({ ready: me.status !== 'ready' })}
+                className={copyState === 'copied' ? 'secondary copied' : 'secondary'}
+                onClick={() => void copy(inviteLink)}
               >
-                {me.status === 'ready' ? t('roomPage.cancelReady') : t('roomPage.imReady')}
+                {copyState === 'copied' ? (
+                  <>
+                    <span aria-hidden="true">✓ </span>
+                    {t('roomPage.copied')}
+                  </>
+                ) : (
+                  t('roomPage.copy')
+                )}
               </button>
-            )}
-            {isHost && (
-              <button
-                type="button"
-                className={primary === 'start' ? undefined : 'secondary'}
-                disabled={blocker !== null || start.isPending}
-                onClick={() => start.mutate()}
-              >
-                {t('roomPage.start')}
-              </button>
-            )}
-            {me && (
-              <button type="button" className="secondary" onClick={() => leave.mutate()}>
-                {t('continue.leave')}
-              </button>
-            )}
-          </div>
-          {startHint && <p className="muted hint">{startHint}</p>}
-        </div>
-      )}
+              {canShare && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void share({
+                      title: t('roomPage.title', { code: data.code }),
+                      text: t('roomPage.shareText', { game: gameName }),
+                      url: inviteLink,
+                    })
+                  }
+                >
+                  {t('roomPage.share')}
+                </button>
+              )}
+            </div>
+            <span className={copyState === 'failed' ? 'error' : 'sr-only'} aria-live="polite">
+              {copyState === 'copied' && t('roomPage.copied')}
+              {copyState === 'failed' && t('roomPage.copyFailed')}
+            </span>
+            <p className="muted hint">
+              {data.visibility === 'private' ? t('create.privateHint') : t('create.publicHint')}
+            </p>
+          </section>
 
-      {error && (
-        <p className="error" role="alert">
-          {errorText(t, error)}
-        </p>
-      )}
+          {SettingsForm && gameConfig.data && isHost && isOpen && (
+            <section className="room-panel" aria-labelledby="room-settings-title">
+              <h2 id="room-settings-title">{t('roomPage.settings')}</h2>
+              <SettingsForm
+                config={gameConfig.data.config}
+                value={data.settings}
+                playerCount={data.members.length}
+                onChange={(settings) => {
+                  // A start refused over the settings is answered by changing them.
+                  start.reset();
+                  changeSettings.mutate({ settings });
+                }}
+              />
+              <span className="muted hint">{t('roomPage.settingsHint')}</span>
+            </section>
+          )}
+        </div>
+      </div>
 
       {kicking && (
         <ConfirmDialog
