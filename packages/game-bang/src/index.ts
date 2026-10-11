@@ -21,7 +21,7 @@ export const BangGame: GameModule<BangEngine> = {
 export { BangBot, BangEngine };
 export { BANG_GAME_TYPE, MAX_PLAYERS, MIN_PLAYERS } from './domain/config.js';
 export { BangRuleCodes } from './domain/errors.js';
-export { CARD_KINDS, SUITS, isBlue, isWeapon } from './domain/cards.js';
+export { CARD_KINDS, SUITS, getWeaponRangeOf, isBlue, isWeapon } from './domain/cards.js';
 export type { Card, CardKind, Suit } from './domain/cards.js';
 export { CHARACTER_IDS } from './domain/characters.js';
 export type { CharacterId } from './domain/characters.js';

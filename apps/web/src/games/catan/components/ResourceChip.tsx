@@ -4,7 +4,8 @@ import { useHints } from '../hints';
 import { RESOURCE_FILL, RESOURCE_INK } from '../layout';
 import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
-import { HintText, Tip } from './Tip';
+import { Tip } from '../../shared/Tip';
+import { HintText } from './HintText';
 
 /** The resource's own colour, for the stylesheet to paint with. */
 export function resourceStyle(resource: Resource): CSSProperties {

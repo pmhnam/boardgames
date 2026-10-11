@@ -21,7 +21,8 @@ import {
 } from '../layout';
 import { useCatanText } from '../useCatanText';
 import { Glyph } from './Icon';
-import { HintText, useTips } from './Tip';
+import { useTips } from '../../shared/Tip';
+import { HintText } from './HintText';
 
 type HexView = CatanView['board']['hexes'][number];
 type PortView = CatanView['board']['ports'][number];

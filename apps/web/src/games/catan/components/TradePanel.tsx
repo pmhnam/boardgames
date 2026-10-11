@@ -12,7 +12,8 @@ import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
 import { resourceStyle } from './ResourceChip';
 import { NO_RESOURCES, ResourcePicker, compact, totalOf } from './ResourcePicker';
-import { HintText, Tip } from './Tip';
+import { Tip } from '../../shared/Tip';
+import { HintText } from './HintText';
 
 /** The most of one resource an offer may ask for: more than anyone is likely to hold. */
 const MAX_ASK = 9;

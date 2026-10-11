@@ -13,10 +13,9 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { Hint } from '../hints';
-import { placeTip } from '../tip-position';
+import { placeTip } from './tip-position';
 
-/** How long the mouse rests on something before its hint shows: crossing the board shows none. */
+/** How long the mouse rests on something before its hint shows: crossing the table shows none. */
 const HOVER_DELAY_MS = 350;
 /** What a finger is more likely to be pressing than asking about. */
 const CONTROLS = 'button:not(:disabled), select, input, a[href]';
@@ -57,7 +56,7 @@ function TipBubble({ id, anchor, children }: { id: string; anchor: Element; chil
 
   // In the body, so no card clips it and nothing it sits in restyles it.
   return createPortal(
-    <div ref={ref} id={id} role="tooltip" className="catan-tip-bubble">
+    <div ref={ref} id={id} role="tooltip" className="game-tip-bubble">
       {children}
     </div>,
     document.body,
@@ -161,24 +160,12 @@ export function Tip({
 }) {
   const tips = useTips();
   return (
-    <span className="catan-tip" {...tips.anchor('tip', press)}>
+    <span className="game-tip" {...tips.anchor('tip', press)}>
       {isValidElement<{ 'aria-describedby'?: string }>(children) &&
       typeof children.type === 'string'
         ? cloneElement(children, { 'aria-describedby': tips.describedBy('tip') })
         : children}
       {tips.bubble('tip', hint)}
     </span>
-  );
-}
-
-/** A hint laid out: its title, then whatever the caller adds (a cost), its body and advice. */
-export function HintText({ hint, children }: { hint: Hint; children?: ReactNode }) {
-  return (
-    <>
-      {hint.title && <strong>{hint.title}</strong>}
-      {children}
-      <span>{hint.body}</span>
-      {hint.advice && <span className="muted">{hint.advice}</span>}
-    </>
   );
 }

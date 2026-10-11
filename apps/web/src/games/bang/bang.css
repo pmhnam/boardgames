@@ -1,0 +1,1083 @@
+/* BANG! The table is painted wood and the cards and posters on it are paper: they keep their
+   colours in both themes. The panels around the table follow the app's. */
+
+.bang {
+  --bang-display: 'Alfa Slab One', Rockwell, Georgia, serif;
+  --bang-wood-1: #8f5d2e;
+  --bang-wood-2: #6f4421;
+  --bang-wood-3: #472a13;
+  --bang-paper: #f6e9c8;
+  --bang-paper-2: #e7d3a4;
+  --bang-paper-edge: #b08a4e;
+  --bang-ink: #3b2716;
+  --bang-ink-soft: #77593a;
+  --bang-brown: #8a5a2b;
+  --bang-blue: #2a5d9f;
+  --bang-red: #b3261e;
+  --bang-gold: #e0a019;
+  --bang-back: #7b2d26;
+  /* A table has a lot on it. On a screen wider than the page's column, it takes the room. */
+  --bang-width: max(100%, min(100vw - 2rem, 84rem));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: var(--bang-width);
+  margin-inline: calc((100% - var(--bang-width)) / 2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .bang {
+    --bang-wood-1: #6f4623;
+    --bang-wood-2: #543218;
+    --bang-wood-3: #2f1b0c;
+  }
+}
+
+.bang-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+/* Whose turn it is, where the viewer is in theirs, and the alerts. */
+
+.bang-banner {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 0.75rem;
+}
+
+.bang-banner-title {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.bang-banner-title > .bang-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+  color: var(--bang-gold);
+}
+
+.bang-banner-title > div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.bang-banner-title strong {
+  font-family: var(--bang-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.bang-banner .hint {
+  flex-basis: 100%;
+}
+
+.bang-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bang-steps li {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.2rem 0.65rem 0.2rem 0.25rem;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.bang-step-dot {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--surface);
+  background: var(--muted);
+  border-radius: 50%;
+}
+
+.bang-steps li.current {
+  font-weight: 600;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bang-gold) 22%, var(--surface));
+  border-color: var(--bang-gold);
+}
+
+.bang-steps li.current .bang-step-dot {
+  color: var(--bang-ink);
+  background: var(--bang-gold);
+}
+
+.bang-steps li.done .bang-step-dot {
+  background: var(--success);
+}
+
+.bang-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bang-tool {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.bang-tool:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+.bang-tool[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--bang-gold) 20%, var(--surface));
+  border-color: var(--bang-gold);
+}
+
+.bang-tool .bang-icon {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* The table and the viewer's hand in one column; who they are and the log beside it once
+   there is room. */
+
+.bang-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.bang-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.bang-side {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 75rem) {
+  .bang-layout {
+    grid-template-columns: minmax(0, 1fr) 19rem;
+  }
+
+  .bang-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The table. */
+
+.bang-table {
+  container: bang-table / inline-size;
+  padding: 1rem 0.75rem 0.75rem;
+  color: var(--bang-paper);
+  background:
+    radial-gradient(ellipse at center, rgb(255 222 160 / 0.2), transparent 65%),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.16) 0 2px, transparent 2px 7.5rem),
+    repeating-linear-gradient(91deg, rgb(255 255 255 / 0.035) 0 3px, transparent 3px 13px),
+    linear-gradient(180deg, var(--bang-wood-1), var(--bang-wood-2));
+  border: 3px solid var(--bang-wood-3);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 0.08),
+    inset 0 0 3.5rem rgb(0 0 0 / 0.4);
+}
+
+.bang-ring {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bang-centre {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.bang-piles {
+  display: flex;
+  gap: 1.1rem;
+  align-items: flex-start;
+}
+
+.bang-pile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+/* More than one card in a pile shows as an edge under the top one. */
+.bang-pile-cards.stacked .bang-card {
+  box-shadow:
+    2px 2px 0 var(--bang-paper-2),
+    4px 4px 0 var(--bang-paper-edge),
+    5px 6px 8px rgb(0 0 0 / 0.4);
+}
+
+.bang-pile-count {
+  font-family: var(--bang-display);
+  font-size: 0.9rem;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+.bang-landing {
+  display: block;
+}
+
+.bang-news {
+  max-width: 24rem;
+  min-height: 2.7em;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.7);
+}
+
+/* On a narrow table the seats are a list, in seat order. */
+.bang-seats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.25rem, 1fr));
+  gap: 1rem 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A player, as a poster pinned to the table. */
+
+.bang-seat {
+  position: relative;
+  color: var(--bang-ink);
+  background: linear-gradient(180deg, var(--bang-paper), var(--bang-paper-2));
+  border: 2px solid var(--bang-paper-edge);
+  border-radius: 8px;
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.4);
+  transition:
+    opacity 0.2s,
+    filter 0.2s,
+    box-shadow 0.2s;
+}
+
+.bang-seat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.5rem 0.5rem 0.45rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+
+button.bang-seat-body:hover {
+  background: rgb(224 160 25 / 0.2);
+}
+
+.bang-seat.mine {
+  border-color: var(--bang-ink);
+}
+
+.bang-seat.turn {
+  border-color: var(--bang-gold);
+  box-shadow:
+    0 0 0 3px rgb(224 160 25 / 0.65),
+    0 3px 10px rgb(0 0 0 / 0.45);
+}
+
+.bang-seat.asked {
+  border-color: var(--bang-red);
+  box-shadow:
+    0 0 0 3px rgb(226 74 62 / 0.7),
+    0 3px 10px rgb(0 0 0 / 0.45);
+}
+
+/* A player the viewer may choose is lit; the others step back. */
+.bang-seat.selectable {
+  outline: 3px solid var(--bang-gold);
+  outline-offset: 2px;
+}
+
+.bang-seat.selected {
+  outline-color: #fff;
+  box-shadow:
+    0 0 0 6px var(--bang-gold),
+    0 3px 10px rgb(0 0 0 / 0.45);
+}
+
+.bang-seat.faded {
+  filter: saturate(0.5);
+  opacity: 0.55;
+}
+
+.bang-seat.dead {
+  filter: grayscale(0.9);
+  opacity: 0.8;
+}
+
+.bang-seat.dead .bang-name {
+  text-decoration: line-through;
+}
+
+.bang-seat.winner {
+  border-color: var(--bang-gold);
+}
+
+.bang-seat-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.bang-portrait {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  color: var(--bang-paper);
+  background: var(--bang-ink);
+  border: 2px solid var(--bang-paper-edge);
+  border-radius: 50%;
+}
+
+.bang-portrait .bang-icon {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.bang-seat-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+/* A long name takes a second line before it is cut. */
+.bang-name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.92rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.bang-you {
+  font-weight: 400;
+  color: var(--bang-ink-soft);
+}
+
+.bang-character {
+  overflow: hidden;
+  font-size: 0.78rem;
+  color: var(--bang-ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A role is a badge: the sheriff's star is gold, the law blue, outlaws red. */
+.bang-role {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: #5b5148;
+  border-radius: 50%;
+}
+
+.bang-role .bang-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.bang-role.sheriff {
+  color: var(--bang-ink);
+  background: var(--bang-gold);
+  box-shadow: 0 0 0 2px #fff3c4;
+}
+
+.bang-role.deputy {
+  background: var(--bang-blue);
+}
+
+.bang-role.outlaw {
+  background: var(--bang-red);
+}
+
+.bang-role.renegade {
+  background: #4a3a5c;
+}
+
+.bang-role.hidden {
+  color: var(--bang-ink-soft);
+  background: transparent;
+  border: 2px dashed var(--bang-paper-edge);
+}
+
+.bang-seat-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.45rem;
+  align-items: center;
+}
+
+/* Life is counted in bullets, as on the character cards: a spent one stays as a ghost. */
+.bang-life {
+  display: inline-flex;
+  padding-inline: 0.15rem;
+  color: var(--bang-red);
+}
+
+/* The outline has air either side of it: the bullets stand shoulder to shoulder. */
+.bang-life .bang-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-inline: -0.25rem;
+}
+
+.bang-life .bang-icon.spent {
+  color: var(--bang-ink);
+  opacity: 0.2;
+}
+
+.bang-stat {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bang-stat .bang-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--bang-ink-soft);
+}
+
+/* A hand seen from behind: a fan of backs. */
+.bang-fan {
+  display: inline-flex;
+}
+
+.bang-fan:not(:empty) {
+  padding-left: 0.5rem;
+}
+
+.bang-fan .bang-card.back.mini {
+  width: 0.75rem;
+  height: 1.05rem;
+  margin-left: -0.5rem;
+  border-width: 1px;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.bang-fan .bang-icon {
+  display: none;
+}
+
+.bang-in-play {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* What is going on at a seat, as tabs on the top edge of the poster. */
+.bang-marks {
+  position: absolute;
+  top: -0.7rem;
+  left: 0.4rem;
+  z-index: 1;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.bang-mark {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--bang-ink);
+  background: var(--bang-paper);
+  border: 1px solid var(--bang-paper-edge);
+  border-radius: var(--radius-pill);
+}
+
+.bang-mark.turn,
+.bang-mark.winner {
+  background: var(--bang-gold);
+  border-color: var(--bang-gold);
+}
+
+.bang-mark.asked {
+  color: #fff;
+  background: var(--bang-red);
+  border-color: var(--bang-red);
+}
+
+/* What just happened to a player, over their poster for a moment. */
+.bang-fx {
+  position: absolute;
+  inset: -2px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--bang-display);
+  font-size: 1.35rem;
+  color: #fff;
+  text-shadow: 0 2px 4px rgb(0 0 0 / 0.7);
+  pointer-events: none;
+  background: rgb(179 38 30 / 0.72);
+  border-radius: 8px;
+}
+
+.bang-fx .bang-icon {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.bang-fx.answer {
+  background: rgb(42 93 159 / 0.72);
+}
+
+.bang-fx.blast {
+  background: rgb(214 112 20 / 0.82);
+}
+
+.bang-fx.death {
+  background: rgb(30 22 16 / 0.82);
+}
+
+/* Cards. */
+
+.bang-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  /* Room for a picked card to rise into. */
+  padding-top: 0.6rem;
+}
+
+/* A card is told apart by its border: brown is played and gone, blue stays on the table. */
+.bang-card {
+  --edge: var(--bang-brown);
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 5.7rem;
+  height: 8rem;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: var(--bang-ink);
+  text-align: center;
+  background: linear-gradient(160deg, #fdf6e1, #efdfb8);
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgb(0 0 0 / 0.3);
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+
+.bang-card.blue {
+  --edge: var(--bang-blue);
+}
+
+button.bang-card {
+  cursor: pointer;
+}
+
+button.bang-card:hover {
+  background: linear-gradient(160deg, #fffaea, #f4e6c2);
+  transform: translateY(-0.25rem);
+}
+
+/* The corner of a playing card. In a hint, it is read in line with the card's name. */
+.bang-pip {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bang-pip.red {
+  color: var(--bang-red, var(--danger));
+}
+
+.bang-card > .bang-pip {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.bang-card-range {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.25rem;
+  display: inline-flex;
+  gap: 0.1rem;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bang-card-art {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding-top: 0.9rem;
+  color: var(--edge);
+}
+
+.bang-card-art .bang-icon {
+  width: 3.2rem;
+  height: 3.2rem;
+}
+
+.bang-card-name {
+  display: grid;
+  place-items: center;
+  min-height: 2.15rem;
+  padding: 0.15rem 0.2rem;
+  font-family: var(--bang-display);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+  color: #fff7e0;
+  background: var(--edge);
+}
+
+.bang-card.lit {
+  box-shadow:
+    0 0 0 2px var(--bang-gold),
+    0 3px 9px rgb(0 0 0 / 0.35);
+}
+
+.bang-card.dimmed {
+  filter: grayscale(0.75);
+  opacity: 0.6;
+}
+
+.bang-card.selected {
+  box-shadow:
+    0 0 0 3px var(--bang-gold),
+    0 9px 14px rgb(0 0 0 / 0.4);
+  transform: translateY(-0.6rem);
+}
+
+/* As it lies in front of a player: the picture and the corner. */
+.bang-card.mini {
+  width: 2rem;
+  height: 2.7rem;
+  border-width: 2px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+.bang-card.mini > .bang-pip {
+  top: 0.08rem;
+  left: 0.12rem;
+  flex-direction: row;
+  font-size: 0.52rem;
+}
+
+.bang-card.mini .bang-card-range {
+  top: auto;
+  right: 0.12rem;
+  bottom: 0.05rem;
+  font-size: 0.6rem;
+}
+
+.bang-card.mini .bang-card-range .bang-icon {
+  display: none;
+}
+
+.bang-card.mini .bang-card-art {
+  padding-top: 0.5rem;
+}
+
+.bang-card.mini .bang-card-art .bang-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.bang-card.back {
+  display: grid;
+  place-items: center;
+  color: #e9c46a;
+  background: repeating-linear-gradient(45deg, var(--bang-back) 0 6px, #6a241f 6px 12px);
+  border-color: var(--bang-paper);
+}
+
+.bang-card.back .bang-icon {
+  width: 2.8rem;
+  height: 2.8rem;
+}
+
+.bang-card.back.mini .bang-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.bang-card.empty {
+  background: rgb(0 0 0 / 0.15);
+  border: 2px dashed rgb(255 255 255 / 0.4);
+  box-shadow: none;
+}
+
+/* What the viewer is asked, and what they may answer. */
+
+.bang-prompt {
+  gap: 0.6rem;
+}
+
+.bang-prompt.yours {
+  border-color: var(--bang-gold);
+  box-shadow: 0 0 0 2px rgb(224 160 25 / 0.35);
+}
+
+.bang-say {
+  margin: 0;
+  font-weight: 600;
+}
+
+.bang-say.muted {
+  font-weight: 400;
+}
+
+.bang-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* A card from someone's hand, to be taken unseen. */
+.bang-loot-hand {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: center;
+  max-width: 7.5rem;
+  padding: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+
+.bang-loot-hand:hover {
+  background: var(--surface-hover);
+}
+
+.bang-hand h2 {
+  margin: 0;
+}
+
+.bang-hand-count {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.bang-hand-count.over {
+  font-weight: 600;
+  color: var(--danger);
+}
+
+/* Who the viewer is, the roles dealt, and the log. */
+
+.bang-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.bang-identity > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.bang-identity .bang-role {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.bang-identity .bang-role .bang-icon {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.bang-identity .bang-portrait {
+  border-color: var(--border);
+}
+
+.bang-cast {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bang-cast li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bang-log,
+.bang-log ol {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bang-log {
+  gap: 0.6rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  font-size: 0.88rem;
+}
+
+.bang-log ol {
+  gap: 0.25rem;
+}
+
+.bang-log-turn {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.bang-log ol li {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr);
+  gap: 0.4rem;
+  align-items: start;
+}
+
+.bang-log ol .bang-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.1rem;
+  color: var(--muted);
+}
+
+.bang-log .death,
+.bang-log .death .bang-icon {
+  color: var(--danger);
+}
+
+.bang-credit {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+/* Given the room, the seats sit round the table where `seatSpots` puts them, and the table
+   grows with the number of seats so that no two overlap. After the rules above, which it
+   overrides. */
+@container bang-table (min-width: 47rem) {
+  .bang-ring {
+    position: relative;
+    display: block;
+    height: 31rem;
+  }
+
+  .bang-ring[data-seats='5'] {
+    height: 33rem;
+  }
+
+  .bang-ring[data-seats='6'] {
+    height: 36rem;
+  }
+
+  .bang-ring[data-seats='7'],
+  .bang-ring[data-seats='8'] {
+    height: 40rem;
+  }
+
+  .bang-centre {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(22rem, 38%);
+    translate: -50% -50%;
+  }
+
+  .bang-seats {
+    display: block;
+  }
+
+  .bang-seat {
+    position: absolute;
+    top: var(--y);
+    left: var(--x);
+    /* Narrower than the gap between two neighbours on the ring of seven. */
+    width: clamp(9.5rem, 19cqw, 12.5rem);
+    translate: -50% -50%;
+  }
+}
+
+/* A phone: the table runs edge to edge. */
+@media (max-width: 39.99rem) {
+  .bang-table {
+    margin-inline: -1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .bang-card:not(.mini) {
+    width: 5rem;
+    height: 7.1rem;
+  }
+
+  .bang-card:not(.mini) .bang-card-art .bang-icon {
+    width: 2.7rem;
+    height: 2.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A player to choose beckons. */
+  .bang-seat.selectable {
+    animation: bang-beckon 1.1s ease-in-out infinite;
+  }
+
+  .bang-seat.fx-hit,
+  .bang-seat.fx-blast {
+    animation: bang-shake 0.45s;
+  }
+
+  .bang-fx {
+    animation: bang-flash 1.5s ease-out both;
+  }
+
+  .bang-fx > * {
+    animation: bang-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  }
+
+  .bang-landing {
+    animation: bang-land 0.3s ease-out both;
+  }
+
+  .bang-seat.dead .bang-portrait {
+    animation: bang-pop 0.4s ease-out both;
+  }
+}
+
+@keyframes bang-beckon {
+  50% {
+    outline-offset: 5px;
+  }
+}
+
+@keyframes bang-shake {
+  20% {
+    transform: translateX(-6px) rotate(-1.5deg);
+  }
+
+  40% {
+    transform: translateX(6px) rotate(1.5deg);
+  }
+
+  60% {
+    transform: translateX(-4px);
+  }
+
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes bang-flash {
+  0%,
+  60% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes bang-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes bang-land {
+  from {
+    opacity: 0;
+    transform: translateY(-1.4rem) rotate(-9deg) scale(1.15);
+  }
+}

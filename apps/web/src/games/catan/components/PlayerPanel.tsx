@@ -4,7 +4,8 @@ import type { IconName } from '../art/icons';
 import { useHints, type Hint, type HintRules } from '../hints';
 import { useCatanText } from '../useCatanText';
 import { Icon } from './Icon';
-import { HintText, Tip, useTips } from './Tip';
+import { Tip, useTips } from '../../shared/Tip';
+import { HintText } from './HintText';
 
 function Stat({
   icon,

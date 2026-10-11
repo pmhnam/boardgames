@@ -1150,12 +1150,6 @@ button.catan-option[aria-checked='true'] {
   align-items: center;
 }
 
-/* Hints for newcomers. The wrapper is what is hovered, so that a disabled button can be asked
-   about too; it has no box, so everything around it is laid out as if it were not there. */
-.catan-tip {
-  display: contents;
-}
-
 /* Words with a hint behind them, where nothing else says so. */
 .catan-explained {
   text-decoration: underline dotted var(--muted);
@@ -1197,29 +1191,6 @@ button.catan-help::after {
   position: absolute;
   inset: -0.5rem;
   content: '';
-}
-
-/* Placed by script, in the body: above what it explains, inside the window, over the trade
-   sheet. */
-.catan-tip-bubble {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  width: max-content;
-  max-width: min(19rem, calc(100vw - 1rem));
-  padding: 0.5rem 0.65rem;
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: var(--text);
-  pointer-events: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.3);
 }
 
 .catan-tip-cost {

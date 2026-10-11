@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/alfa-slab-one": "^5.3.0",
     "@bgp/game-avalon": "workspace:*",
     "@bgp/game-catan": "workspace:*",
     "@bgp/game-bang": "workspace:*",
