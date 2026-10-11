@@ -6,13 +6,13 @@ import {
   type CardShortfall,
   type PlayerView,
 } from '@bgp/game-splendor';
-import { useState, type ReactNode } from 'react';
+import { memo, useState, type ReactNode } from 'react';
 import { CardSlot } from './CardActions';
 import { CardBack, CardStrip, DevCardView } from './DevCard';
 import { GemToken } from './GemToken';
 import { NobleTile } from './NobleTile';
 
-export function PlayerPanel({
+export const PlayerPanel = memo(function PlayerPanel({
   name,
   player,
   targetScore,
@@ -157,4 +157,4 @@ export function PlayerPanel({
       )}
     </section>
   );
-}
+});

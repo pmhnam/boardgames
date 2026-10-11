@@ -1453,7 +1453,7 @@ button.catan-help::after {
 
 @media (prefers-reduced-motion: no-preference) {
   .catan-target {
-    animation: catan-beckon 1.5s ease-in-out infinite;
+    animation: catan-beckon 1.5s ease-in-out 4;
   }
 
   .catan-dice.rolled .catan-die {

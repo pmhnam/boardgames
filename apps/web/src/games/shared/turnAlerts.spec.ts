@@ -6,7 +6,8 @@ describe.each(['harmonies', 'splendor'])('%s turn alerts', (gameType) => {
   let page: EventTarget & { hidden: boolean; hasFocus: () => boolean };
   let browser: EventTarget & { focus: ReturnType<typeof vi.fn> };
   const notices: FakeNotification[] = [];
-  const tones: Array<{ start: ReturnType<typeof vi.fn> }> = [];
+  const tones: Array<{ start: ReturnType<typeof vi.fn>; onended?: () => void }> = [];
+  let audioState = 'running';
   const audioClosed = vi.fn(() => Promise.resolve());
   let focused = false;
 
@@ -23,12 +24,22 @@ describe.each(['harmonies', 'splendor'])('%s turn alerts', (gameType) => {
   }
 
   class FakeAudio {
-    state = 'running';
+    get state() {
+      return audioState;
+    }
+    suspend = vi.fn(() => {
+      audioState = 'suspended';
+      return Promise.resolve();
+    });
+    resume = vi.fn(() => {
+      audioState = 'running';
+      return Promise.resolve();
+    });
     currentTime = 0;
     destination = {};
     close = audioClosed;
     createOscillator() {
-      const tone = {
+      const tone: (typeof tones)[number] & Record<string, unknown> = {
         frequency: { value: 0 },
         connect: vi.fn(),
         disconnect: vi.fn(),
@@ -61,6 +72,7 @@ describe.each(['harmonies', 'splendor'])('%s turn alerts', (gameType) => {
   beforeEach(() => {
     notices.length = 0;
     tones.length = 0;
+    audioState = 'running';
     audioClosed.mockClear();
     FakeNotification.permission = 'granted';
     focused = false;
@@ -117,6 +129,21 @@ describe.each(['harmonies', 'splendor'])('%s turn alerts', (gameType) => {
     focused = true;
     browser.dispatchEvent(new Event('focus'));
     expect(notices[0]!.close).toHaveBeenCalledOnce();
+  });
+
+  it('lets the audio output sleep between chimes', () => {
+    page.dispatchEvent(new Event('pointerdown'));
+    expect(audioState).toBe('suspended');
+    alerts.update(turn());
+    expect(tones).toHaveLength(2);
+    expect(audioState).toBe('running');
+    tones[0]!.onended?.();
+    expect(audioState).toBe('running');
+    tones[1]!.onended?.();
+    expect(audioState).toBe('suspended');
+    // A later tap has nothing left to unlock, so it does not wake the output for nothing.
+    page.dispatchEvent(new Event('pointerdown'));
+    expect(audioState).toBe('suspended');
   });
 
   it('never alerts spectators or inactive/finished turns', () => {

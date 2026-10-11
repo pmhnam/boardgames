@@ -2,7 +2,6 @@ import {
   type AddBotRequest,
   type UpdateRoomSettingsRequest,
   type BotLevel,
-  type GameDefinitionDto,
   ClientEvents,
   ServerEvents,
   type GameStartedMessage,
@@ -14,6 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { gamesQuery } from '../../games/gamesQuery';
 import { getGameUi } from '../../games/registry';
 import { useGameConfig } from '../../games/useGameConfig';
 import { api } from '../../shared/api/http';
@@ -170,10 +170,7 @@ export function RoomPage() {
       if (data.url) await copy(data.url);
     }
   };
-  const games = useQuery({
-    queryKey: ['games'],
-    queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
-  });
+  const games = useQuery(gamesQuery);
 
   // The room's call can be joined from here by anyone seated in it.
   useVoiceRoom(room.data?.members.some((member) => member.userId === userId) ? roomId : null);

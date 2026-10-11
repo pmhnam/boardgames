@@ -1,5 +1,13 @@
-import { TIERS, type SplendorAction, type SplendorView, type Tier } from '@bgp/game-splendor';
-import { useEffect, useState } from 'react';
+import {
+  TIERS,
+  type CardShortfall,
+  type DevelopmentCard,
+  type GemColor,
+  type SplendorAction,
+  type SplendorView,
+  type Tier,
+} from '@bgp/game-splendor';
+import { memo, useEffect, useState } from 'react';
 import { playerName, type GameViewProps } from '../types';
 import { Bank } from './components/Bank';
 import { CardSlot } from './components/CardActions';
@@ -9,6 +17,8 @@ import { PlayerPanel } from './components/PlayerPanel';
 import { ReturnPrompt } from './components/ReturnPrompt';
 import { TIER_LABEL } from './layout';
 import { useLastMove } from './useLastMove';
+import { useSharedView } from '../shared/useSharedView';
+import { useStableHandler } from '../shared/useStableHandler';
 import { useTurnAlerts } from '../shared/useTurnAlerts';
 import { HeaderControls } from '../../shared/components/HeaderControls';
 import './splendor.css';
@@ -27,6 +37,56 @@ const ROWS = [...TIERS].reverse();
 
 const NO_SHORTFALLS: SplendorView['shortfalls'] = {};
 
+/**
+ * A card on the table. Drawn again only when something about this card changed: what it is
+ * told is plain values and a handler that stays the same, never a function made per render.
+ */
+const MarketCard = memo(function MarketCard({
+  card,
+  shortfall,
+  fresh,
+  selected,
+  onToggle,
+}: {
+  card: DevelopmentCard;
+  shortfall?: CardShortfall;
+  fresh: boolean;
+  selected: boolean;
+  onToggle?: (cardId: string) => void;
+}) {
+  return (
+    <DevCardView
+      card={card}
+      shortfall={shortfall}
+      fresh={fresh}
+      selected={selected}
+      onSelect={onToggle && (() => onToggle(card.id))}
+    />
+  );
+});
+
+const Deck = memo(function Deck({
+  tier,
+  count,
+  selected,
+  onToggle,
+}: {
+  tier: Tier;
+  count: number;
+  selected: boolean;
+  onToggle?: (tier: Tier) => void;
+}) {
+  return (
+    <CardBack
+      tier={tier}
+      count={count}
+      selected={selected}
+      onSelect={onToggle && (() => onToggle(tier))}
+      disabled={count === 0}
+    />
+  );
+});
+
 export function SplendorGameView({
   message,
   players,
@@ -34,7 +94,8 @@ export function SplendorGameView({
   disabled,
   autoplay,
 }: GameViewProps<SplendorView, SplendorAction>) {
-  const view = message.state;
+  // Parts of the table that did not change keep their identity, so their components can rest.
+  const view = useSharedView(message.state);
   const me = message.viewerPlayerId;
   const { legal, turn } = view;
   const playing = view.phase === 'PLAYING';
@@ -106,9 +167,16 @@ export function SplendorGameView({
 
   const selectedCardId = selection?.kind === 'card' ? selection.cardId : null;
   const selectedTier = selection?.kind === 'deck' ? selection.tier : null;
-  const toggleCard = (cardId: string) =>
-    select(selectedCardId === cardId ? null : { kind: 'card', cardId });
-  const toggleDeck = (tier: Tier) => select(selectedTier === tier ? null : { kind: 'deck', tier });
+  const toggleCard = useStableHandler((cardId: string) =>
+    select(selectedCardId === cardId ? null : { kind: 'card', cardId }),
+  );
+  const toggleDeck = useStableHandler((tier: Tier) =>
+    select(selectedTier === tier ? null : { kind: 'deck', tier }),
+  );
+  const takeGems = useStableHandler((colors: GemColor[]) =>
+    act('take', { type: 'TAKE_GEMS', colors }),
+  );
+  const pass = useStableHandler(() => act('pass', { type: 'PASS' }));
   const reserveLabel = `Reserve${view.bank.gold > 0 ? ' (+1 gold)' : ''}`;
 
   /** The buttons under a selected card. What they allow is the engine's call, via `legal`. */
@@ -279,12 +347,11 @@ export function SplendorGameView({
                 <CardSlot
                   open={selectedTier === tier}
                   card={
-                    <CardBack
+                    <Deck
                       tier={tier}
                       count={view.deckCounts[tier]}
                       selected={selectedTier === tier}
-                      onSelect={interactive ? () => toggleDeck(tier) : undefined}
-                      disabled={view.deckCounts[tier] === 0}
+                      onToggle={interactive ? toggleDeck : undefined}
                     />
                   }
                 >
@@ -309,12 +376,12 @@ export function SplendorGameView({
                       open={selectedCardId === card.id}
                       alignEnd={slot >= 2}
                       card={
-                        <DevCardView
+                        <MarketCard
                           card={card}
                           shortfall={view.shortfalls[card.id]}
-                          fresh={lastMove?.freshCardIds.includes(card.id)}
+                          fresh={lastMove?.freshCardIds.includes(card.id) === true}
                           selected={selectedCardId === card.id}
-                          onSelect={interactive ? () => toggleCard(card.id) : undefined}
+                          onToggle={interactive ? toggleCard : undefined}
                         />
                       }
                     >
@@ -336,8 +403,8 @@ export function SplendorGameView({
             isMyTurn={isMyTurn}
             busy={busy('take') ? 'take' : busy('pass') ? 'pass' : undefined}
             version={message.version}
-            onTake={(colors) => act('take', { type: 'TAKE_GEMS', colors })}
-            onPass={() => act('pass', { type: 'PASS' })}
+            onTake={takeGems}
+            onPass={pass}
           />
         </section>
 

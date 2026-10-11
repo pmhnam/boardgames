@@ -1,5 +1,5 @@
 import { GEM_COLORS, type GemColor, type LegalMoves, type TokenCounts } from '@bgp/game-splendor';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { TOKEN_LABEL } from '../layout';
 import { GemIcon } from './GemIcon';
 import { gemStyle } from './GemToken';
@@ -11,7 +11,7 @@ const NOTHING_PICKED: GemColor[] = [];
  * and how many; this only keeps the pick in one of the two shapes it accepts: different
  * colours, or one colour twice.
  */
-export function Bank({
+export const Bank = memo(function Bank({
   bank,
   legal,
   interactive,
@@ -143,4 +143,4 @@ export function Bank({
       )}
     </div>
   );
-}
+});

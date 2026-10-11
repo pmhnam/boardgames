@@ -65,6 +65,24 @@ export function voiceSupported(): boolean {
   );
 }
 
+/**
+ * Speech is clear well below what a browser sends by default, and in a call of eight each phone
+ * uploads its voice seven times over.
+ */
+const VOICE_BITS_PER_SECOND = 24_000;
+
+function capBitrate(sender: RTCRtpSender): void {
+  try {
+    const parameters = sender.getParameters();
+    // Empty until the connection is negotiated in some browsers; one encoding is what audio has.
+    if (!parameters.encodings?.length) parameters.encodings = [{}];
+    for (const encoding of parameters.encodings) encoding.maxBitrate = VOICE_BITS_PER_SECOND;
+    void sender.setParameters(parameters).catch(() => undefined);
+  } catch {
+    // Uncapped: the call still works, it only costs more data.
+  }
+}
+
 function micProblem(error: unknown): VoiceProblem {
   const name = error instanceof DOMException ? error.name : '';
   if (name === 'NotAllowedError' || name === 'SecurityError') return 'mic-denied';
@@ -87,7 +105,10 @@ export class VoiceCall {
   private state: CallState;
   private closed = false;
   private audio: AudioContext | null = null;
-  private readonly meters = new Map<string, { analyser: AnalyserNode; source: AudioNode }>();
+  private readonly meters = new Map<
+    string,
+    { analyser: AnalyserNode; source: AudioNode; samples: Uint8Array<ArrayBuffer> }
+  >();
   private readonly lastHeard = new Map<string, number>();
   private loudnessTimer: number | undefined;
 
@@ -258,7 +279,7 @@ export class VoiceCall {
     this.links.set(peerId, link);
 
     for (const track of this.microphone?.getAudioTracks() ?? []) {
-      connection.addTrack(track, this.microphone as MediaStream);
+      capBitrate(connection.addTrack(track, this.microphone as MediaStream));
     }
     connection.onicecandidate = ({ candidate }) => {
       this.send(peerId, {
@@ -327,7 +348,8 @@ export class VoiceCall {
       const analyser = this.audio.createAnalyser();
       analyser.fftSize = 512;
       source.connect(analyser);
-      this.meters.set(key, { analyser, source });
+      // One buffer for the life of the meter: it is filled several times a second.
+      this.meters.set(key, { analyser, source, samples: new Uint8Array(analyser.fftSize) });
     } catch {
       // No meter for this voice: it is still heard.
     }
@@ -345,7 +367,7 @@ export class VoiceCall {
     const speaking = (key: string): boolean => {
       const meter = this.meters.get(key);
       if (!meter) return false;
-      const samples = new Uint8Array(meter.analyser.fftSize);
+      const { samples } = meter;
       meter.analyser.getByteTimeDomainData(samples);
       let sum = 0;
       for (const sample of samples) sum += ((sample - 128) / 128) ** 2;

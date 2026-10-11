@@ -17,9 +17,24 @@ import {
 import { AppConfig } from '../../config/app-config.js';
 import { GameRegistry } from '../games/game-registry.js';
 import { GameActionService } from '../matches/game-action.service.js';
-import { MatchRepository, type MatchSnapshot } from '../matches/match.repository.js';
+import {
+  MatchRepository,
+  type MatchRecord,
+  type MatchSnapshot,
+} from '../matches/match.repository.js';
 
 type StepOutcome = 'acted' | 'retry' | 'idle';
+
+interface BotLoop {
+  /** Something changed since the loop last looked. */
+  dirty: boolean;
+  /**
+   * The match as last saved, when whoever saved it passed it on: the next look then has no need
+   * to read it back. Only the match. Who controls each seat is always read, because that can
+   * change without the state doing so.
+   */
+  saved: MatchRecord | null;
+}
 
 /**
  * Plays the computer players' turns. A bot is not special: it is handed the view of its own
@@ -41,8 +56,8 @@ function isOvertaken(error: unknown): boolean {
 @Injectable()
 export class BotRunnerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(BotRunnerService.name);
-  /** Matches with a loop running, and whether something changed since its last look. */
-  private readonly loops = new Map<string, { dirty: boolean }>();
+  /** Matches with a loop running, and what it has been told since its last look. */
+  private readonly loops = new Map<string, BotLoop>();
   private stopped = false;
 
   constructor(
@@ -70,7 +85,7 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
   onMatchStateChanged(event: MatchStateChangedEvent): void {
     // Told what was saved, a table with no computer player to move needs no look at all.
     if (event.snapshot && !this.awaitsComputer(event.snapshot)) return;
-    this.wake(event.matchId);
+    this.wake(event.matchId, event.snapshot?.match);
   }
 
   @OnEvent(PlatformEvents.MatchControlChanged)
@@ -95,13 +110,14 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
    * Returns at once: the action that triggered the event must not wait for the bots' replies.
    * One loop per match; a change that arrives while it runs is picked up by that loop.
    */
-  private wake(matchId: string): void {
+  private wake(matchId: string, saved: MatchRecord | null = null): void {
     const running = this.loops.get(matchId);
     if (running) {
       running.dirty = true;
+      if (saved && saved.stateVersion >= (running.saved?.stateVersion ?? 0)) running.saved = saved;
       return;
     }
-    const loop = { dirty: false };
+    const loop: BotLoop = { dirty: false, saved };
     this.loops.set(matchId, loop);
     void this.run(matchId, loop).finally(() => {
       this.loops.delete(matchId);
@@ -110,11 +126,11 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
     });
   }
 
-  private async run(matchId: string, loop: { dirty: boolean }): Promise<void> {
+  private async run(matchId: string, loop: BotLoop): Promise<void> {
     try {
       while (!this.stopped) {
         loop.dirty = false;
-        const outcome = await this.step(matchId);
+        const outcome = await this.step(matchId, loop);
         if (outcome === 'idle' && !loop.dirty) return;
       }
     } catch (error) {
@@ -125,14 +141,20 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
   }
 
   /** Plays one action for a computer player whose turn it is, if there is one. */
-  private async step(matchId: string): Promise<StepOutcome> {
-    let match = await this.matches.findById(matchId);
+  private async step(matchId: string, loop: BotLoop): Promise<StepOutcome> {
+    // Used once: a look that has to be repeated reads the match afresh.
+    const saved = loop.saved;
+    loop.saved = null;
+    const [first, players] = await Promise.all([
+      saved ?? this.matches.findById(matchId),
+      this.matches.listPlayers(matchId),
+    ]);
+    let match = first;
     if (!match || match.status !== 'playing') return 'idle';
 
     const game = this.registry.get(match.gameType);
     if (!game.bot || game.engine.engineVersion !== match.engineVersion) return 'idle';
 
-    const players = await this.matches.listPlayers(matchId);
     const toMove = game.engine.getCurrentPlayerIds(match.state);
     let bot = players.find(
       (player) =>
@@ -146,9 +168,12 @@ export class BotRunnerService implements OnApplicationBootstrap, OnApplicationSh
     if (this.stopped) return 'idle';
 
     // Re-read after thinking time: the player may have reclaimed control or acted meanwhile.
-    match = await this.matches.findById(matchId);
+    const [current, currentPlayers] = await Promise.all([
+      this.matches.findById(matchId),
+      this.matches.listPlayers(matchId),
+    ]);
+    match = current;
     if (!match || match.status !== 'playing') return 'idle';
-    const currentPlayers = await this.matches.listPlayers(matchId);
     bot = currentPlayers.find((player) => player.playerId === scheduledPlayerId);
     if (!bot || (bot.botLevel === null && bot.autoplayLevel === null)) return 'retry';
     if (!game.engine.getCurrentPlayerIds(match.state).includes(bot.playerId)) return 'retry';

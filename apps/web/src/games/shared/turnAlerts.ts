@@ -17,6 +17,9 @@ export class TurnAlerts {
   private lastTurn: string | null = null;
   private notification: Notification | null = null;
   private audio: AudioContext | null = null;
+  /** The context has run once, after a tap or a key press: from then on it wakes without one. */
+  private primed = false;
+  private chiming = 0;
   sound = true;
   notifications = false;
 
@@ -33,7 +36,13 @@ export class TurnAlerts {
     if (!this.sound || !('AudioContext' in window)) return;
     try {
       this.audio ??= new AudioContext();
-      if (this.audio.state === 'suspended') void this.audio.resume().catch(() => undefined);
+      if (this.primed) return;
+      const primed = () => {
+        this.primed = true;
+        this.rest();
+      };
+      if (this.audio.state === 'running') primed();
+      else void this.audio.resume().then(primed, () => undefined);
     } catch {
       // Audio is optional; unsupported or blocked audio must not interrupt the game.
     }
@@ -88,9 +97,23 @@ export class TurnAlerts {
     }
   }
 
+  /**
+   * A running context keeps the phone's audio output awake even in silence, and a match is
+   * nearly all silence: it is put to sleep between chimes.
+   */
+  private rest() {
+    const audio = this.audio;
+    if (this.chiming > 0 || !audio || audio.state !== 'running') return;
+    try {
+      void audio.suspend().catch(() => undefined);
+    } catch {
+      // Left running: louder on the battery, no worse for the player.
+    }
+  }
+
   private playChime() {
     const audio = this.audio;
-    if (!this.sound || !audio || audio.state !== 'running') return;
+    if (!this.sound || !audio || !this.primed || audio.state === 'closed') return;
     try {
       for (const [index, frequency] of [660, 880].entries()) {
         const oscillator = audio.createOscillator();
@@ -103,13 +126,18 @@ export class TurnAlerts {
         gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
         oscillator.connect(gain);
         gain.connect(audio.destination);
+        this.chiming++;
         oscillator.onended = () => {
           oscillator.disconnect();
           gain.disconnect();
+          this.chiming--;
+          this.rest();
         };
         oscillator.start(start);
         oscillator.stop(start + 0.26);
       }
+      // Its clock stands still while it sleeps, so the notes above play from when it wakes.
+      if (audio.state !== 'running') void audio.resume().catch(() => undefined);
     } catch {
       // The browser may suspend audio when the app is in the background.
     }

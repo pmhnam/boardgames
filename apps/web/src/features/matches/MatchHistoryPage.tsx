@@ -1,6 +1,7 @@
-import type { GameDefinitionDto, MatchDto } from '@bgp/shared-types';
+import type { MatchDto } from '@bgp/shared-types';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { gamesQuery } from '../../games/gamesQuery';
 import { playerName } from '../../games/types';
 import { api } from '../../shared/api/http';
 import { errorText } from '../../shared/i18n/errors';
@@ -34,10 +35,7 @@ export function MatchHistoryPage() {
     enabled: userId !== undefined,
   });
   // For the games' names. Shared with the lobby, so usually already loaded.
-  const games = useQuery({
-    queryKey: ['games'],
-    queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
-  });
+  const games = useQuery(gamesQuery);
   const gameName = (gameType: string) =>
     games.data?.find((game) => game.gameType === gameType)?.displayName ?? gameType;
   const when = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });

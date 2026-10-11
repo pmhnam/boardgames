@@ -755,7 +755,7 @@
   }
 
   .hex-target-ring {
-    animation: harmonies-march 1.2s linear infinite;
+    animation: harmonies-march 1.2s linear 5;
   }
 
   .harmonies-player .hex-fresh-ring {
@@ -763,7 +763,7 @@
   }
 
   .harmonies-end.ready:not(:disabled) {
-    animation: harmonies-ready 1.6s ease-in-out infinite;
+    animation: harmonies-ready 1.6s ease-in-out 4;
   }
 
   .hex-ghost {

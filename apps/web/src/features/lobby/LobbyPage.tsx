@@ -1,9 +1,16 @@
-import type { GameDefinitionDto, RoomDto } from '@bgp/shared-types';
-import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import {
+  ClientEvents,
+  ServerEvents,
+  type GameDefinitionDto,
+  type RoomDto,
+} from '@bgp/shared-types';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { gamesQuery } from '../../games/gamesQuery';
 import { getGameUi } from '../../games/registry';
 import { api } from '../../shared/api/http';
 import { useT } from '../../shared/i18n/useT';
+import { useSocket } from '../../shared/websocket/SocketProvider';
 import { useAuthStore } from '../auth/auth.store';
 import { ContinueSection } from './ContinueSection';
 import { CreateRoomDialog } from './CreateRoomDialog';
@@ -14,8 +21,11 @@ import { RoomList } from './RoomList';
 import { partitionRooms } from './rooms';
 import './lobby.css';
 
-/** How often the room list is refreshed while the lobby is open. */
-const ROOM_LIST_REFRESH_MS = 5000;
+/**
+ * The server says when the room list has changed, so this is only the net under that: a notice
+ * lost to a connection that dropped at the wrong moment is made up for within the minute.
+ */
+const ROOM_LIST_REFRESH_MS = 60_000;
 
 const PLACEHOLDER_CARDS = [0, 1, 2, 3];
 
@@ -25,16 +35,37 @@ export function LobbyPage() {
   const t = useT();
   const user = useAuthStore((state) => state.session?.user);
   const [creating, setCreating] = useState<GameDefinitionDto | null>(null);
+  const queryClient = useQueryClient();
+  const socket = useSocket();
 
-  const games = useQuery({
-    queryKey: ['games'],
-    queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
-  });
+  const games = useQuery(gamesQuery);
   const rooms = useQuery({
     queryKey: ['rooms'],
     queryFn: () => api<RoomDto[]>('GET', '/rooms'),
     refetchInterval: ROOM_LIST_REFRESH_MS,
   });
+
+  // Fetch the list again when told it changed. Subscribing on every `connect` covers reconnects;
+  // coming back from one also fetches, for what changed while the connection was down.
+  useEffect(() => {
+    if (!socket) return;
+    const refresh = () => void queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    let subscribed = false;
+    const subscribe = () => {
+      socket.emit(ClientEvents.LobbyJoin);
+      if (subscribed) refresh();
+      subscribed = true;
+    };
+    socket.on('connect', subscribe);
+    socket.on(ServerEvents.LobbyChanged, refresh);
+    if (socket.connected) subscribe();
+
+    return () => {
+      socket.off('connect', subscribe);
+      socket.off(ServerEvents.LobbyChanged, refresh);
+      socket.emit(ClientEvents.LobbyLeave);
+    };
+  }, [socket, queryClient]);
 
   // The server's order, with the demos moved behind the games people came for.
   const gameList = useMemo(

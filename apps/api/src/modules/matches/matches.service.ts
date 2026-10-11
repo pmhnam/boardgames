@@ -134,9 +134,27 @@ export class MatchesService {
     return match ? { match, players } : null;
   }
 
+  /** Who may see a match is decided as in `getAccess`, without loading its state to do so. */
   async getMatch(matchId: string, userId: string): Promise<MatchDto> {
-    const { match, players } = await this.getAccess(matchId, userId);
+    const found = await this.getSummaryForBroadcast(matchId);
+    if (!found) throw new AppError(ErrorCodes.MatchNotFound, 'Match not found.', 404);
+    const { match, players } = found;
+    const seated = players.some((candidate) => candidate.userId === userId);
+    if (!seated && !this.registry.get(match.gameType).definition.supportsSpectators) {
+      throw new AppError(ErrorCodes.Forbidden, 'You are not a player in this match.', 403);
+    }
     return toMatchDto(match, players);
+  }
+
+  /** A match without its state, for the listeners that only report who plays or how it ended. */
+  async getSummaryForBroadcast(
+    matchId: string,
+  ): Promise<{ match: MatchSummaryRecord; players: MatchPlayerRecord[] } | null> {
+    const [match, players] = await Promise.all([
+      this.matches.findSummary(matchId),
+      this.matches.listPlayers(matchId),
+    ]);
+    return match ? { match, players } : null;
   }
 
   async getStateMessage(matchId: string, userId: string): Promise<GameStateMessage> {

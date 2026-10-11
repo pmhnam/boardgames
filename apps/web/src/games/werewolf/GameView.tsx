@@ -5,7 +5,9 @@ import {
   type WerewolfAction,
   type WerewolfView,
 } from '@bgp/game-werewolf';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { useSharedView } from '../shared/useSharedView';
+import { useStableHandler } from '../shared/useStableHandler';
 import { playerName, type GameViewProps } from '../types';
 import { EventLog } from './components/EventLog';
 import { PlayerGrid, type PlayerTile } from './components/PlayerGrid';
@@ -53,12 +55,13 @@ export function WerewolfGameView({
   sendAction,
   disabled,
 }: GameViewProps<WerewolfView, WerewolfAction>) {
-  const view = message.state;
+  // Parts of the table that did not change keep their identity, so their components can rest.
+  const view = useSharedView(message.state);
   const me = view.me;
   const legal = me?.legal;
   const action = disabled ? null : (legal?.action ?? null);
   const over = view.phase === 'FINISHED';
-  const nameOf = (playerId: string) => playerName(players, playerId);
+  const nameOf = useStableHandler((playerId: string) => playerName(players, playerId));
 
   // Local UI state only: what is picked but not yet sent, and whether secrets are on screen.
   const [picked, setPicked] = useState<string[]>([]);
@@ -73,12 +76,13 @@ export function WerewolfGameView({
   }, [question]);
 
   const wanted = action === 'CUPID_LINK' ? 2 : 1;
-  const pick = (playerId: string) =>
+  const pick = useStableHandler((playerId: string) =>
     setPicked((current) =>
       current.includes(playerId)
         ? current.filter((id) => id !== playerId)
         : [...current, playerId].slice(-wanted),
-    );
+    ),
+  );
   const [first, second] = picked;
 
   const alive = view.players.filter((player) => player.alive);
@@ -86,17 +90,17 @@ export function WerewolfGameView({
 
   const tiles: PlayerTile[] = view.players.map((player) => {
     const { playerId } = player;
-    const marks: ReactNode[] = [];
-    const mark = (key: string, text: string) => marks.push(<span key={key}>{text}</span>);
-    if (view.phase === 'DAY_DISCUSSION' && view.ready.includes(playerId)) mark('ready', 'Sẵn sàng');
-    if (view.phase === 'DAY_VOTE' && view.voted.includes(playerId)) mark('voted', 'Đã bỏ phiếu');
-    if (player.alive && !player.canVote) mark('mute', 'Mất quyền bỏ phiếu');
-    if (view.shooterId === playerId) mark('shooter', 'Đang ngắm bắn');
-    if ((secretsShown || over) && view.lovers?.includes(playerId)) mark('lover', '❤ Cặp đôi');
-    if (over && view.winnerPlayerIds.includes(playerId)) mark('winner', '🏆 Thắng');
+    const marks: string[] = [];
+    const mark = (text: string) => marks.push(text);
+    if (view.phase === 'DAY_DISCUSSION' && view.ready.includes(playerId)) mark('Sẵn sàng');
+    if (view.phase === 'DAY_VOTE' && view.voted.includes(playerId)) mark('Đã bỏ phiếu');
+    if (player.alive && !player.canVote) mark('Mất quyền bỏ phiếu');
+    if (view.shooterId === playerId) mark('Đang ngắm bắn');
+    if ((secretsShown || over) && view.lovers?.includes(playerId)) mark('❤ Cặp đôi');
+    if (over && view.winnerPlayerIds.includes(playerId)) mark('🏆 Thắng');
     const hunters = packVotes.filter((vote) => vote.targetId === playerId);
     if (hunters.length > 0) {
-      mark('pack', `Sói chọn: ${hunters.map((vote) => nameOf(vote.wolfId)).join(', ')}`);
+      mark(`Sói chọn: ${hunters.map((vote) => nameOf(vote.wolfId)).join(', ')}`);
     }
     return {
       player,

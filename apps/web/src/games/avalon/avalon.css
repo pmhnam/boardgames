@@ -1053,7 +1053,7 @@ button.avalon-seat-body:hover {
 @media (prefers-reduced-motion: no-preference) {
   /* A player to choose beckons. */
   .avalon-seat.selectable:not(.selected) {
-    animation: avalon-beckon 1.2s ease-in-out infinite;
+    animation: avalon-beckon 1.2s ease-in-out 4;
   }
 
   /* The quest being decided draws the eye once, when it becomes the one. */

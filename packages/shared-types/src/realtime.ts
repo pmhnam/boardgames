@@ -2,6 +2,8 @@ import type { ApiError } from './errors.js';
 import type { MatchResultDto, PlayerAutoplayDto, RoomDto } from './rest.js';
 
 export const ClientEvents = {
+  LobbyJoin: 'lobby.join',
+  LobbyLeave: 'lobby.leave',
   RoomJoin: 'room.join',
   RoomLeave: 'room.leave',
   GameSync: 'game.sync',
@@ -13,15 +15,13 @@ export const ClientEvents = {
 } as const;
 
 export const ServerEvents = {
+  /** Carries nothing: the room list differs per person, so each fetches their own. */
+  LobbyChanged: 'lobby.changed',
   RoomUpdated: 'room.updated',
   GameStarted: 'game.started',
   GameState: 'game.state',
   GameAutoplay: 'game.autoplay',
-  GameActionAccepted: 'game.action.accepted',
-  GameActionRejected: 'game.action.rejected',
   GameFinished: 'game.finished',
-  PlayerConnected: 'player.connected',
-  PlayerDisconnected: 'player.disconnected',
   VoicePeerJoined: 'voice.peer-joined',
   VoicePeerLeft: 'voice.peer-left',
   VoicePeerMuted: 'voice.peer-muted',
@@ -73,12 +73,6 @@ export interface GameActionAccepted {
   duplicate: boolean;
 }
 
-export interface GameActionRejected {
-  gameId: string;
-  requestId: string;
-  error: ApiError;
-}
-
 export interface GameStartedMessage {
   roomId: string;
   matchId: string;
@@ -90,11 +84,6 @@ export interface GameFinishedMessage {
   /** `abandoned` when an administrator ended it; there is then no result. */
   status: 'finished' | 'abandoned';
   result: MatchResultDto | null;
-}
-
-export interface PlayerPresenceMessage {
-  gameId: string;
-  playerId: string;
 }
 
 export type RoomUpdatedMessage = RoomDto;

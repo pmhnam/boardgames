@@ -1122,9 +1122,10 @@ button.bang-card:hover {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* A player to choose beckons. */
+  /* A player to choose beckons: a few times, then holds still. A phone left waiting on a
+     decision would otherwise repaint every seat for as long as it waits. */
   .bang-seat.selectable {
-    animation: bang-beckon 1.1s ease-in-out infinite;
+    animation: bang-beckon 1.1s ease-in-out 4;
   }
 
   .bang-seat.fx-hit,

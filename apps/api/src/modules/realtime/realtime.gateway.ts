@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, type OnApplicationShutdown } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   ConnectedSocket,
@@ -7,7 +7,6 @@ import {
   WebSocketGateway,
   WebSocketServer,
   type OnGatewayConnection,
-  type OnGatewayDisconnect,
   type OnGatewayInit,
 } from '@nestjs/websockets';
 import {
@@ -16,11 +15,9 @@ import {
   ServerEvents,
   type Ack,
   type GameActionAccepted,
-  type GameActionRejected,
   type GameFinishedMessage,
   type GameStartedMessage,
   type GameStateMessage,
-  type PlayerPresenceMessage,
   type RoomDto,
 } from '@bgp/shared-types';
 import type { DefaultEventsMap, Server, Socket } from 'socket.io';
@@ -35,6 +32,7 @@ import {
   type UserDisabledEvent,
 } from '../../common/events/platform-events.js';
 import { toAck } from '../../common/realtime/ack.js';
+import { GATEWAY_OPTIONS } from '../../common/realtime/gateway-options.js';
 import { parseWithSchema } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthService } from '../auth/auth.service.js';
 import { GameActionService } from '../matches/game-action.service.js';
@@ -47,8 +45,6 @@ interface SocketData {
   /** Set once, from the verified handshake token. */
   userId: string;
   actionLimiter: RateLimiter;
-  /** matchId -> the player this socket is seated as. */
-  seats: Map<string, string>;
 }
 
 type AppSocket = Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, SocketData>;
@@ -56,7 +52,12 @@ type AppSocket = Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, So
 const ACTION_BURST = 20;
 const ACTIONS_PER_SECOND = 5;
 
+/** However fast rooms change, the lobby is told at most this often. */
+const LOBBY_NOTICE_INTERVAL_MS = 2000;
+
 const channels = {
+  /** Everyone looking at the list of rooms. */
+  lobby: 'lobby',
   room: (roomId: string) => `room:${roomId}`,
   match: (matchId: string) => `match:${matchId}`,
   matchPlayer: (matchId: string, playerId: string) => `match:${matchId}:player:${playerId}`,
@@ -68,12 +69,15 @@ const channels = {
 /**
  * Transport only: authenticate, validate shapes, delegate, relay. No game or room rules here.
  */
-@WebSocketGateway({ cors: { origin: true, credentials: true } })
-export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+@WebSocketGateway(GATEWAY_OPTIONS)
+export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnApplicationShutdown {
   @WebSocketServer()
   private server: Server;
 
   private readonly logger = new Logger(RealtimeGateway.name);
+
+  private lobbyNoticeAt = 0;
+  private lobbyNoticeTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly auth: AuthService,
@@ -90,7 +94,6 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
         .then(({ userId }) => {
           socket.data.userId = userId;
           socket.data.actionLimiter = new RateLimiter(ACTION_BURST, ACTIONS_PER_SECOND);
-          socket.data.seats = new Map();
           next();
         })
         .catch(() => next(new Error(ErrorCodes.Unauthorized)));
@@ -102,10 +105,25 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     await socket.join(channels.user(socket.data.userId));
   }
 
-  handleDisconnect(socket: AppSocket): void {
-    for (const [gameId, playerId] of socket.data.seats ?? []) {
-      void this.emitPresence(ServerEvents.PlayerDisconnected, gameId, playerId);
-    }
+  onApplicationShutdown(): void {
+    if (this.lobbyNoticeTimer) clearTimeout(this.lobbyNoticeTimer);
+  }
+
+  /** The lobby's room list is fetched over HTTP; this only asks to be told when to fetch it. */
+  @SubscribeMessage(ClientEvents.LobbyJoin)
+  subscribeToLobby(@ConnectedSocket() socket: AppSocket): Promise<Ack<null>> {
+    return this.ack(async () => {
+      await socket.join(channels.lobby);
+      return null;
+    });
+  }
+
+  @SubscribeMessage(ClientEvents.LobbyLeave)
+  unsubscribeFromLobby(@ConnectedSocket() socket: AppSocket): Promise<Ack<null>> {
+    return this.ack(async () => {
+      await socket.leave(channels.lobby);
+      return null;
+    });
   }
 
   @SubscribeMessage(ClientEvents.RoomJoin)
@@ -148,11 +166,6 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       await socket.join(channels.match(gameId));
       if (player) {
         await socket.join(channels.matchPlayer(gameId, player.playerId));
-        if (!socket.data.seats.has(gameId)) {
-          socket.data.seats.set(gameId, player.playerId);
-          const presence: PlayerPresenceMessage = { gameId, playerId: player.playerId };
-          socket.to(channels.match(gameId)).emit(ServerEvents.PlayerConnected, presence);
-        }
         return this.matches.buildStateMessage(
           match,
           { type: 'player', playerId: player.playerId },
@@ -165,11 +178,11 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   @SubscribeMessage(ClientEvents.GameAction)
-  async action(
+  action(
     @ConnectedSocket() socket: AppSocket,
     @MessageBody() body: unknown,
   ): Promise<Ack<GameActionAccepted>> {
-    const result = await this.ack(async () => {
+    return this.ack(async () => {
       if (!socket.data.actionLimiter.tryConsume()) {
         throw new AppError(ErrorCodes.RateLimited, 'Too many actions. Slow down.', 429);
       }
@@ -183,24 +196,11 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
         now: new Date(),
       });
     });
-
-    if (result.ok) {
-      socket.emit(ServerEvents.GameActionAccepted, result.data);
-    } else {
-      const ids = body as { gameId?: unknown; requestId?: unknown } | null;
-      const rejected: GameActionRejected = {
-        gameId: typeof ids?.gameId === 'string' ? ids.gameId : '',
-        requestId: typeof ids?.requestId === 'string' ? ids.requestId : '',
-        error: result.error,
-      };
-      socket.emit(ServerEvents.GameActionRejected, rejected);
-    }
-    return result;
   }
 
   @OnEvent(PlatformEvents.RoomUpdated)
   async onRoomUpdated(event: RoomUpdatedEvent): Promise<void> {
-    const room = await this.rooms.getDto(event.roomId);
+    const { room } = event;
     this.server.to(channels.room(event.roomId)).emit(ServerEvents.RoomUpdated, room);
     // Notify removed members once, then revoke every tab's room subscription.
     const memberIds = new Set(room.members.map((member) => member.userId));
@@ -209,6 +209,18 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
         await socket.leave(channels.room(event.roomId));
       }
     }
+    this.noticeLobby();
+  }
+
+  /** At once when the lobby has been quiet, otherwise once for everything since the last one. */
+  private noticeLobby(): void {
+    if (this.lobbyNoticeTimer) return;
+    const wait = Math.max(0, this.lobbyNoticeAt + LOBBY_NOTICE_INTERVAL_MS - Date.now());
+    this.lobbyNoticeTimer = setTimeout(() => {
+      this.lobbyNoticeTimer = null;
+      this.lobbyNoticeAt = Date.now();
+      this.server.to(channels.lobby).emit(ServerEvents.LobbyChanged);
+    }, wait);
   }
 
   /** The handshake only stops new connections; this ends the ones already open. */
@@ -226,7 +238,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   /** Control handoffs do not advance the engine's action sequence. */
   @OnEvent(PlatformEvents.MatchControlChanged)
   async onMatchControlChanged(event: MatchStateChangedEvent): Promise<void> {
-    const access = await this.matches.getAccessForBroadcast(event.matchId);
+    const access = await this.matches.getSummaryForBroadcast(event.matchId);
     if (!access) return;
     this.server
       .to(channels.match(event.matchId))
@@ -240,9 +252,13 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     if (!access) return;
     const { match, players } = access;
 
+    // A view is built and encoded only for a seat someone has open: not for computer players,
+    // people who have put their phone down, or an empty gallery.
     for (const player of players) {
+      const channel = channels.matchPlayer(match.id, player.playerId);
+      if (!this.hasListeners(channel)) continue;
       this.server
-        .to(channels.matchPlayer(match.id, player.playerId))
+        .to(channel)
         .emit(
           ServerEvents.GameState,
           this.matches.buildStateMessage(
@@ -252,12 +268,18 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
           ),
         );
     }
+    const spectators = channels.matchSpectators(match.id);
+    if (!this.hasListeners(spectators)) return;
     this.server
-      .to(channels.matchSpectators(match.id))
+      .to(spectators)
       .emit(
         ServerEvents.GameState,
         this.matches.buildStateMessage(match, { type: 'spectator' }, players),
       );
+  }
+
+  private hasListeners(channel: string): boolean {
+    return (this.server.sockets.adapter.rooms.get(channel)?.size ?? 0) > 0;
   }
 
   /**
@@ -266,7 +288,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
    */
   @OnEvent(PlatformEvents.MatchFinished)
   async onMatchFinished(event: MatchFinishedEvent): Promise<void> {
-    const access = await this.matches.getAccessForBroadcast(event.matchId);
+    const access = await this.matches.getSummaryForBroadcast(event.matchId);
     const match = access?.match;
     if (!match || match.status === 'playing') return;
     const finished: GameFinishedMessage = {
@@ -275,18 +297,6 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       result: match.result ?? null,
     };
     this.server.to(channels.match(match.id)).emit(ServerEvents.GameFinished, finished);
-  }
-
-  /** Only reports a player gone when their last socket for that match has closed. */
-  private async emitPresence(
-    event: typeof ServerEvents.PlayerDisconnected,
-    gameId: string,
-    playerId: string,
-  ): Promise<void> {
-    const remaining = await this.server.in(channels.matchPlayer(gameId, playerId)).fetchSockets();
-    if (remaining.length > 0) return;
-    const presence: PlayerPresenceMessage = { gameId, playerId };
-    this.server.to(channels.match(gameId)).emit(event, presence);
   }
 
   private parse<T extends z.ZodType>(schema: T, body: unknown): z.infer<T> {

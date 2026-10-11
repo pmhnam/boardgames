@@ -5,6 +5,22 @@
 
 name: boardgames
 
+# Docker keeps every line a container prints, for ever, unless told otherwise.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+# A check every few seconds is a process started every few seconds, all day. Once a service is
+# up it is asked twice a minute; `start_interval` keeps the first answer, and so a deploy, quick.
+x-healthcheck: &healthcheck
+  interval: 30s
+  timeout: 3s
+  retries: 3
+  start_period: 60s
+  start_interval: 2s
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -17,10 +33,9 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks: [internal]
     healthcheck:
+      <<: *healthcheck
       test: ['CMD-SHELL', 'pg_isready -U bgp -d bgp']
-      interval: 5s
-      timeout: 3s
-      retries: 20
+    logging: *logging
 
   api:
     build:
@@ -48,15 +63,10 @@ services:
         condition: service_healthy
     networks: [internal]
     healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 5s
+      <<: *healthcheck
+      # busybox wget, not `node -e`: a whole Node runtime is a lot to start for one request.
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:3000/api/health']
+    logging: *logging
 
   web:
     build:
@@ -70,10 +80,9 @@ services:
         condition: service_healthy
     networks: [internal, proxy]
     healthcheck:
+      <<: *healthcheck
       test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1/api/health']
-      interval: 5s
-      timeout: 3s
-      retries: 20
+    logging: *logging
 
 volumes:
   pgdata:

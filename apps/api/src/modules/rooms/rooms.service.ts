@@ -78,7 +78,8 @@ export class RoomsService {
       visibility: input.visibility,
       settings: parsed.settings,
     });
-    return this.getDto(id);
+    // Nobody is subscribed to a room this new, but the lobby has one more to list.
+    return this.changed(id);
   }
 
   /**
@@ -87,11 +88,21 @@ export class RoomsService {
    */
   async listForLobby(userId: string): Promise<RoomDto[]> {
     const createdAfter = new Date(Date.now() - LOBBY_ROOM_MAX_AGE_MS);
+    const records = await this.rooms.listActive(createdAfter, LOBBY_ROOM_LIMIT);
+    // Three queries however many rooms there are: this is the busiest read the lobby makes.
+    const [members, currentMatches] = await Promise.all([
+      this.rooms.listMembersForRooms(records.map((room) => room.id)),
+      this.rooms.findCurrentMatchIds(
+        records.filter((room) => room.status === 'in_match').map((room) => room.id),
+      ),
+    ]);
     const listed: RoomDto[] = [];
-    for (const room of await this.rooms.listActive(createdAfter, LOBBY_ROOM_LIMIT)) {
-      const members = await this.rooms.listMembers(room.id);
-      const isMember = members.some((member) => member.userId === userId);
-      if (room.visibility === 'public' || isMember) listed.push(await this.toDto(room, members));
+    for (const room of records) {
+      const roomMembers = members.get(room.id) ?? [];
+      const isMember = roomMembers.some((member) => member.userId === userId);
+      if (room.visibility === 'public' || isMember) {
+        listed.push(this.buildDto(room, roomMembers, currentMatches.get(room.id) ?? null));
+      }
     }
     return listed;
   }
@@ -386,7 +397,7 @@ export class RoomsService {
 
   private async changed(roomId: string): Promise<RoomDto> {
     const dto = await this.getDto(roomId);
-    const event: RoomUpdatedEvent = { roomId };
+    const event: RoomUpdatedEvent = { roomId, room: dto };
     await this.events.emitAsync(PlatformEvents.RoomUpdated, event);
     return dto;
   }
@@ -436,6 +447,18 @@ export class RoomsService {
   }
 
   private async toDto(room: RoomRecord, members: RoomMemberRecord[]): Promise<RoomDto> {
+    return this.buildDto(
+      room,
+      members,
+      room.status === 'in_match' ? await this.rooms.findCurrentMatchId(room.id) : null,
+    );
+  }
+
+  private buildDto(
+    room: RoomRecord,
+    members: RoomMemberRecord[],
+    currentMatchId: string | null,
+  ): RoomDto {
     return {
       id: room.id,
       code: room.code,
@@ -445,8 +468,7 @@ export class RoomsService {
       visibility: room.visibility,
       settings: room.settings,
       members,
-      currentMatchId:
-        room.status === 'in_match' ? await this.rooms.findCurrentMatchId(room.id) : null,
+      currentMatchId: room.status === 'in_match' ? currentMatchId : null,
       createdAt: room.createdAt.toISOString(),
     };
   }

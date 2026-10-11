@@ -1,3 +1,4 @@
+import type { RoomDto } from '@bgp/shared-types';
 import type { MatchSnapshot } from '../../modules/matches/match.repository.js';
 
 /** In-process domain events. Consumers (realtime today; analytics, ranking later) subscribe. */
@@ -12,6 +13,8 @@ export const PlatformEvents = {
 
 export interface RoomUpdatedEvent {
   roomId: string;
+  /** The room as it now stands, so that no listener has to read it back. */
+  room: RoomDto;
 }
 
 export interface MatchStartedEvent {

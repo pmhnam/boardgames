@@ -143,17 +143,22 @@ worker thread before running many bot matches at once.
 
 One Socket.IO connection per signed-in user, authenticated in the handshake.
 
-| Client → server | Server → client                                |
-| --------------- | ---------------------------------------------- |
-| `room.join`     | `room.updated`, `game.started`                 |
-| `room.leave`    |                                                |
-| `game.sync`     | `game.state`, `game.finished`                  |
-| `game.action`   | `game.action.accepted`, `game.action.rejected` |
-|                 | `player.connected`, `player.disconnected`      |
-| `voice.join`    | `voice.peer-joined`                            |
-| `voice.leave`   | `voice.peer-left`                              |
-| `voice.mute`    | `voice.peer-muted`                             |
-| `voice.signal`  | `voice.signal`                                 |
+| Client → server | Server → client                |
+| --------------- | ------------------------------ |
+| `lobby.join`    | `lobby.changed`                |
+| `lobby.leave`   |                                |
+| `room.join`     | `room.updated`, `game.started` |
+| `room.leave`    |                                |
+| `game.sync`     | `game.state`, `game.finished`  |
+| `game.action`   | `game.autoplay`                |
+| `voice.join`    | `voice.peer-joined`            |
+| `voice.leave`   | `voice.peer-left`              |
+| `voice.mute`    | `voice.peer-muted`             |
+| `voice.signal`  | `voice.signal`                 |
+
+`lobby.changed` carries nothing: it tells a lobby to fetch its own room list again, at most once
+every two seconds. A `game.state` is built only for seats and galleries someone has open. Frames
+over a kilobyte are compressed (`common/realtime/gateway-options.ts`).
 
 Every client event is acknowledged with `{ ok, data | error }`. Reconnecting is simple on
 purpose: on every `connect` the client sends `game.sync` and gets the latest snapshot; nothing

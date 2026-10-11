@@ -1,7 +1,8 @@
-import type { GameDefinitionDto, MatchDto, PlayerAutoplayDto } from '@bgp/shared-types';
+import type { MatchDto, PlayerAutoplayDto } from '@bgp/shared-types';
 import { Suspense, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
+import { gamesQuery } from '../../games/gamesQuery';
 import { getGameUi } from '../../games/registry';
 import { playerName } from '../../games/types';
 import { UnsupportedGame } from '../../games/UnsupportedGame';
@@ -41,10 +42,7 @@ export function MatchPage() {
   });
 
   // For the game's name. Shared with the lobby, so usually already loaded.
-  const games = useQuery({
-    queryKey: ['games'],
-    queryFn: () => api<GameDefinitionDto[]>('GET', '/games'),
-  });
+  const games = useQuery(gamesQuery);
 
   // A player is in the room the match belongs to, and so may be in its call.
   useVoiceRoom(message && message.viewerPlayerId !== null ? match.data?.roomId : null);

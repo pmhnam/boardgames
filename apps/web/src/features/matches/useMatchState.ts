@@ -50,6 +50,8 @@ export function useMatchState(gameId: string): MatchState {
   const control = useRef<{ gameId: string; players: PlayerAutoplayDto[] }>({ gameId, players: [] });
   const activeGameId = useRef(gameId);
   activeGameId.current = gameId;
+  /** The newest state the server has pushed, for code that runs between renders. */
+  const latest = useRef<Pick<GameStateMessage, 'gameId' | 'version' | 'status'> | null>(null);
 
   const mergeControl = useCallback(
     (incoming: GameAutoplayMessage) => {
@@ -77,6 +79,9 @@ export function useMatchState(gameId: string): MatchState {
     (incoming: GameStateMessage) => {
       if (incoming.gameId !== gameId || incoming.gameId !== activeGameId.current) return;
       mergeControl({ gameId, players: incoming.autoplay ?? [] });
+      if (latest.current?.gameId !== gameId || incoming.version >= latest.current.version) {
+        latest.current = incoming;
+      }
       setMessage((current) => acceptMatchMessage(current, incoming, control.current.players));
     },
     [gameId, mergeControl],
@@ -138,8 +143,16 @@ export function useMatchState(gameId: string): MatchState {
         }
         const resend = resendOnConflict && resendsLeft > 0;
         // Everyone who lost this race is about to do the same: waiting a moment each lets most
-        // of them fetch a state the others have already moved past.
+        // of them come back after the others have moved on.
         if (resend) await pause(Math.random() * RESEND_SPREAD_MS);
+        // The refusal says which version the match had reached, and the moves that won the race
+        // have been pushed here since: resending needs no fresh copy of the whole table.
+        const refusedAt = ack.error.details?.latestVersion;
+        if (resend && typeof refusedAt === 'number') {
+          const seen = latest.current?.gameId === gameId ? latest.current : null;
+          if (seen && seen.status !== 'playing') return setActionError(ack.error);
+          return attempt(Math.max(refusedAt, seen?.version ?? 0), resendsLeft - 1);
+        }
         // Our copy was stale: fetch the authoritative state instead of guessing.
         const fresh = await sync();
         if (resend && fresh?.status === 'playing') return attempt(fresh.version, resendsLeft - 1);

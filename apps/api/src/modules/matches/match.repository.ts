@@ -295,15 +295,16 @@ export class MatchRepository {
     });
   }
 
-  listForUser(userId: string, limit = 50): Promise<MatchRecord[]> {
+  /** Summaries only: a list of fifty matches has no use for fifty game states. */
+  listForUser(userId: string, limit = 50): Promise<MatchSummaryRecord[]> {
     return this.connection.db
-      .select({ match: matches })
+      .select(summaryColumns)
       .from(matches)
+      .innerJoin(rooms, eq(rooms.id, matches.roomId))
       .innerJoin(matchPlayers, eq(matchPlayers.matchId, matches.id))
       .where(and(eq(matchPlayers.userId, userId), retainedMatch()))
       .orderBy(desc(matches.createdAt))
-      .limit(limit)
-      .then((rows) => rows.map((row) => row.match));
+      .limit(limit);
   }
 
   /**

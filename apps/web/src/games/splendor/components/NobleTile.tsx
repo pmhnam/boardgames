@@ -1,10 +1,10 @@
 import { GEM_COLORS, type GemCounts, type Noble } from '@bgp/game-splendor';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { nobleImageUrl } from '../card-images';
 import { GemToken } from './GemToken';
 
-export function NobleTile({
+export const NobleTile = memo(function NobleTile({
   noble,
   bonuses,
   action,
@@ -59,4 +59,4 @@ export function NobleTile({
       {action}
     </div>
   );
-}
+});

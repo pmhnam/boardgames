@@ -20,6 +20,7 @@ import {
 } from '@bgp/shared-types';
 import type { DefaultEventsMap, Server, Socket } from 'socket.io';
 import { AppError } from '../../common/errors/app-error.js';
+import { GATEWAY_OPTIONS } from '../../common/realtime/gateway-options.js';
 import { PlatformEvents, type RoomUpdatedEvent } from '../../common/events/platform-events.js';
 import { parseWithSchema } from '../../common/pipes/zod-validation.pipe.js';
 import { RateLimiter } from '../../common/rate-limit/rate-limiter.js';
@@ -41,7 +42,7 @@ const callChannel = (roomId: string) => `voice:${roomId}`;
  * The signalling for calls. The sound never comes here: this only says who is in a room's
  * call and passes each browser's connection details to the one it names.
  */
-@WebSocketGateway({ cors: { origin: true, credentials: true } })
+@WebSocketGateway(GATEWAY_OPTIONS)
 export class VoiceGateway implements OnGatewayDisconnect {
   @WebSocketServer()
   private server: Server;
@@ -121,8 +122,9 @@ export class VoiceGateway implements OnGatewayDisconnect {
 
   /** Someone who left the room, or was removed from it, leaves its call with it. */
   @OnEvent(PlatformEvents.RoomUpdated)
-  async onRoomUpdated(event: RoomUpdatedEvent): Promise<void> {
-    for (const peer of await this.voice.dropNonMembers(event.roomId)) {
+  onRoomUpdated(event: RoomUpdatedEvent): void {
+    const memberIds = new Set(event.room.members.map((member) => member.userId));
+    for (const peer of this.voice.dropNonMembers(event.roomId, memberIds)) {
       const message: VoicePeerLeftMessage = { roomId: event.roomId, peerId: peer.peerId };
       // Told as well as the others: its own browser has a microphone to let go of.
       this.server.to(callChannel(event.roomId)).emit(ServerEvents.VoicePeerLeft, message);

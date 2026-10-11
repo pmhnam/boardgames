@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  index,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -68,18 +69,27 @@ export const gameConfigs = pgTable(
   (table) => [primaryKey({ columns: [table.gameType, table.version] })],
 );
 
-export const rooms = pgTable('rooms', {
-  id: uuid('id').primaryKey(),
-  code: text('code').notNull().unique(),
-  gameType: text('game_type').notNull(),
-  hostUserId: uuid('host_user_id')
-    .notNull()
-    .references(() => users.id),
-  status: text('status').$type<'open' | 'in_match' | 'closed'>().notNull(),
-  visibility: text('visibility').$type<'private' | 'public'>().notNull(),
-  settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
-  createdAt: createdAt(),
-});
+export const rooms = pgTable(
+  'rooms',
+  {
+    id: uuid('id').primaryKey(),
+    code: text('code').notNull().unique(),
+    gameType: text('game_type').notNull(),
+    hostUserId: uuid('host_user_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status').$type<'open' | 'in_match' | 'closed'>().notNull(),
+    visibility: text('visibility').$type<'private' | 'public'>().notNull(),
+    settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    // The lobby's list: rooms still in use, newest first. Closed rooms only ever pile up.
+    index('rooms_active_created_at_idx')
+      .on(table.createdAt.desc())
+      .where(sql`${table.status} <> 'closed'`),
+  ],
+);
 
 export const roomMembers = pgTable(
   'room_members',
@@ -99,30 +109,41 @@ export const roomMembers = pgTable(
   (table) => [
     primaryKey({ columns: [table.roomId, table.userId] }),
     unique('room_members_room_seat_unique').on(table.roomId, table.seat),
+    // "Which rooms am I seated in": the primary key leads with the room, so cannot answer it.
+    index('room_members_user_idx').on(table.userId),
   ],
 );
 
-export const matches = pgTable('matches', {
-  id: uuid('id').primaryKey(),
-  roomId: uuid('room_id')
-    .notNull()
-    .references(() => rooms.id),
-  gameType: text('game_type').notNull(),
-  engineVersion: integer('engine_version').notNull(),
-  /** The room settings this match was set up with, as validated at the time. */
-  settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
-  /** Which game_configs version this match was set up with. */
-  configVersion: integer('config_version').notNull().default(1),
-  status: text('status').$type<'playing' | 'finished' | 'abandoned'>().notNull(),
-  /** Never sent to clients as-is. */
-  state: jsonb('state').$type<OpaqueGameState>().notNull(),
-  stateVersion: bigint('state_version', { mode: 'number' }).notNull().default(0),
-  randomSeed: text('random_seed').notNull(),
-  result: jsonb('result').$type<{ winnerPlayerIds: string[]; scores?: Record<string, number> }>(),
-  createdAt: createdAt(),
-  startedAt: timestamp('started_at', { withTimezone: true }),
-  finishedAt: timestamp('finished_at', { withTimezone: true }),
-});
+export const matches = pgTable(
+  'matches',
+  {
+    id: uuid('id').primaryKey(),
+    roomId: uuid('room_id')
+      .notNull()
+      .references(() => rooms.id),
+    gameType: text('game_type').notNull(),
+    engineVersion: integer('engine_version').notNull(),
+    /** The room settings this match was set up with, as validated at the time. */
+    settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
+    /** Which game_configs version this match was set up with. */
+    configVersion: integer('config_version').notNull().default(1),
+    status: text('status').$type<'playing' | 'finished' | 'abandoned'>().notNull(),
+    /** Never sent to clients as-is. */
+    state: jsonb('state').$type<OpaqueGameState>().notNull(),
+    stateVersion: bigint('state_version', { mode: 'number' }).notNull().default(0),
+    randomSeed: text('random_seed').notNull(),
+    result: jsonb('result').$type<{ winnerPlayerIds: string[]; scores?: Record<string, number> }>(),
+    createdAt: createdAt(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (table) => [
+    // The match being played in a room, asked for with every room listed or opened.
+    index('matches_playing_room_idx')
+      .on(table.roomId)
+      .where(sql`${table.status} = 'playing'`),
+  ],
+);
 
 export const matchPlayers = pgTable(
   'match_players',
@@ -142,6 +163,8 @@ export const matchPlayers = pgTable(
   (table) => [
     primaryKey({ columns: [table.matchId, table.playerId] }),
     unique('match_players_match_user_unique').on(table.matchId, table.userId),
+    // A person's match history: the keys above lead with the match.
+    index('match_players_user_idx').on(table.userId),
   ],
 );
 

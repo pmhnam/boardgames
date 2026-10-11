@@ -83,17 +83,11 @@ export class VoiceService {
   }
 
   /**
-   * Takes out of a room's call everyone who is no longer one of its members, and says who they
-   * were. A room that is gone has no members left.
+   * Takes out of a room's call everyone who is not among its members as they now stand, and
+   * says who they were. A room that is gone has no members left.
    */
-  async dropNonMembers(roomId: string): Promise<VoicePeer[]> {
-    const inCall = this.calls.peers(roomId);
-    if (inCall.length === 0) return [];
-    const memberIds = await this.rooms
-      .getDto(roomId)
-      .then((room) => new Set(room.members.map((member) => member.userId)))
-      .catch(() => new Set<string>());
-    const dropped = inCall.filter((peer) => !memberIds.has(peer.userId));
+  dropNonMembers(roomId: string, memberIds: ReadonlySet<string>): VoicePeer[] {
+    const dropped = this.calls.peers(roomId).filter((peer) => !memberIds.has(peer.userId));
     for (const peer of dropped) this.calls.leave(peer.peerId);
     return dropped;
   }

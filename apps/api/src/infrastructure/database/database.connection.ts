@@ -27,13 +27,23 @@ export class DatabaseConnection implements OnApplicationShutdown {
       const { default: pg } = await import('pg');
       const { drizzle } = await import('drizzle-orm/node-postgres');
       const { migrate } = await import('drizzle-orm/node-postgres/migrator');
-      const pool = new pg.Pool({ connectionString: config.databaseUrl });
+      const pool = new pg.Pool({
+        connectionString: config.databaseUrl,
+        // Fail a request rather than queue it for ever behind a database that has gone away.
+        connectionTimeoutMillis: 10_000,
+      });
+      // An idle connection the server drops (a restart, a failover) reports here. Unheard, it
+      // would take the whole process down; heard, the pool simply opens another.
+      pool.on('error', (error) => logger.warn(`Idle database connection lost: ${error.message}`));
       const db = drizzle(pool, { schema });
       await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
       logger.log('Connected to PostgreSQL');
       return new DatabaseConnection(db as unknown as Database, () => pool.end());
     }
 
+    if (config.nodeEnv === 'production') {
+      throw new Error('DATABASE_URL must be set in production: PGlite is for development only.');
+    }
     const { PGlite } = await import('@electric-sql/pglite');
     const { drizzle } = await import('drizzle-orm/pglite');
     const { migrate } = await import('drizzle-orm/pglite/migrator');

@@ -1368,6 +1368,46 @@ describe('platform MVP flow', () => {
     expect(tooLate.body.error.code).toBe(ErrorCodes.RoomNotOpen);
   });
 
+  it('tells an open lobby when the rooms change, and only while it is open', async () => {
+    const host = await createClient('Host');
+    const watcher = await createClient('Watcher');
+    let notices = 0;
+    watcher.socket.on(ServerEvents.LobbyChanged, () => notices++);
+    expect((await watcher.emit(ClientEvents.LobbyJoin, undefined)).ok).toBe(true);
+
+    const { body: room } = await host.api<RoomDto>('POST', '/rooms', {
+      gameType: 'grid-claim',
+      visibility: 'public',
+    });
+    await waitFor(() => (notices > 0 ? notices : undefined), 'lobby notice');
+
+    // A burst of changes is one more notice, not one each.
+    const before = notices;
+    for (const ready of [true, false, true, false]) {
+      await host.api('POST', `/rooms/${room.id}/ready`, { ready });
+    }
+    await waitFor(() => (notices > before ? notices : undefined), 'gathered lobby notice');
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(notices).toBe(before + 1);
+
+    // The list a notice asks for names the match being played in a room.
+    await host.api('POST', `/rooms/${room.id}/bots`, { level: 'easy' });
+    await host.api('POST', `/rooms/${room.id}/ready`, { ready: true });
+    const { body: started } = await host.api<StartRoomResponse>('POST', `/rooms/${room.id}/start`);
+    const { body: rooms } = await watcher.api<RoomDto[]>('GET', '/rooms');
+    expect(rooms.find((listed) => listed.id === room.id)).toMatchObject({
+      status: 'in_match',
+      currentMatchId: started.matchId,
+    });
+
+    expect((await watcher.emit(ClientEvents.LobbyLeave, undefined)).ok).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 2100));
+    const afterLeaving = notices;
+    await host.api<RoomDto>('POST', '/rooms', { gameType: 'grid-claim', visibility: 'public' });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(notices).toBe(afterLeaving);
+  }, 15_000);
+
   it('lets a person play against computer players', async () => {
     const host = await createClient('Host');
     const guest = await createClient('Guest');

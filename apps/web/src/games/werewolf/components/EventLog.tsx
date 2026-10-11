@@ -1,4 +1,5 @@
 import type { LogEntry } from '@bgp/game-werewolf';
+import { memo } from 'react';
 
 function names(playerIds: string[], nameOf: (playerId: string) => string): string {
   return playerIds.map(nameOf).join(', ');
@@ -52,7 +53,13 @@ function Entry({ entry, nameOf }: { entry: LogEntry; nameOf(playerId: string): s
 }
 
 /** What the whole table has been told so far, newest first. */
-export function EventLog({ log, nameOf }: { log: LogEntry[]; nameOf(playerId: string): string }) {
+export const EventLog = memo(function EventLog({
+  log,
+  nameOf,
+}: {
+  log: LogEntry[];
+  nameOf(playerId: string): string;
+}) {
   return (
     <section className="card" aria-label="Nhật ký">
       <h2>Nhật ký</h2>
@@ -67,4 +74,4 @@ export function EventLog({ log, nameOf }: { log: LogEntry[]; nameOf(playerId: st
       )}
     </section>
   );
-}
+});
