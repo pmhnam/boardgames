@@ -1013,6 +1013,23 @@
   font-size: 0.7rem;
 }
 
+/* Another player's cards share the width of the panel, at least three to a row: a card gives
+   up some of its width before a third one drops to a row of its own. */
+.harmonies-player .harmonies-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(6.4rem, 30%), 1fr));
+  gap: 0.4rem;
+}
+
+.harmonies-player .animal-card.compact {
+  width: auto;
+}
+
+.harmonies-player .animal-card.compact .card-points {
+  grid-template-columns: repeat(auto-fit, minmax(1rem, 1fr));
+  gap: 0.15rem;
+}
+
 /* On a phone the cards on offer are one row to swipe through, not five to scroll past. */
 @media (max-width: 56rem) {
   .harmonies-river .harmonies-card-list {
