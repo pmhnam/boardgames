@@ -6,6 +6,7 @@ import {
 } from '@bgp/game-splendor';
 import type { CSSProperties, ReactNode } from 'react';
 import { useState } from 'react';
+import { useArtStyle } from '../artStyle';
 import { cardBackImageUrl, cardImageUrl } from '../card-images';
 import { CARD_TINT, TIER_LABEL, TOKEN_LABEL, TOKEN_NAME } from '../layout';
 import { GemToken } from './GemToken';
@@ -84,7 +85,7 @@ export function DevCardView({
 }) {
   const [image, setImage] = useState<'loading' | 'shown' | 'failed'>('loading');
   const imageUrl = cardImageUrl(card);
-  const artwork = imageUrl !== undefined && image !== 'failed';
+  const artwork = useArtStyle() === 'image' && imageUrl !== undefined && image !== 'failed';
   const costColors = GEM_COLORS.filter((color) => card.cost[color] > 0);
   const reach = !shortfall
     ? ''
@@ -169,7 +170,9 @@ export function CardBack({
   count,
   ...selectable
 }: Selectable & { tier: Tier; count?: number }) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const style = useArtStyle();
+  const [failed, setImageFailed] = useState(false);
+  const imageFailed = failed || style === 'color';
   const label =
     count === undefined
       ? `Hidden tier ${TIER_LABEL[tier]} card`

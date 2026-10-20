@@ -1259,3 +1259,26 @@ button.splendor-card:disabled {
     gap: 0.5rem;
   }
 }
+
+.splendor-view-controls {
+  gap: 0.5rem;
+}
+
+.splendor-winner-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.splendor-winner-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+}

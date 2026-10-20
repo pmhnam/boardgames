@@ -16,7 +16,9 @@ import { NobleTile } from './components/NobleTile';
 import { PlayerPanel } from './components/PlayerPanel';
 import { ReturnPrompt } from './components/ReturnPrompt';
 import { TIER_LABEL } from './layout';
+import { setArtStyle, useArtStyle } from './artStyle';
 import { useLastMove } from './useLastMove';
+import { WinnerDialog } from './components/WinnerDialog';
 import { useSharedView } from '../shared/useSharedView';
 import { useStableHandler } from '../shared/useStableHandler';
 import { useTurnAlerts } from '../shared/useTurnAlerts';
@@ -118,6 +120,10 @@ export function SplendorGameView({
   /** Seated in a game still going: the only viewer who gets controls. */
   const interactive = mine !== undefined && playing;
   const lastMove = useLastMove(message);
+  const artStyle = useArtStyle();
+  const finished = view.phase === 'FINISHED' && view.winnerPlayerIds.length > 0;
+  /** The popup comes up once when the game ends, and stays shut once closed. */
+  const [winnersSeen, setWinnersSeen] = useState(false);
 
   /**
    * What the player has in hand, and the state it is put down after: the one their own action
@@ -252,7 +258,33 @@ export function SplendorGameView({
             : ''}
           First to {view.targetScore} points · turn {turn.number}
         </p>
+        <div className="row wrap splendor-view-controls">
+          <button
+            type="button"
+            className="secondary"
+            aria-pressed={artStyle === 'color'}
+            onClick={() => setArtStyle(artStyle === 'image' ? 'color' : 'image')}
+          >
+            {artStyle === 'image' ? '🎨 Giao diện: Hình' : '🎨 Giao diện: Màu'}
+          </button>
+          {finished && winnersSeen && (
+            <button type="button" className="secondary" onClick={() => setWinnersSeen(false)}>
+              🏆 Xem người thắng
+            </button>
+          )}
+        </div>
       </header>
+
+      {finished && !winnersSeen && (
+        <WinnerDialog
+          viewerId={me}
+          winners={view.winnerPlayerIds.flatMap((playerId) => {
+            const player = view.players[playerId];
+            return player ? [{ playerId, name: playerName(players, playerId), player }] : [];
+          })}
+          onClose={() => setWinnersSeen(true)}
+        />
+      )}
 
       {autoplay && me !== null && playing && message.status === 'playing' && (
         <>
